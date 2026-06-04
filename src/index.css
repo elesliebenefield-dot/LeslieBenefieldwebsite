@@ -139,7 +139,7 @@ section[id] {
 
 .nav-logo {
   font-family: var(--font-serif);
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   color: var(--color-text);
   white-space: nowrap;
 }
@@ -472,7 +472,7 @@ section[id] {
 }
 
 .work-card-thumb {
-  height: 200px;
+  height: 220px;
   overflow: hidden;
   background-color: var(--color-bg-alt);
 }
@@ -669,23 +669,11 @@ section[id] {
 }
 
 .contact-inner .section-subtitle {
-  margin: 0 auto 1.5rem;
+  margin: 0 auto 2rem;
 }
 
-.contact-placeholder {
-  padding: 1.5rem;
-  background-color: var(--color-bg);
-  border-radius: var(--radius-md);
-  border: 1.5px dashed var(--color-border);
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-@media (min-width: 768px) {
-  .contact-placeholder {
-    padding: 2.5rem;
-  }
+.contact-btn {
+  margin-top: 0.25rem;
 }
 
 /* ─── Footer ─────────────────────────────────────────────── */

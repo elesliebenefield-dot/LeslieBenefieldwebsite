@@ -7,6 +7,7 @@ const projects = [
     img: ashleysImg,
     imgAlt: "Ashley's Pet Care website screenshot",
     isIcon: false,
+    thumbPosition: 'center 18%',
     status: 'Client Project',
     title: "Ashley's Pet Care",
     desc: 'A custom website for a local pet care business focused on building trust, showcasing services, and making it easy for clients to get in touch.',
@@ -17,6 +18,7 @@ const projects = [
     img: sissysImg,
     imgAlt: "Sissy's Sweets by EM website screenshot",
     isIcon: false,
+    thumbPosition: 'center 6%',
     status: 'Client Project',
     title: "Sissy's Sweets by EM",
     desc: 'A custom bakery website designed to showcase products, highlight customer reviews, and make ordering simple and approachable.',
@@ -27,6 +29,7 @@ const projects = [
     img: mosaicImg,
     imgAlt: 'MosaicTessera app icon',
     isIcon: true,
+    thumbPosition: 'center',
     status: 'Live on Google Play',
     title: 'MosaicTessera',
     desc: 'A private health and life journaling app designed to help people organize symptoms, medications, appointments, and personal wellness information.',
@@ -54,6 +57,7 @@ export default function Work() {
                   src={p.img}
                   alt={p.imgAlt}
                   className={`work-card-thumb-img${p.isIcon ? ' work-card-thumb-img--icon' : ''}`}
+                  style={p.isIcon ? undefined : { objectPosition: p.thumbPosition }}
                 />
               </div>
               <div className="work-card-body">

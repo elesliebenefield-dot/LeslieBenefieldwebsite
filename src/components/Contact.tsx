@@ -4,9 +4,16 @@ export default function Contact() {
       <div className="contact-inner">
         <p className="section-label">Get In Touch</p>
         <h2 className="section-title">Let's work together.</h2>
-        <div className="contact-placeholder">
-          Want to talk about a website or small project? Contact details are coming soon.
-        </div>
+        <p className="section-subtitle">
+          Have a website idea, refresh, or small project in mind? Send me a
+          message and I'll get back to you.
+        </p>
+        <a
+          href="mailto:mosaichealthapp@gmail.com"
+          className="btn btn-primary contact-btn"
+        >
+          Contact Me
+        </a>
       </div>
     </section>
   )
