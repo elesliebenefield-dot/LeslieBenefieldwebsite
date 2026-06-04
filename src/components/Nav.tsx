@@ -8,8 +8,13 @@ export default function Nav() {
           <li><a href="#services">Services</a></li>
           <li><a href="#work">Work</a></li>
           <li><a href="#process">Process</a></li>
-          <li><a href="#contact">Contact</a></li>
         </ul>
+        <a
+          href="mailto:mosaichealthapp@gmail.com"
+          className="nav-contact-btn"
+        >
+          Contact
+        </a>
       </div>
     </nav>
   )
