@@ -11,9 +11,9 @@
   --color-text-light: #628090;
   --color-border: #90BAB6;
 
-  --font-serif: 'Fraunces', Georgia, serif;
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body: 'Lora', Georgia, serif;
   --font-script: 'Sacramento', cursive;
-  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
 
   --max-width: 1080px;
   --radius-sm: 8px;
@@ -37,7 +37,7 @@ html {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   background-color: var(--color-bg);
   color: var(--color-text);
   line-height: 1.65;
@@ -69,7 +69,7 @@ section[id] {
 }
 
 .section-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: clamp(1.8rem, 4vw, 2.6rem);
   color: var(--color-text);
   line-height: 1.2;
@@ -77,6 +77,7 @@ section[id] {
 }
 
 .section-subtitle {
+  font-family: var(--font-body);
   font-size: 1rem;
   color: var(--color-text-muted);
   line-height: 1.75;
@@ -88,7 +89,7 @@ section[id] {
   display: inline-block;
   padding: 0.85rem 1.85rem;
   border-radius: var(--radius-sm);
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
@@ -223,7 +224,7 @@ section[id] {
 }
 
 .hero-headline {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.15;
   color: var(--color-text);
@@ -231,6 +232,7 @@ section[id] {
 }
 
 .hero-copy {
+  font-family: var(--font-body);
   font-size: 1rem;
   color: var(--color-text-muted);
   max-width: 510px;
@@ -299,6 +301,7 @@ section[id] {
 }
 
 .about-body p {
+  font-family: var(--font-body);
   color: var(--color-text-muted);
   line-height: 1.8;
   margin-bottom: 1rem;
@@ -345,6 +348,7 @@ section[id] {
 }
 
 .about-card-list li {
+  font-family: var(--font-body);
   font-size: 0.875rem;
   color: var(--color-text-muted);
   line-height: 1.5;
@@ -432,13 +436,14 @@ section[id] {
 }
 
 .service-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.05rem;
   color: var(--color-text);
   margin-bottom: 0.4rem;
 }
 
 .service-desc {
+  font-family: var(--font-body);
   font-size: 0.875rem;
   color: var(--color-text-muted);
   line-height: 1.65;
@@ -557,13 +562,14 @@ section[id] {
 }
 
 .work-card-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.15rem;
   color: var(--color-text);
   margin-bottom: 0.4rem;
 }
 
 .work-card-desc {
+  font-family: var(--font-body);
   font-size: 0.875rem;
   color: var(--color-text-muted);
   line-height: 1.65;
@@ -651,7 +657,7 @@ section[id] {
 }
 
 .process-number {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   color: var(--color-accent);
   opacity: 0.28;
@@ -667,7 +673,7 @@ section[id] {
 }
 
 .process-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.05rem;
   color: var(--color-text);
   margin-bottom: 0.3rem;
@@ -681,6 +687,7 @@ section[id] {
 }
 
 .process-desc {
+  font-family: var(--font-body);
   font-size: 0.85rem;
   color: var(--color-text-muted);
   line-height: 1.6;
