@@ -327,9 +327,67 @@ section[id] {
   font-weight: 600;
 }
 
+/* ─── Experience ─────────────────────────────────────────── */
+.experience {
+  background-color: var(--color-bg);
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .experience {
+    padding: 5rem 1.5rem;
+  }
+}
+
+.experience-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.75rem;
+}
+
+@media (min-width: 768px) {
+  .experience-inner {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: 2.5rem;
+  }
+}
+
+.experience-highlight {
+  background-color: var(--color-accent-light);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--color-accent);
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .experience-highlight {
+    padding: 2.25rem;
+  }
+}
+
+.experience-highlight-text {
+  font-family: var(--font-serif);
+  font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.experience-body p {
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  margin-bottom: 1rem;
+}
+
+.experience-body p:last-child {
+  margin-bottom: 0;
+}
+
 /* ─── Services ───────────────────────────────────────────── */
 .services {
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-alt);
   padding: 3rem 1.5rem;
 }
 
@@ -338,6 +396,7 @@ section[id] {
     padding: 5rem 1.5rem;
   }
 }
+
 
 .services-inner {
   max-width: var(--max-width);
@@ -373,7 +432,7 @@ section[id] {
 }
 
 .service-card {
-  background-color: var(--color-bg-alt);
+  background-color: var(--color-bg);
   border-radius: var(--radius-md);
   padding: 1.25rem 1.25rem;
   border: 1px solid var(--color-border);
@@ -413,7 +472,7 @@ section[id] {
 
 /* ─── Work ───────────────────────────────────────────────── */
 .work {
-  background-color: var(--color-bg-alt);
+  background-color: var(--color-bg);
   padding: 3rem 1.5rem;
 }
 
@@ -457,7 +516,7 @@ section[id] {
 }
 
 .work-card {
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-alt);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -557,7 +616,7 @@ section[id] {
 
 /* ─── Process ────────────────────────────────────────────── */
 .process {
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-alt);
   padding: 3rem 1.5rem;
 }
 
@@ -652,7 +711,7 @@ section[id] {
 
 /* ─── Contact ────────────────────────────────────────────── */
 .contact {
-  background-color: var(--color-bg-alt);
+  background-color: var(--color-bg);
   padding: 3rem 1.5rem;
   text-align: center;
 }
