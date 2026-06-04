@@ -10,7 +10,8 @@
   --color-text-light: #9A8A80;
   --color-border: #E0D8D1;
 
-  --font-serif: 'DM Serif Display', Georgia, serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-script: 'Sacramento', cursive;
   --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
 
   --max-width: 1080px;
@@ -138,10 +139,11 @@ section[id] {
 }
 
 .nav-logo {
-  font-family: var(--font-serif);
-  font-size: 1.3rem;
+  font-family: var(--font-script);
+  font-size: 1.6rem;
   color: var(--color-text);
   white-space: nowrap;
+  line-height: 1;
 }
 
 .nav-links {
@@ -694,6 +696,7 @@ section[id] {
 }
 
 .footer-text {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.85rem;
+  font-family: var(--font-script);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1rem;
 }
