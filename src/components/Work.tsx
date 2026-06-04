@@ -1,27 +1,37 @@
+import mosaicImg from '../assets/portfolio/mosaic-tessera.png'
+import ashleysImg from '../assets/portfolio/ashleys-pet-care.jpeg'
+import sissysImg from '../assets/portfolio/sissys-sweets.jpeg'
+
 const projects = [
   {
-    monogram: 'MT',
-    status: 'Live on Google Play',
-    title: 'MosaicTessera',
-    desc: 'A private health and life journaling app designed to help people organize symptoms, medications, appointments, health records, and personal wellness information.',
-    url: 'https://play.google.com/store/apps/details?id=com.mosaictessera.app',
-    buttonText: 'View on Google Play',
-  },
-  {
-    monogram: 'APC',
-    status: 'Portfolio Preview',
+    img: ashleysImg,
+    imgAlt: "Ashley's Pet Care website screenshot",
+    isIcon: false,
+    status: 'Client Project',
     title: "Ashley's Pet Care",
     desc: 'A custom website for a local pet care business focused on building trust, showcasing services, and making it easy for clients to get in touch.',
     url: 'https://ashleys-pet-care.vercel.app',
     buttonText: 'View Preview',
   },
   {
-    monogram: 'SSE',
-    status: 'Portfolio Preview',
+    img: sissysImg,
+    imgAlt: "Sissy's Sweets by EM website screenshot",
+    isIcon: false,
+    status: 'Client Project',
     title: "Sissy's Sweets by EM",
     desc: 'A custom bakery website designed to showcase products, highlight customer reviews, and make ordering simple and approachable.',
     url: 'https://sissyssweetsbyem.vercel.app',
     buttonText: 'View Preview',
+  },
+  {
+    img: mosaicImg,
+    imgAlt: 'MosaicTessera app icon',
+    isIcon: true,
+    status: 'Live on Google Play',
+    title: 'MosaicTessera',
+    desc: 'A private health and life journaling app designed to help people organize symptoms, medications, appointments, and personal wellness information.',
+    url: 'https://play.google.com/store/apps/details?id=com.mosaictessera.app',
+    buttonText: 'View on Google Play',
   },
 ]
 
@@ -40,7 +50,11 @@ export default function Work() {
           {projects.map((p) => (
             <div key={p.title} className="work-card">
               <div className="work-card-thumb">
-                <span className="work-card-monogram">{p.monogram}</span>
+                <img
+                  src={p.img}
+                  alt={p.imgAlt}
+                  className={`work-card-thumb-img${p.isIcon ? ' icon' : ''}`}
+                />
               </div>
               <div className="work-card-body">
                 <span className="work-card-status">{p.status}</span>

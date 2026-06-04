@@ -34,7 +34,8 @@ export default function Services() {
           <p className="section-label">What I Do</p>
           <h2 className="section-title">Services</h2>
           <p className="section-subtitle">
-            I keep things clear and practical. Here's what I can build for you.
+            I specialize in websites for small businesses and service providers —
+            clean, mobile-ready, and built to last.
           </p>
         </div>
         <div className="services-grid">
