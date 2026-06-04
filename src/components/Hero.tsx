@@ -13,10 +13,6 @@ export default function Hero() {
             Mobile-friendly websites for small businesses, creators, and service
             providers — built to be clear, useful, and genuinely yours.
           </p>
-          <div className="hero-buttons">
-            <a href="#work" className="btn btn-primary">View Work</a>
-            <a href="#contact" className="btn btn-outline">Contact Me</a>
-          </div>
         </div>
         <div className="hero-photo">
           <img

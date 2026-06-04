@@ -220,7 +220,7 @@ section[id] {
   font-size: 1rem;
   color: var(--color-text-muted);
   max-width: 510px;
-  margin: 0 auto 2rem;
+  margin: 0 auto;
   line-height: 1.75;
 }
 
@@ -228,19 +228,6 @@ section[id] {
   .hero-copy {
     margin-left: 0;
     margin-right: 0;
-  }
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 0.9rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-@media (min-width: 768px) {
-  .hero-buttons {
-    justify-content: flex-start;
   }
 }
 
