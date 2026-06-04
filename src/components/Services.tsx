@@ -1,0 +1,52 @@
+const services = [
+  {
+    icon: '🌐',
+    title: 'Simple Websites',
+    desc: 'Clean, fast, mobile-ready websites built from scratch for small businesses and individuals.',
+  },
+  {
+    icon: '✏️',
+    title: 'Website Refreshes',
+    desc: 'Update an existing site to feel modern, load faster, and better represent who you are today.',
+  },
+  {
+    icon: '📄',
+    title: 'Landing Pages',
+    desc: 'Focused, conversion-friendly landing pages that clearly communicate your offer.',
+  },
+  {
+    icon: '🗂️',
+    title: 'Portfolio & Personal Sites',
+    desc: 'Custom sites that help creatives and professionals show their work and tell their story.',
+  },
+  {
+    icon: '📱',
+    title: 'App-Style Web Experiences',
+    desc: 'Interactive, app-like web projects — from booking flows to simple tools and dashboards.',
+  },
+]
+
+export default function Services() {
+  return (
+    <section id="services" className="services">
+      <div className="services-inner">
+        <div className="services-header">
+          <p className="section-label">What I Do</p>
+          <h2 className="section-title">Services</h2>
+          <p className="section-subtitle">
+            I keep things clear and practical. Here's what I can build for you.
+          </p>
+        </div>
+        <div className="services-grid">
+          {services.map((s) => (
+            <div key={s.title} className="service-card">
+              <div className="service-icon">{s.icon}</div>
+              <h3 className="service-title">{s.title}</h3>
+              <p className="service-desc">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
