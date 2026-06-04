@@ -1,28 +1,28 @@
 const steps = [
   {
     number: '01',
-    title: 'Listen',
-    desc: 'I start by understanding your goals, your audience, and what success looks like for you.',
+    title: "Let's Talk",
+    desc: "A free first conversation about your business, goals, and what you're looking for.",
   },
   {
     number: '02',
-    title: 'Plan',
-    desc: 'Together we map out the structure, content, and look-and-feel before anything gets built.',
+    title: 'Planning & Discovery',
+    desc: "If we decide to move forward, we'll map out your content, goals, pages, and website needs in more detail. Planning session fees are credited toward the final project cost.",
   },
   {
     number: '03',
-    title: 'Build',
-    desc: 'I write clean, organized code and bring the design to life — mobile-first, always.',
+    title: 'Design & Content',
+    desc: "I'll shape the structure, visuals, and content direction so your website feels clear, personal, and useful.",
   },
   {
     number: '04',
-    title: 'Review',
-    desc: 'You see the work, give feedback, and we refine it together until it feels right.',
+    title: 'Build & Refine',
+    desc: "Your website comes to life. We'll review it together and make thoughtful adjustments before launch.",
   },
   {
     number: '05',
     title: 'Launch',
-    desc: "Once you're happy, we get your site live — and I make sure the handoff is smooth.",
+    desc: 'Once everything is ready, your website goes live and is ready to share.',
   },
 ]
 

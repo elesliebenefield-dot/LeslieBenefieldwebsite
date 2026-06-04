@@ -714,6 +714,48 @@ section[id] {
   line-height: 1.6;
 }
 
+/* ─── Value ──────────────────────────────────────────────── */
+.value {
+  background-color: var(--color-bg-alt);
+  padding: 2.5rem 1.5rem 0;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .value {
+    padding: 4rem 1.5rem 0;
+  }
+}
+
+.value-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+@media (min-width: 768px) {
+  .value-inner {
+    padding-bottom: 4rem;
+  }
+}
+
+.value-inner .section-title {
+  margin-bottom: 1.25rem;
+}
+
+.value-body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.8;
+  margin-bottom: 1rem;
+}
+
+.value-body:last-child {
+  margin-bottom: 0;
+}
+
 /* ─── Contact ────────────────────────────────────────────── */
 .contact {
   position: relative;

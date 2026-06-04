@@ -4,6 +4,7 @@ import About from './components/About'
 import Services from './components/Services'
 import Work from './components/Work'
 import Process from './components/Process'
+import Value from './components/Value'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 
@@ -17,6 +18,7 @@ export default function App() {
         <Services />
         <Work />
         <Process />
+        <Value />
         <Contact />
       </main>
       <Footer />
