@@ -1,15 +1,15 @@
 /* ─── Variables ─────────────────────────────────────────── */
 :root {
-  --color-bg: #F4F8F6;
-  --color-bg-alt: #E6EFEC;
+  --color-bg: #DFF0EC;
+  --color-bg-alt: #C2D9D6;
   --color-accent: #2D8A79;
   --color-accent-dark: #1D6A5A;
-  --color-accent-light: #DBF0EB;
-  --color-seafoam: #C8E4DE;
+  --color-accent-light: #A8CFCA;
+  --color-seafoam: #88B8B4;
   --color-text: #192B38;
-  --color-text-muted: #4C6070;
-  --color-text-light: #78909C;
-  --color-border: #C2D4D8;
+  --color-text-muted: #3A5264;
+  --color-text-light: #628090;
+  --color-border: #90BAB6;
 
   --font-serif: 'Fraunces', Georgia, serif;
   --font-script: 'Sacramento', cursive;
@@ -126,7 +126,7 @@ section[id] {
   position: sticky;
   top: 0;
   z-index: 100;
-  background-color: rgba(244, 248, 246, 0.92);
+  background-color: rgba(223, 240, 236, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--color-border);
@@ -184,8 +184,8 @@ section[id] {
   overflow: hidden;
   padding: 2.5rem 1.5rem 3rem;
   background:
-    radial-gradient(ellipse 55% 65% at 92% 18%, rgba(45, 138, 121, 0.09) 0%, transparent 70%),
-    radial-gradient(ellipse 55% 55% at 8% 85%, rgba(200, 228, 222, 0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 65% at 92% 18%, rgba(45, 138, 121, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 55% at 8% 85%, rgba(136, 184, 180, 0.70) 0%, transparent 65%),
     var(--color-bg);
 }
 
@@ -270,7 +270,7 @@ section[id] {
   position: relative;
   padding: 3rem 1.5rem;
   background:
-    radial-gradient(ellipse 65% 70% at 5% 15%, rgba(200, 228, 222, 0.50) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 70% at 5% 15%, rgba(136, 184, 180, 0.65) 0%, transparent 65%),
     var(--color-bg-alt);
 }
 
@@ -640,7 +640,7 @@ section[id] {
   background-color: var(--color-bg-alt);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  border-top: 2px solid rgba(45, 138, 121, 0.30);
+  border-top: 2px solid rgba(45, 138, 121, 0.55);
   box-shadow: var(--shadow-sm);
 }
 
@@ -692,7 +692,7 @@ section[id] {
   padding: 3rem 1.5rem;
   text-align: center;
   background:
-    radial-gradient(ellipse 70% 70% at 50% 30%, rgba(45, 138, 121, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 70% 70% at 50% 30%, rgba(45, 138, 121, 0.16) 0%, transparent 70%),
     var(--color-bg-alt);
 }
 
