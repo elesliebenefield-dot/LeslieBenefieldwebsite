@@ -2,25 +2,39 @@ export default function About() {
   return (
     <section id="about" className="about">
       <div className="about-inner">
-        <div className="about-highlight">
-          <p className="about-highlight-text">
-            Personal attention, direct communication, and work that's actually
-            built around your business — not a junior designer, not an agency handoff.
-          </p>
-        </div>
         <div className="about-body">
           <p className="section-label">About</p>
-          <h2 className="section-title">Hi, I'm Leslie.</h2>
+          <h2 className="section-title">
+            Websites built with real-world business experience.
+          </h2>
           <p>
-            I build thoughtful, mobile-friendly websites for small businesses,
-            creators, and service providers.
+            I'm Leslie Benefield. I build thoughtful, mobile-friendly websites
+            for small businesses, creators, and service providers.
           </p>
           <p>
-            After years in management, I started learning app development and
-            built <strong>MosaicTessera</strong>, a private health journaling app
-            now available on Google Play. That project taught me how much I enjoy
-            turning ideas into useful, polished digital experiences.
+            Before web design, I spent years working with customers, teams, and
+            day-to-day business operations across hospitality, food service,
+            retail, healthcare-adjacent work, logistics, security, government
+            contracting, and management.
           </p>
+          <p>
+            That background helps me build websites that do more than look
+            polished. I think about trust, customer experience, clear next
+            steps, and what a business owner actually needs from their website.
+          </p>
+          <p>
+            <strong>MosaicTessera</strong>, my private health journaling app
+            now available on Google Play, is proof that I can take a complex
+            digital project from idea to launch.
+          </p>
+        </div>
+        <div className="about-card">
+          <p className="about-card-label">Real-world perspective</p>
+          <ul className="about-card-list">
+            <li>10+ years in leadership and management</li>
+            <li>Customer-facing experience across multiple industries</li>
+            <li>Builder of MosaicTessera, live on Google Play</li>
+          </ul>
         </div>
       </div>
     </section>
