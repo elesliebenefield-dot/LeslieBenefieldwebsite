@@ -1,21 +1,27 @@
 const projects = [
   {
     monogram: 'MT',
-    status: 'In Progress',
+    status: 'Live on Google Play',
     title: 'MosaicTessera',
-    desc: 'A health journaling app designed to help people notice patterns in how they feel over time. Built with care and intentionality.',
+    desc: 'A private health and life journaling app designed to help people organize symptoms, medications, appointments, health records, and personal wellness information.',
+    url: 'https://play.google.com/store/apps/details?id=com.mosaictessera.app',
+    buttonText: 'View on Google Play',
   },
   {
     monogram: 'APC',
-    status: 'Portfolio Build',
+    status: 'Live Website',
     title: "Ashley's Pet Care",
-    desc: "A local pet care business website — clean, warm, and easy for pet owners to browse services and get in touch.",
+    desc: 'A custom website for a local pet care business focused on building trust, showcasing services, and making it easy for clients to get in touch.',
+    url: 'https://ashleys-pet-care.vercel.app',
+    buttonText: 'Visit Website',
   },
   {
     monogram: 'SSE',
-    status: 'Portfolio Build',
+    status: 'Live Website',
     title: "Sissy's Sweets by EM",
-    desc: 'A small bakery site showcasing handmade treats, with a focus on personality and mobile-friendly browsing.',
+    desc: 'A custom bakery website designed to showcase products, highlight customer reviews, and make ordering simple and approachable.',
+    url: 'https://sissyssweetsbyem.vercel.app',
+    buttonText: 'Visit Website',
   },
 ]
 
@@ -27,8 +33,7 @@ export default function Work() {
           <p className="section-label">My Work</p>
           <h2 className="section-title">Projects</h2>
           <p className="section-subtitle">
-            A mix of active projects and portfolio builds that show what I'm capable of.
-            More coming soon.
+            Real projects I've built, launched, or actively developed.
           </p>
         </div>
         <div className="work-grid">
@@ -41,6 +46,14 @@ export default function Work() {
                 <span className="work-card-status">{p.status}</span>
                 <h3 className="work-card-title">{p.title}</h3>
                 <p className="work-card-desc">{p.desc}</p>
+                <a
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="work-card-link"
+                >
+                  {p.buttonText}
+                </a>
               </div>
             </div>
           ))}
