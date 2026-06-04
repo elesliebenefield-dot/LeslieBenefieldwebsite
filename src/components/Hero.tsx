@@ -6,12 +6,12 @@ export default function Hero() {
       <div className="hero-inner">
         <div className="hero-text">
           <p className="hero-eyebrow">Website Designer & Developer</p>
-          <h1 className="hero-name">Leslie Benefield</h1>
-          <p className="hero-tagline">Websites for Small Businesses</p>
+          <h1 className="hero-headline">
+            Helping small businesses look as good online as they are in real life.
+          </h1>
           <p className="hero-copy">
-            I build thoughtful, mobile-friendly websites for small businesses,
-            creators, and service providers who need something clear, useful,
-            and genuinely theirs.
+            Mobile-friendly websites for small businesses, creators, and service
+            providers — built to be clear, useful, and genuinely yours.
           </p>
           <div className="hero-buttons">
             <a href="#work" className="btn btn-primary">View Work</a>

@@ -1,12 +1,11 @@
-import mosaicImg from '../assets/portfolio/mosaic-tessera.png'
 import ashleysImg from '../assets/portfolio/ashleys-pet-care.jpeg'
 import sissysImg from '../assets/portfolio/sissys-sweets.jpeg'
+import mosaicImg from '../assets/portfolio/mosaic-tessera-icon.jpeg'
 
 const projects = [
   {
     img: ashleysImg,
     imgAlt: "Ashley's Pet Care website screenshot",
-    isIcon: false,
     status: 'Client Project',
     title: "Ashley's Pet Care",
     desc: 'A custom website for a local pet care business focused on building trust, showcasing services, and making it easy for clients to get in touch.',
@@ -16,7 +15,6 @@ const projects = [
   {
     img: sissysImg,
     imgAlt: "Sissy's Sweets by EM website screenshot",
-    isIcon: false,
     status: 'Client Project',
     title: "Sissy's Sweets by EM",
     desc: 'A custom bakery website designed to showcase products, highlight customer reviews, and make ordering simple and approachable.',
@@ -26,7 +24,6 @@ const projects = [
   {
     img: mosaicImg,
     imgAlt: 'MosaicTessera app icon',
-    isIcon: true,
     status: 'Live on Google Play',
     title: 'MosaicTessera',
     desc: 'A private health and life journaling app designed to help people organize symptoms, medications, appointments, and personal wellness information.',
@@ -53,7 +50,7 @@ export default function Work() {
                 <img
                   src={p.img}
                   alt={p.imgAlt}
-                  className={`work-card-thumb-img${p.isIcon ? ' icon' : ''}`}
+                  className="work-card-thumb-img"
                 />
               </div>
               <div className="work-card-body">

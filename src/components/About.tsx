@@ -4,25 +4,25 @@ export default function About() {
       <div className="about-inner">
         <div className="about-highlight">
           <p className="about-highlight-text">
-            I build websites for small businesses, makers, and service providers —
-            people who need something that actually works and genuinely represents them.
+            You get me — not a junior designer, not an outsourced team. Every
+            project gets personal attention, direct communication, and design
+            decisions that are actually about your business.
           </p>
         </div>
         <div className="about-body">
           <p className="section-label">About</p>
-          <h2 className="section-title">Building with purpose.</h2>
+          <h2 className="section-title">How I got here.</h2>
           <p>
-            I'm Leslie Benefield, a website designer and developer. I work with small
-            businesses, local service providers, and creators who need a thoughtful
-            digital presence — not a template, not a rushed handoff.
+            I'm Leslie Benefield. After years in management, I started learning
+            app development and eventually built <strong>MosaicTessera</strong> —
+            a private health and life journaling app now available on Google Play.
           </p>
           <p>
-            On the app side, I also designed and shipped <strong>MosaicTessera</strong> —
-            a privacy-first health journaling app now live on Google Play. It's proof
-            that I can take a complex project from idea to production and get it done.
+            Along the way, I discovered that I genuinely enjoy building websites.
           </p>
           <p>
-            If you're ready for a website that feels like you, I'd love to talk.
+            Today I work with small businesses, creators, and service providers
+            who want something more personal than a cookie-cutter template.
           </p>
         </div>
       </div>
