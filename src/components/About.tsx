@@ -4,36 +4,27 @@ export default function About() {
       <div className="about-inner">
         <div className="about-body">
           <p className="section-label">About</p>
-          <h2 className="section-title">
-            Websites built with real-world business experience.
-          </h2>
+          <h2 className="section-title">Hi, I'm Leslie.</h2>
           <p>
-            I'm Leslie Benefield. I build thoughtful, mobile-friendly websites
-            for small businesses, creators, and service providers.
+            I build thoughtful, mobile-friendly websites for small businesses,
+            creators, and service providers.
           </p>
           <p>
-            Before web design, I spent years working with customers, teams, and
-            day-to-day business operations across hospitality, food service,
-            retail, healthcare-adjacent work, logistics, security, government
-            contracting, and management.
+            Before learning web and app development, I spent nearly 30 years
+            working with people, customers, teams, and businesses in the real world.
           </p>
           <p>
-            That background helps me build websites that do more than look
-            polished. I think about trust, customer experience, clear next
-            steps, and what a business owner actually needs from their website.
-          </p>
-          <p>
-            <strong>MosaicTessera</strong>, my private health journaling app
-            now available on Google Play, is proof that I can take a complex
-            digital project from idea to launch.
+            My passion has always been helping people — whether through technology,
+            problem-solving, customer service, leadership, or creating something useful.
+            That experience shapes the way I approach every project today.
           </p>
         </div>
         <div className="about-card">
           <p className="about-card-label">Real-world perspective</p>
           <ul className="about-card-list">
+            <li>Nearly 30 years of professional experience</li>
             <li>10+ years in leadership and management</li>
-            <li>Customer-facing experience across multiple industries</li>
-            <li>Builder of MosaicTessera, live on Google Play</li>
+            <li>Creator of MosaicTessera, available on Google Play</li>
           </ul>
         </div>
       </div>

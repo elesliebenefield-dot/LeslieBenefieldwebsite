@@ -210,10 +210,10 @@ section[id] {
 
 .hero-headline {
   font-family: var(--font-serif);
-  font-size: clamp(1.9rem, 4.5vw, 3.1rem);
-  line-height: 1.18;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1.15;
   color: var(--color-text);
-  margin-bottom: 1.1rem;
+  margin-bottom: 1rem;
 }
 
 .hero-copy {
