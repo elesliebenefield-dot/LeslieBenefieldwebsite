@@ -2,7 +2,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <p className="footer-text">
-        © 2026 Leslie Benefield.
+        Designed & Developed by Leslie Benefield © 2026
       </p>
     </footer>
   )

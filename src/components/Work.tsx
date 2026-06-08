@@ -42,7 +42,7 @@ export default function Work() {
   return (
     <section id="work" className="work">
       <div className="work-inner">
-        <div className="work-header">
+        <div className="work-header" data-reveal>
           <p className="section-label">My Work</p>
           <h2 className="section-title">Projects</h2>
           <p className="section-subtitle">
@@ -50,8 +50,13 @@ export default function Work() {
           </p>
         </div>
         <div className="work-grid">
-          {projects.map((p) => (
-            <div key={p.title} className="work-card">
+          {projects.map((p, i) => (
+            <div
+              key={p.title}
+              className="work-card"
+              data-reveal="premium"
+              data-reveal-delay={i + 1}
+            >
               <div className="work-card-thumb">
                 <img
                   src={p.img}

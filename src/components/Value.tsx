@@ -1,7 +1,7 @@
 export default function Value() {
   return (
     <section className="value">
-      <div className="value-inner">
+      <div className="value-inner" data-reveal>
         <h2 className="section-title">
           Built for real businesses, not enterprise budgets.
         </h2>

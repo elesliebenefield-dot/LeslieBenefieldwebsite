@@ -2,7 +2,7 @@ export default function About() {
   return (
     <section id="about" className="about">
       <div className="about-inner">
-        <div className="about-body">
+        <div className="about-body" data-reveal>
           <p className="section-label">About</p>
           <h2 className="section-title">Hi, I'm Leslie.</h2>
           <p>
@@ -19,7 +19,7 @@ export default function About() {
             That experience shapes the way I approach every project today.
           </p>
         </div>
-        <div className="about-card">
+        <div className="about-card" data-reveal data-reveal-delay="2">
           <p className="about-card-label">Real-world perspective</p>
           <ul className="about-card-list">
             <li>Nearly 30 years of professional experience</li>

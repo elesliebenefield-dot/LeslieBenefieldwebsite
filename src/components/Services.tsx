@@ -30,7 +30,7 @@ export default function Services() {
   return (
     <section id="services" className="services">
       <div className="services-inner">
-        <div className="services-header">
+        <div className="services-header" data-reveal>
           <p className="section-label">What I Do</p>
           <h2 className="section-title">Services</h2>
           <p className="section-subtitle">
@@ -39,8 +39,13 @@ export default function Services() {
           </p>
         </div>
         <div className="services-grid">
-          {services.map((s) => (
-            <div key={s.title} className="service-card">
+          {services.map((s, i) => (
+            <div
+              key={s.title}
+              className="service-card"
+              data-reveal="soft"
+              data-reveal-delay={i + 1}
+            >
               <div className="service-icon">{s.icon}</div>
               <h3 className="service-title">{s.title}</h3>
               <p className="service-desc">{s.desc}</p>

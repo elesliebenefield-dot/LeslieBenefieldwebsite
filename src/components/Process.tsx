@@ -30,7 +30,7 @@ export default function Process() {
   return (
     <section id="process" className="process">
       <div className="process-inner">
-        <div className="process-header">
+        <div className="process-header" data-reveal>
           <p className="section-label">How It Works</p>
           <h2 className="section-title">My Process</h2>
           <p className="section-subtitle">
@@ -38,8 +38,13 @@ export default function Process() {
           </p>
         </div>
         <div className="process-steps">
-          {steps.map((s) => (
-            <div key={s.number} className="process-step">
+          {steps.map((s, i) => (
+            <div
+              key={s.number}
+              className="process-step"
+              data-reveal
+              data-reveal-delay={i + 1}
+            >
               <div className="process-number">{s.number}</div>
               <h3 className="process-title">{s.title}</h3>
               <p className="process-desc">{s.desc}</p>

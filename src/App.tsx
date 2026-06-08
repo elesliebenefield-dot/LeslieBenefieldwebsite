@@ -7,8 +7,11 @@ import Process from './components/Process'
 import Value from './components/Value'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
+import { useScrollReveal } from './hooks/useScrollReveal'
 
 export default function App() {
+  useScrollReveal()
+
   return (
     <>
       <Nav />
