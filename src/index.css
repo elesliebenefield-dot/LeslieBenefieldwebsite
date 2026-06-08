@@ -311,7 +311,7 @@ section[id] {
   aspect-ratio: 4 / 5;
   object-fit: cover;
   object-position: center 15%;
-  box-shadow: 0 0 0 6px #F2A7A0, 0 8px 32px rgba(25, 43, 56, 0.18), 0 2px 8px rgba(25, 43, 56, 0.09);
+  box-shadow: 0 0 0 4px #F2A7A0, 0 8px 32px rgba(25, 43, 56, 0.18), 0 2px 8px rgba(25, 43, 56, 0.09);
 }
 
 @media (min-width: 768px) {
@@ -319,6 +319,7 @@ section[id] {
     max-width: 100%;
     aspect-ratio: 3 / 4;
     border-radius: 24px;
+    box-shadow: 0 0 0 5px #F2A7A0, 0 8px 32px rgba(25, 43, 56, 0.18), 0 2px 8px rgba(25, 43, 56, 0.09);
   }
 }
 
