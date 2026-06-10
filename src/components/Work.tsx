@@ -1,5 +1,5 @@
 import ashleysImg from '../assets/portfolio/ashleys-pet-care.jpeg'
-import sissysImg from '../assets/portfolio/sissys-sweets.jpeg'
+import sissysImg from '../assets/portfolio/sissys-sweets-2026.jpeg'
 import mosaicImg from '../assets/portfolio/mosaic-tessera-icon.jpeg'
 
 const projects = [
