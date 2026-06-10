@@ -12,7 +12,16 @@ export default function Contact() {
           href="mailto:mosaichealthapp@gmail.com"
           className="btn btn-primary contact-btn"
         >
-          Contact Me
+          Email Me
+        </a>
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header"
+          className="btn btn-primary contact-btn"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ marginLeft: '1rem' }}
+        >
+          Get a Quote
         </a>
       </div>
     </section>
