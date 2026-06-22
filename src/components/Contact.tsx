@@ -8,21 +8,22 @@ export default function Contact() {
           Have an idea for a website, refresh, or creative project?
           I'd love to hear about it.
         </p>
-        <a
-          href="mailto:mosaichealthapp@gmail.com"
-          className="btn btn-primary contact-btn"
-        >
-          Email Me
-        </a>
-        <a
-          href="https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header"
-          className="btn btn-primary contact-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ marginLeft: '1rem' }}
-        >
-          Get a Quote
-        </a>
+        <div className="contact-buttons">
+          <a
+            href="https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header"
+            className="btn btn-primary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Get a Free Quote
+          </a>
+          <a
+            href="mailto:mosaichealthapp@gmail.com"
+            className="btn btn-outline"
+          >
+            Email Me
+          </a>
+        </div>
       </div>
     </section>
   )

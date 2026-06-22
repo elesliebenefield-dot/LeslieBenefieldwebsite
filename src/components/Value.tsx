@@ -10,8 +10,9 @@ export default function Value() {
           doesn't have to become your second job.
         </p>
         <p className="value-body">
-          Many business owners discover that DIY platforms can be more expensive — in time,
-          frustration, monthly fees, and missed opportunities — than they expected.
+          When DIY isn't working anymore, I'm here to help. No confusing jargon, no
+          bloated consulting fees — just straightforward, honest help to get your
+          business seen.
         </p>
       </div>
     </section>

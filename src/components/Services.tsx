@@ -52,6 +52,12 @@ export default function Services() {
             </div>
           ))}
         </div>
+        <p className="services-support" data-reveal>
+          <strong>Helpful setup support</strong> — Depending on the project,
+          I can also help with domain setup, hosting/deployment, contact forms,
+          Google Forms, basic SEO, social preview images, mobile-friendly layout,
+          email/phone/social links, website cleanup, polish, and small updates.
+        </p>
       </div>
     </section>
   )

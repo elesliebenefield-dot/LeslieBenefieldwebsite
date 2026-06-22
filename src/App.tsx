@@ -1,10 +1,10 @@
 import Nav from './components/Nav'
 import Hero from './components/Hero'
-import About from './components/About'
+import Value from './components/Value'
 import Services from './components/Services'
 import Work from './components/Work'
+import About from './components/About'
 import Process from './components/Process'
-import Value from './components/Value'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import { useScrollReveal } from './hooks/useScrollReveal'
@@ -17,11 +17,11 @@ export default function App() {
       <Nav />
       <main>
         <Hero />
-        <About />
+        <Value />
         <Services />
         <Work />
+        <About />
         <Process />
-        <Value />
         <Contact />
       </main>
       <Footer />

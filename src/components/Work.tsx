@@ -43,8 +43,8 @@ export default function Work() {
     <section id="work" className="work">
       <div className="work-inner">
         <div className="work-header" data-reveal>
-          <p className="section-label">My Work</p>
-          <h2 className="section-title">Projects</h2>
+          <p className="section-label">Portfolio</p>
+          <h2 className="section-title">Recent Projects</h2>
           <p className="section-subtitle">
             Real projects I've built, launched, or actively developed.
           </p>
