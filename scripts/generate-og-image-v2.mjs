@@ -15,13 +15,13 @@ const svg = `
       <stop offset="100%" stop-color="#EEF5F5"/>
     </linearGradient>
 
-    <radialGradient id="gtr" cx="1100" cy="60" r="450" gradientUnits="userSpaceOnUse">
+    <radialGradient id="gtr" cx="1050" cy="80" r="500" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#4DA3A8" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#4DA3A8" stop-opacity="0"/>
     </radialGradient>
 
-    <radialGradient id="gbl" cx="100" cy="570" r="400" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#E4BDC6" stop-opacity="0.07"/>
+    <radialGradient id="gbl" cx="150" cy="550" r="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#E4BDC6" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="#E4BDC6" stop-opacity="0"/>
     </radialGradient>
   </defs>
@@ -32,64 +32,46 @@ const svg = `
   <rect width="1200" height="630" fill="url(#gbl)"/>
 
   <!-- Blush accent bar at top -->
-  <rect x="0" y="0" width="1200" height="4" fill="#E4BDC6"/>
-
-  <!-- Decorative dots -->
-  <circle cx="86"  cy="48" r="3.5" fill="#4DA3A8" opacity="0.20"/>
-  <circle cx="104" cy="48" r="3.5" fill="#4DA3A8" opacity="0.12"/>
-  <circle cx="122" cy="48" r="3.5" fill="#4DA3A8" opacity="0.06"/>
-  <circle cx="1078" cy="582" r="3.5" fill="#E4BDC6" opacity="0.20"/>
-  <circle cx="1096" cy="582" r="3.5" fill="#E4BDC6" opacity="0.12"/>
-  <circle cx="1114" cy="582" r="3.5" fill="#E4BDC6" opacity="0.06"/>
+  <rect x="0" y="0" width="1200" height="5" fill="#E4BDC6"/>
 
   <!-- Name -->
-  <text x="600" y="115" text-anchor="middle"
+  <text x="600" y="100" text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-style="italic" font-size="48" fill="#E4BDC6" opacity="0.80">
+    font-style="italic" font-size="42" fill="#1F3347">
     Leslie Benefield
   </text>
 
-  <!-- Thin divider -->
-  <rect x="545" y="130" width="110" height="1.5" rx="0.75" fill="#4DA3A8" opacity="0.30"/>
-
-  <!-- Eyebrow -->
-  <text x="600" y="165" text-anchor="middle"
+  <!-- Role line -->
+  <text x="600" y="140" text-anchor="middle"
     font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="13" font-weight="600" letter-spacing="5" fill="#4DA3A8">
-    INDEPENDENT WEB DEVELOPER
+    font-size="18" font-weight="500" letter-spacing="3" fill="#4DA3A8">
+    WEBSITE DESIGNER &amp; DEVELOPER
   </text>
 
-  <!-- Main headline -->
-  <text x="600" y="275" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="72" font-weight="700" fill="#1F3347">
-    Helping small businesses
-  </text>
-  <text x="600" y="360" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="72" font-weight="700" fill="#1F3347">
-    get online.
-  </text>
+  <!-- Divider -->
+  <rect x="490" y="165" width="220" height="2" rx="1" fill="#E4BDC6" opacity="0.50"/>
 
-  <!-- Blush accent underline -->
-  <rect x="465" y="378" width="270" height="3.5" rx="1.75" fill="#E4BDC6" opacity="0.50"/>
-
-  <!-- Tagline -->
-  <text x="600" y="440" text-anchor="middle"
+  <!-- Brand name — large -->
+  <text x="600" y="265" text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-size="22" fill="#5D7385">
-    Clean, affordable websites — without the DIY headache.
+    font-style="italic" font-size="72" fill="#E4BDC6">
+    Websites by Leslie
   </text>
 
-  <!-- Sub-tagline -->
-  <text x="600" y="475" text-anchor="middle"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-size="18" fill="#5D7385" opacity="0.70">
-    Built for real businesses, not enterprise budgets.
+  <!-- Tagline — two lines, big and bold -->
+  <text x="600" y="395" text-anchor="middle"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="62" font-weight="700" fill="#1F3347">
+    Affordable websites
+  </text>
+  <text x="600" y="478" text-anchor="middle"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="62" font-weight="700" fill="#1F3347">
+    without the DIY headache.
   </text>
 
   <!-- Sea glass bar at bottom -->
-  <rect x="0" y="626" width="1200" height="4" fill="#4DA3A8"/>
+  <rect x="0" y="625" width="1200" height="5" fill="#4DA3A8"/>
 </svg>
 `;
 
