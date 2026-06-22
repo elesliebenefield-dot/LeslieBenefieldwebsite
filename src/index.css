@@ -761,7 +761,7 @@ section[id] {
   gap: 1.75rem;
 }
 
-.about-body p {
+.about-body p:not(.section-label) {
   font-family: var(--font-body);
   color: var(--color-text-muted);
   line-height: 1.8;
