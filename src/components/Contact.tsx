@@ -18,10 +18,23 @@ export default function Contact() {
             Get a Free Quote
           </a>
           <a
-            href="mailto:mosaichealthapp@gmail.com"
+            href="mailto:websitesbyleslie01@gmail.com"
             className="btn btn-outline"
           >
             Email Me
+          </a>
+        </div>
+        <div className="contact-details">
+          <a href="tel:8505659114" className="contact-detail-link">
+            📞 850-565-9114
+          </a>
+          <a
+            href="https://www.facebook.com/share/1EB3v8j1Fz/"
+            className="contact-detail-link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Facebook
           </a>
         </div>
       </div>

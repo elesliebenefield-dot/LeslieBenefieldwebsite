@@ -1012,6 +1012,25 @@ section[id] {
   flex-wrap: wrap;
 }
 
+.contact-details {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.contact-detail-link {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  transition: color 0.2s;
+}
+
+.contact-detail-link:hover {
+  color: var(--color-accent);
+}
+
 /* ─── Motion & Interaction ───────────────────────────────── */
 
 [data-reveal] {
@@ -1106,6 +1125,25 @@ section[id] {
   background: linear-gradient(160deg, #1F3347, #162538);
   padding: 1.5rem;
   text-align: center;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.footer-link {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: rgba(253, 252, 250, 0.55);
+  transition: color 0.2s;
+}
+
+.footer-link:hover {
+  color: rgba(253, 252, 250, 0.9);
 }
 
 .footer-text {
