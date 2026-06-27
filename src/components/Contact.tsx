@@ -30,11 +30,12 @@ export default function Contact() {
           </a>
           <a
             href="https://www.facebook.com/share/1EB3v8j1Fz/"
-            className="contact-detail-link"
+            className="fb-link"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Facebook
+            <span className="fb-icon" aria-hidden="true">f</span>
+            Websites by Leslie
           </a>
         </div>
       </div>

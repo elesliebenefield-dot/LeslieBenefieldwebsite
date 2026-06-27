@@ -312,6 +312,17 @@ section[id] {
   font-weight: 600 !important;
 }
 
+.nav-mobile-divider {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(253, 252, 250, 0.4);
+  padding: 0.75rem 0 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+
 @media (max-width: 768px) {
   .nav-links {
     display: none;
@@ -1029,6 +1040,57 @@ section[id] {
 
 .contact-detail-link:hover {
   color: var(--color-accent);
+}
+
+/* Facebook icon link */
+.fb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  transition: color 0.2s;
+}
+
+.fb-link:hover {
+  color: #1877F2;
+}
+
+.fb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #1877F2;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Footer variant — slightly lighter text to match footer palette */
+.fb-link--footer {
+  color: rgba(253, 252, 250, 0.55);
+}
+
+.fb-link--footer:hover {
+  color: rgba(253, 252, 250, 0.9);
+}
+
+/* Nav mobile fb-link — match mobile link color */
+.nav-mobile .fb-link {
+  color: rgba(251, 252, 253, 0.8);
+  padding: 0.7rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nav-mobile .fb-link:hover {
+  color: #fff;
 }
 
 /* ─── Motion & Interaction ───────────────────────────────── */
