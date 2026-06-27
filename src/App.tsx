@@ -7,6 +7,7 @@ import About from './components/About'
 import Process from './components/Process'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
+import BackToTop from './components/BackToTop'
 import { useScrollReveal } from './hooks/useScrollReveal'
 import beachBg from './assets/backgrounds/beach-background.jpeg'
 
@@ -30,6 +31,7 @@ export default function App() {
         <Contact />
       </main>
       <Footer />
+      <BackToTop />
     </>
   )
 }

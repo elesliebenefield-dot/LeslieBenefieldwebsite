@@ -164,6 +164,13 @@ section[id] {
   transform: translateY(-1px);
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
 /* ─── Nav ────────────────────────────────────────────────── */
 .nav {
   position: sticky;
@@ -1008,9 +1015,17 @@ section[id] {
 
 .contact-buttons {
   display: flex;
+  flex-direction: column;
   gap: 0.6rem;
-  justify-content: center;
-  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.contact-buttons .btn {
+  width: 100%;
+  text-align: center;
 }
 
 .contact-details {
@@ -1158,6 +1173,39 @@ section[id] {
   }
   .work-card, .service-card, .work-card-thumb-img {
     transition: none;
+  }
+}
+
+/* ─── Back to Top ───────────────────────────────────────── */
+.back-to-top {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 90;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  opacity: 0.85;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.back-to-top svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .back-to-top:hover {
+    opacity: 1;
+    transform: translateY(-2px);
   }
 }
 
