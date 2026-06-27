@@ -11,67 +11,68 @@ const svg = `
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%"   stop-color="#FDFCFA"/>
-      <stop offset="50%"  stop-color="#F4F8F8"/>
+      <stop offset="60%"  stop-color="#F2F7F7"/>
       <stop offset="100%" stop-color="#EEF5F5"/>
     </linearGradient>
 
-    <radialGradient id="gtr" cx="1050" cy="80" r="500" gradientUnits="userSpaceOnUse">
+    <radialGradient id="gtr" cx="1100" cy="400" r="500" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#4DA3A8" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#4DA3A8" stop-opacity="0"/>
     </radialGradient>
 
-    <radialGradient id="gbl" cx="150" cy="550" r="450" gradientUnits="userSpaceOnUse">
+    <radialGradient id="gbl" cx="100" cy="400" r="450" gradientUnits="userSpaceOnUse">
       <stop offset="0%"   stop-color="#E4BDC6" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="#E4BDC6" stop-opacity="0"/>
     </radialGradient>
   </defs>
 
-  <!-- Background -->
+  <!-- Main background -->
   <rect width="1200" height="630" fill="url(#bg)"/>
   <rect width="1200" height="630" fill="url(#gtr)"/>
   <rect width="1200" height="630" fill="url(#gbl)"/>
 
-  <!-- Blush accent bar at top -->
-  <rect x="0" y="0" width="1200" height="5" fill="#E4BDC6"/>
+  <!-- Navy header band — matches site nav -->
+  <rect x="0" y="0" width="1200" height="130" fill="#1F3347"/>
+  <rect x="0" y="128" width="1200" height="3" fill="#4DA3A8" opacity="0.35"/>
 
-  <!-- Name -->
-  <text x="600" y="100" text-anchor="middle"
+  <!-- Brand name inside navy band — matches nav logo style -->
+  <text x="600" y="75" text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-style="italic" font-size="42" fill="#1F3347">
-    Leslie Benefield
-  </text>
-
-  <!-- Role line -->
-  <text x="600" y="140" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="18" font-weight="500" letter-spacing="3" fill="#4DA3A8">
-    WEBSITE DESIGNER &amp; DEVELOPER
-  </text>
-
-  <!-- Divider -->
-  <rect x="490" y="165" width="220" height="2" rx="1" fill="#E4BDC6" opacity="0.50"/>
-
-  <!-- Brand name — large -->
-  <text x="600" y="265" text-anchor="middle"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-style="italic" font-size="72" fill="#E4BDC6">
+    font-style="italic" font-size="56" fill="#E4BDC6">
     Websites by Leslie
   </text>
 
-  <!-- Tagline — two lines, big and bold -->
-  <text x="600" y="395" text-anchor="middle"
+  <!-- Role line inside band -->
+  <text x="600" y="112" text-anchor="middle"
     font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="62" font-weight="700" fill="#1F3347">
+    font-size="14" font-weight="500" letter-spacing="4" fill="#4DA3A8">
+    WEBSITE DESIGNER &amp; DEVELOPER
+  </text>
+
+  <!-- Main headline — big and bold, centered in lower area -->
+  <text x="600" y="305" text-anchor="middle"
+    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="74" font-weight="700" fill="#1F3347">
     Affordable websites
   </text>
-  <text x="600" y="478" text-anchor="middle"
+  <text x="600" y="396" text-anchor="middle"
     font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="62" font-weight="700" fill="#1F3347">
+    font-size="74" font-weight="700" fill="#1F3347">
     without the DIY headache.
   </text>
 
+  <!-- Blush accent underline below headline -->
+  <rect x="370" y="416" width="460" height="4" rx="2" fill="#E4BDC6" opacity="0.55"/>
+
+  <!-- Sub-tagline -->
+  <text x="600" y="492" text-anchor="middle"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="22" fill="#4DA3A8">
+    Simple. Affordable. Built for your business.
+  </text>
+
   <!-- Sea glass bar at bottom -->
-  <rect x="0" y="625" width="1200" height="5" fill="#4DA3A8"/>
+  <rect x="0" y="620" width="1200" height="10" fill="#1F3347"/>
 </svg>
 `;
 
