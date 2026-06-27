@@ -1,3 +1,18 @@
+const FacebookIcon = () => (
+  <svg
+    className="fb-icon"
+    aria-hidden="true"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+  >
+    <rect width="24" height="24" rx="5" fill="#1877F2" />
+    <path
+      d="M16.5 8H14V6.5C14 5.95 14.45 5.5 15 5.5h1.5V3h-2C11.91 3 10.5 4.41 10.5 6.5V8H8.5v2.5H10.5V21h3V10.5h2L16.5 8z"
+      fill="#fff"
+    />
+  </svg>
+)
+
 export default function Footer() {
   return (
     <footer className="footer">
@@ -17,7 +32,7 @@ export default function Footer() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span className="fb-icon" aria-hidden="true">f</span>
+          <FacebookIcon />
           Websites by Leslie
         </a>
       </div>
