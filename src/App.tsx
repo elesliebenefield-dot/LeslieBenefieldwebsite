@@ -1,6 +1,5 @@
 import Nav from './components/Nav'
 import Hero from './components/Hero'
-import Value from './components/Value'
 import Services from './components/Services'
 import Work from './components/Work'
 import About from './components/About'
@@ -23,7 +22,6 @@ export default function App() {
       <Nav />
       <main>
         <Hero />
-        <Value />
         <Services />
         <Work />
         <About />

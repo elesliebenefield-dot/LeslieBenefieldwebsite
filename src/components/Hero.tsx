@@ -3,15 +3,15 @@ export default function Hero() {
     <section id="hero" className="hero">
       <div className="hero-inner hero-inner--centered">
         <div className="hero-text">
-          <p className="hero-eyebrow">Website Designer & Developer</p>
+          <p className="hero-eyebrow">Independent Web Designer</p>
           <h1 className="hero-headline">
-            Helping small businesses get online without the DIY headache.
+            Good websites don't have to come from a big agency.
           </h1>
           <p className="hero-copy">
-            Whether you need a brand-new website or you're tired of fighting
-            with DIY builders, I'm here to help. I build clean, affordable
-            websites from scratch for small businesses that just need things
-            to work.
+            I design and build every site personally — working directly with
+            you from first conversation to launch. Simple process, no jargon,
+            no hand-offs. Just careful work for small businesses that want a
+            website they're actually proud of.
           </p>
           <div className="hero-ctas">
             <a

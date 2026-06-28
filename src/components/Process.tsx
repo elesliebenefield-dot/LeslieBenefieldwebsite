@@ -42,7 +42,8 @@ export default function Process() {
             <div
               key={s.number}
               className="process-step"
-              data-reveal
+              data-num={s.number}
+              data-reveal="soft"
               data-reveal-delay={i + 1}
             >
               <div className="process-number">{s.number}</div>
