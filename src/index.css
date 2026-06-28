@@ -1396,8 +1396,8 @@ section[id] {
 /* ─── Back to Top ───────────────────────────────────────── */
 .back-to-top {
   position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  right: max(1rem, env(safe-area-inset-right));
   z-index: 90;
   width: 40px;
   height: 40px;
@@ -1412,6 +1412,15 @@ section[id] {
   box-shadow: var(--shadow-md);
   opacity: 0.85;
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@media (max-width: 480px) {
+  .back-to-top {
+    width: 36px;
+    height: 36px;
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
 }
 
 .back-to-top svg {
