@@ -1482,3 +1482,19 @@ section[id] {
   color: var(--color-pop);
   font-size: 1.1rem;
 }
+
+.footer-contact {
+  margin-top: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: rgba(253, 252, 250, 0.55);
+}
+
+.footer-phone {
+  color: rgba(253, 252, 250, 0.55);
+  transition: color 0.2s;
+}
+
+.footer-phone:hover {
+  color: rgba(253, 252, 250, 0.9);
+}
