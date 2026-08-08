@@ -27,7 +27,7 @@ export default function Footer() {
       </p>
 
       <div className="footer-payments">
-        <p className="footer-payments-label">Payments processed securely through Stripe</p>
+        <p className="footer-payments-label">Secure online payments accepted</p>
         <div className="footer-payment-icons">
           {PAYMENT_METHODS.map((method) => (
             <span className="pay-icon" key={method.alt}>
