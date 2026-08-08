@@ -105,6 +105,18 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     return false
   }
 
+  // A wrapper whose only content is a nested element (e.g. a nav <li> around an
+  // <a>) has no text of its own — its computed `color` is just whatever it
+  // inherits, unrelated to the actually-visible text painted by its child. Text
+  // and contrast checks should only ever evaluate the element that actually
+  // renders the glyphs.
+  function hasOwnText(el: Element): boolean {
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE && (node.textContent || '').trim().length > 0) return true
+    }
+    return false
+  }
+
   function accessibleName(el: Element): string {
     const aria = el.getAttribute('aria-label')
     if (aria && aria.trim()) return aria.trim()
@@ -254,7 +266,7 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   // ─── 5. Text readability ────────────────────────────────────
   const textIssues: RawTextIssue[] = []
   const textEls = Array.from(document.querySelectorAll<HTMLElement>('p, li, span, a, h1, h2, h3, h4')).filter(
-    (el) => isVisible(el) && !isSrOnly(el) && (el.textContent || '').trim().length > 3
+    (el) => isVisible(el) && !isSrOnly(el) && hasOwnText(el) && (el.textContent || '').trim().length > 3
   )
 
   function relativeLuminance(r: number, g: number, b: number): number {

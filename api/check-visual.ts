@@ -16,6 +16,7 @@ import { assertSafeUrl, createHostnameSafetyCache, UnsafeUrlError } from '../src
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
 import { collectPageMeasurements, type RawMeasurements } from '../src/lib/visualAnalysis.js'
 import { buildVisualReport } from '../src/lib/visualScoring.js'
+import { scrollThroughPageAndSettle } from '../src/lib/scrollSettle.js'
 import type { VisualCheckResponse, DiagnosticStage } from '../src/lib/visualCheck.js'
 import { VISUAL_CHECK_COUNT } from '../src/lib/visualCheck.js'
 
@@ -126,34 +127,6 @@ async function hardenPage(page: Page): Promise<void> {
   })
 }
 
-/** Scrolls through the page in bounded steps so loading="lazy" images/content get a
- *  chance to trigger, then returns to the top before measuring — otherwise below-the-
- *  fold lazy images would be misread as "broken" simply because they were never
- *  scrolled into view. Bounded to a small number of steps so it can't run away on an
- *  unusually long page. */
-async function triggerLazyContent(page: Page): Promise<void> {
-  try {
-    await page.evaluate(async () => {
-      const step = Math.max(300, window.innerHeight * 0.8)
-      const maxSteps = 12
-      let y = 0
-      for (let i = 0; i < maxSteps; i++) {
-        y += step
-        window.scrollTo(0, y)
-        // Each stop needs real time for the browser to notice the intersection
-        // and actually kick off + finish the lazy-load fetch — a short poll here
-        // is far more reliable than a single fixed delay per step.
-        await new Promise((r) => setTimeout(r, 250))
-        if (y >= document.documentElement.scrollHeight) break
-      }
-      window.scrollTo(0, 0)
-    })
-    await new Promise((r) => setTimeout(r, 600))
-  } catch {
-    // Non-fatal — proceed with whatever had a chance to load.
-  }
-}
-
 async function measureViewport(
   browser: Browser,
   url: string,
@@ -189,7 +162,11 @@ async function measureViewport(
     } catch {
       return null
     }
-    await triggerLazyContent(page)
+    try {
+      await scrollThroughPageAndSettle(page)
+    } catch {
+      // Non-fatal — proceed with whatever had a chance to load/settle.
+    }
     await new Promise((r) => setTimeout(r, label === 'desktop' ? SETTLE_MS : MOBILE_SETTLE_MS))
 
     stage.current = 'analyzing-page'
