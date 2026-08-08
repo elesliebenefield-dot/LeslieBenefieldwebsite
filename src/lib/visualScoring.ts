@@ -141,15 +141,15 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
           const hasUsableMobileNav = (m.menuButtonFound && m.menuButtonHasAccessibleName) || (m.found && !m.linksOverflowViewport)
           if (!hasUsableMobileNav) {
             if (m.menuButtonFound && !m.menuButtonHasAccessibleName) {
-              problems.push('A mobile menu control was found, but it doesn’t have an accessible name (e.g. aria-label) for screen reader users.')
+              problems.push('A mobile menu button was found, but it doesn’t have a label that people using screen readers can hear, which can make it harder for them to use.')
               ratioLost += 0.25
             } else if (!m.menuButtonFound && m.linksOverflowViewport) {
-              problems.push('Navigation links overflow the mobile viewport and no mobile menu control was found.')
+              problems.push('Some navigation links don’t fit on the mobile screen, and no mobile menu button was found to hold the rest.')
               ratioLost += 0.4
             }
           }
           if (m.stickyHeaderHeight !== null && mobile && m.stickyHeaderHeight / mobile.viewport.height > 0.22) {
-            problems.push('A fixed/sticky header consumes a large portion of the mobile screen.')
+            problems.push('The header that stays visible while scrolling takes up a large portion of the mobile screen.')
             ratioLost += 0.2
           }
         }
@@ -178,7 +178,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
         ratioLost += 0.4
       }
       if (logo.distortedAspectRatio) {
-        problems.push('The logo’s rendered proportions differ noticeably from its natural aspect ratio, suggesting it may be stretched.')
+        problems.push('The logo appears stretched out of its normal shape.')
         ratioLost += 0.3
       }
       if (logo.likelyBlurry) {
@@ -223,7 +223,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
         improve(
           'readability',
           'Text readability',
-          `Found ${parts.join(', ')}. Contrast is estimated from computed styles and may be inaccurate over images or gradients.`,
+          `Found ${parts.join(', ')}. This contrast estimate may be inaccurate over background images or color gradients.`,
           combineViewport(dIssues.length > 0, mIssues.length > 0),
           ratioLost
         )
@@ -293,7 +293,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
         if (broken.length) parts.push(`${broken.length} failed to load`)
         if (invisible.length) parts.push(`${invisible.length} rendered at zero size`)
         if (distorted.length) parts.push(`${distorted.length} appear stretched or distorted`)
-        if (missingAlt.length) parts.push(`${missingAlt.length} meaningful image${missingAlt.length === 1 ? '' : 's'} missing alt text`)
+        if (missingAlt.length) parts.push(`${missingAlt.length} meaningful image${missingAlt.length === 1 ? '' : 's'} missing descriptive text for screen readers (alt text)`)
         const ratioLost = Math.min(1, issueCount / 5)
         improve('images', 'Images', `Image issues found: ${parts.join(', ')}.`, combineViewport(dImgs.length > 0, mImgs.length > 0), ratioLost)
         credit('images', 1 - ratioLost)
@@ -362,14 +362,14 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
       let ratioLost = 0
       const problems: string[] = []
       if (ref.h1Count === 0) {
-        problems.push('No H1 heading was found.')
+        problems.push('No main page heading was found.')
         ratioLost += 0.6
       } else if (ref.h1Count > 1) {
-        problems.push(`${ref.h1Count} H1 headings were found on the page.`)
+        problems.push(`${ref.h1Count} main page headings were found, but a page should normally have only one.`)
         ratioLost += 0.4
       }
       if (ref.hasSkippedLevel) {
-        problems.push('Heading levels appear to skip (e.g. jumping from H1 to H3 or below). This is a minor suggestion.')
+        problems.push('Heading levels appear to skip (e.g. jumping from a main heading straight to a smaller sub-heading, skipping the level in between). This is a minor suggestion.')
         ratioLost += 0.15
       }
       if (ref.emptyHeadingCount > 0) {
@@ -378,7 +378,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
       }
       ratioLost = Math.min(1, ratioLost)
       if (problems.length === 0) {
-        good('headings', 'Heading structure', 'A single clear H1 and reasonable heading order were found.', 'both')
+        good('headings', 'Heading structure', 'A single clear main page heading and reasonable heading order were found.', 'both')
         credit('headings', 1)
       } else {
         improve('headings', 'Heading structure', problems.join(' '), 'both', ratioLost, ref.h1Count === 0 || ref.h1Count > 1)

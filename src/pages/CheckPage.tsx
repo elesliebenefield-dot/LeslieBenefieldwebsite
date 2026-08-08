@@ -83,7 +83,7 @@ const WHAT_WE_CHECK_VISUAL = [
   'Whether rendered images loaded correctly and look proportional',
   'Whether a clear heading and next step are visible near the top of the page',
   'Whether a visible action or contact path is present',
-  'Heading structure (a single clear H1, reasonable order)',
+  'Heading structure (a single clear main heading, reasonable order)',
   'Whether a footer copyright notice looks well-formed',
   'Whether fixed banners, popups, or widgets obstruct a large part of the mobile screen',
 ]
