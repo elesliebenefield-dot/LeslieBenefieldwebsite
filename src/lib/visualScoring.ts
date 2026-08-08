@@ -2,8 +2,8 @@
 // the Visual & Usability report. Deliberately has no browser/network dependency so
 // it can be tested directly against synthetic measurement objects.
 
-import type { RawMeasurements } from './visualAnalysis'
-import { VISUAL_CHECK_WEIGHTS, VISUAL_CHECK_COUNT, type VisualFinding, type VisualCheckId, type FindingViewport } from './visualCheck'
+import type { RawMeasurements } from './visualAnalysis.js'
+import { VISUAL_CHECK_WEIGHTS, VISUAL_CHECK_COUNT, type VisualFinding, type VisualCheckId, type FindingViewport } from './visualCheck.js'
 
 interface ScoredFinding extends VisualFinding {
   points: number

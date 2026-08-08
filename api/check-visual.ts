@@ -8,6 +8,7 @@
 // content are discarded once the report is computed. Each request gets its own
 // isolated, cookie-free browser context, closed in every success/failure path.
 
+import { randomUUID } from 'node:crypto'
 import type { Browser, Page } from 'puppeteer-core'
 import { assertSafeUrl, createHostnameSafetyCache, UnsafeUrlError } from '../src/lib/urlSafety.js'
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
@@ -260,6 +261,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     res.status(200).json(response)
   } catch (err) {
+    // Log full detail server-side only (visible in Vercel's function logs) — the
+    // visitor gets a friendly message plus a short reference id for correlation,
+    // never the raw error text, which could contain internal paths/stack details.
+    const errorRef = randomUUID().slice(0, 8)
+    console.error(`[check-visual:${errorRef}]`, err)
     res.status(200).json({
       ok: true,
       finalUrl: normalized.toString(),
@@ -271,7 +277,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           label: 'Rendered page review',
           bucket: 'unverified',
           viewport: 'both',
-          detail: `We couldn’t complete a rendered visual review of this site: ${(err as Error).message || 'an unknown error occurred'}. That does not necessarily mean anything is wrong — some sites block automated visits.`,
+          detail: `We couldn’t complete a rendered visual review of this site (reference: ${errorRef}). That does not necessarily mean anything is wrong — some sites block automated visits.`,
           measurable: false,
         },
       ],
