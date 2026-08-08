@@ -159,6 +159,13 @@ section[id] {
   box-shadow: 0 5px 16px rgba(77, 163, 168, 0.38);
 }
 
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn-outline {
   background: transparent;
   color: var(--color-text);
@@ -1927,6 +1934,13 @@ section[id] {
   font-weight: 700;
   color: var(--color-text);
   margin-bottom: 0.2rem;
+}
+
+.checkup-finding-note {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
 }
 
 .checkup-finding-meta {

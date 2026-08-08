@@ -250,13 +250,21 @@ const BUCKET_ICON: Record<FindingBucket, () => JSX.Element> = {
 
 function FindingRow({ finding }: { finding: Finding }) {
   const Icon = BUCKET_ICON[finding.bucket]
+  // Response time is measured and shown for context, but — unlike the other cards
+  // here — it isn't one of the scored/counted checks in "X of Y checks completed"
+  // above, since it isn't a pass/fail signal on its own. Flagging that inline
+  // avoids the card count above appearing to disagree with that tally.
+  const isSupplementary = finding.id === 'response-time'
   return (
     <li className={`checkup-finding checkup-finding--${finding.bucket}`}>
       <span className="checkup-finding-icon" aria-hidden="true">
         <Icon />
       </span>
       <span>
-        <span className="checkup-finding-label">{finding.label}</span>
+        <span className="checkup-finding-label">
+          {finding.label}
+          {isSupplementary && <span className="checkup-finding-note"> (measured for context, not one of the counted checks)</span>}
+        </span>
         <span className="checkup-finding-detail">{finding.detail}</span>
       </span>
     </li>
@@ -500,11 +508,19 @@ function ResultsReport({
           results and I’ll let you know whether your project is a good fit for my current services. This isn’t a
           guarantee that I can take on or fix everything found here.
         </p>
-        <a href={buildMailtoHref(result, visualResult)} className="btn btn-primary">
-          Email My Results to Leslie
-        </a>
+        {visualStatus === 'loading' ? (
+          <button type="button" className="btn btn-primary" disabled aria-disabled="true">
+            Preparing your results…
+          </button>
+        ) : (
+          <a href={buildMailtoHref(result, visualResult)} className="btn btn-primary">
+            Email My Results to Leslie
+          </a>
+        )}
         <p className="checkup-cta-note">
-          This opens a prefilled email for you to review and send. Nothing is submitted automatically.
+          {visualStatus === 'loading'
+            ? 'Waiting for the visual review to finish so the email includes your complete results.'
+            : 'This opens a prefilled email for you to review and send. Nothing is submitted automatically.'}
         </p>
       </div>
     </div>

@@ -111,7 +111,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
       improve(
         'overlap',
         'Overlapping or clipped content',
-        `Found ${total} instance${total === 1 ? '' : 's'} of visible content that appears clipped, overlapping, or hidden behind a fixed header on ${viewport === 'both' ? 'desktop and mobile' : viewport}.`,
+        `Found ${total} instance${total === 1 ? '' : 's'} of visible content that ${total === 1 ? 'appears' : 'appear'} clipped, overlapping, or hidden behind a fixed header on ${viewport === 'both' ? 'desktop and mobile' : viewport}.`,
         viewport,
         ratioLost
       )
@@ -246,7 +246,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
         improve(
           'tapTargets',
           'Tap-target sizing & spacing',
-          `Found ${issues.length} interactive element${issues.length === 1 ? '' : 's'} on mobile that appear undersized or crowded (e.g. "${issues[0].label || issues[0].tag}").`,
+          `Found ${issues.length} interactive element${issues.length === 1 ? '' : 's'} on mobile that ${issues.length === 1 ? 'appears' : 'appear'} undersized or crowded (e.g. "${issues[0].label || issues[0].tag}").`,
           'mobile',
           ratioLost
         )
@@ -373,7 +373,7 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
         ratioLost += 0.15
       }
       if (ref.emptyHeadingCount > 0) {
-        problems.push(`${ref.emptyHeadingCount} heading${ref.emptyHeadingCount === 1 ? '' : 's'} appear to have no visible text.`)
+        problems.push(`${ref.emptyHeadingCount} heading${ref.emptyHeadingCount === 1 ? '' : 's'} ${ref.emptyHeadingCount === 1 ? 'appears' : 'appear'} to have no visible text.`)
         ratioLost += 0.15
       }
       ratioLost = Math.min(1, ratioLost)
