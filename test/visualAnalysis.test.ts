@@ -211,6 +211,122 @@ test('a nearer element\'s own opaque background takes precedence over a more dis
   )
 })
 
+// ─── Rendered-layer (hit-test) background resolution for overlays over siblings ──
+
+test('a transparent fixed nav over a *sibling* background-image section is unable to verify (not an ancestor relationship)', async () => {
+  // This mirrors the real bug found on sissyssweets-byem.com: a
+  // position:fixed, transparent nav visually floats over a hero section
+  // that is a sibling, not a DOM ancestor. A pure ancestor walk resolves the
+  // nav text's background via nav -> body (missing the hero entirely);
+  // only real paint-order hit-testing finds the hero's image is what's
+  // actually rendered there.
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero { position: absolute; top: 0; left: 0; width: 100%; height: 300px; background-image: linear-gradient(#000, #000); }
+      nav { position: fixed; top: 0; left: 0; width: 100%; background: transparent; padding: 16px; }
+      nav a { color: #fff; font-size: 18px; text-decoration: none; }
+    </style></head>
+    <body>
+      <div class="hero"></div>
+      <nav><a href="#">Sissy's Sweets</a></nav>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(lowContrast, [], `expected no false low-contrast finding, got: ${JSON.stringify(lowContrast)}`)
+  assert.equal(unverifiable.length, 1, `expected the sibling hero image to be found via hit-testing, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('a transparent fixed nav over a *sibling* solid-color section resolves to that color (not just images are found)', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero { position: absolute; top: 0; left: 0; width: 100%; height: 300px; background: #000000; }
+      nav { position: fixed; top: 0; left: 0; width: 100%; background: transparent; padding: 16px; }
+      nav a { color: #fff; font-size: 18px; text-decoration: none; }
+    </style></head>
+    <body>
+      <div class="hero"></div>
+      <nav><a href="#">Logo Text</a></nav>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(unverifiable, [], `expected the sibling's solid color to be found (not marked unverifiable), got: ${JSON.stringify(result.textIssues)}`)
+  assert.deepEqual(lowContrast, [], `expected white-on-black behind the overlay to read as good contrast, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('an element with its own opaque background resolves via itself, with no overlay involved', async () => {
+  // Regression guard: an earlier draft of the hit-test approach skipped the
+  // sampled element itself when walking the paint-order stack, which broke
+  // this ordinary, common case (no overlay at all).
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      p { color: #eeeeee; background: #ffffff; font-size: 16px; padding: 8px; }
+    </style></head>
+    <body><p>Genuinely low contrast text on its own solid background.</p></body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  assert.equal(lowContrast.length, 1, `expected the element's own background to be found and the low contrast detected, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('a pointer-events:none decorative layer over text does not obstruct finding the real background behind it', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; background: #ffffff; }
+      .glow { position: fixed; inset: 0; pointer-events: none; background: transparent; }
+      p { color: #eeeeee; font-size: 16px; margin: 0; padding: 8px; }
+    </style></head>
+    <body>
+      <div class="glow"></div>
+      <p>Text under a decorative, non-interactive overlay layer.</p>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(unverifiable, [], `expected the decorative layer not to be misread as an unresolvable background, got: ${JSON.stringify(result.textIssues)}`)
+  assert.equal(lowContrast.length, 1, `expected the real (white) background behind the decorative layer to be found and the low contrast detected, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('falls back to an ancestor-only walk when elementsFromPoint is unavailable', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero { position: absolute; top: 0; left: 0; width: 100%; height: 300px; background-image: linear-gradient(#000, #000); }
+      nav { position: fixed; top: 0; left: 0; width: 100%; background: transparent; padding: 16px; }
+      nav a { color: #fff; font-size: 18px; text-decoration: none; }
+    </style></head>
+    <body>
+      <div class="hero"></div>
+      <nav><a href="#">Sissy's Sweets</a></nav>
+      <script>document.elementsFromPoint = undefined;</script>
+    </body></html>
+  `
+  const result = await measure(html)
+  // Without elementsFromPoint, the ancestor-only fallback can't see the
+  // sibling .hero image (nav -> body only, both transparent/unset), so it
+  // falls through to the white default and reads white-on-assumed-white as
+  // low contrast — reproducing today's known limitation exactly, rather
+  // than crashing. This proves the fallback branch itself runs (and that
+  // the new hit-test path is genuinely what fixes the bug, not something
+  // incidental).
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(unverifiable, [], `expected the fallback path not to find the sibling image, got: ${JSON.stringify(result.textIssues)}`)
+  assert.equal(lowContrast.length, 1, `expected the fallback to reproduce the original false low-contrast read, got: ${JSON.stringify(result.textIssues)}`)
+})
+
 // ─── Ancestor-hidden elements (opacity, pointer-events, aria-hidden, hidden, inert) ──
 
 test('elements inside a closed (opacity:0, pointer-events:none) menu are not treated as visible tap targets', async () => {

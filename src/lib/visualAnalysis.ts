@@ -328,28 +328,59 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   }
   type BackgroundResolution = { kind: 'color'; rgb: [number, number, number] } | { kind: 'unverifiable' }
 
-  function resolveBackground(el: HTMLElement): BackgroundResolution {
-    let node: HTMLElement | null = el
-    while (node) {
+  // Checks a list of elements — in front-to-back paint order — for the
+  // nearest one that actually renders a background. A background-image
+  // paints over that same node's own background-color (color is the bottom
+  // layer, image sits above it), so it must be checked first at each node —
+  // otherwise a node with both would be misread as having a solid, reliable
+  // background. No special-casing is needed for the sampled text element or
+  // any transparent overlay in front of it: neither has an image nor an
+  // opaque color of its own, so this loop naturally walks straight through
+  // them to whatever is actually painted behind.
+  function firstRenderedBackground(nodes: Iterable<Element>): BackgroundResolution | null {
+    for (const node of nodes) {
       const style = window.getComputedStyle(node)
-      // A background-image paints over that same element's own background-color
-      // (color is the bottom layer, image sits above it), so it must be checked
-      // first at each node — otherwise an element with both would be misread as
-      // having a solid, reliable background. Checking image-then-color at each
-      // node while walking outward also means a nearer element's own opaque
-      // color is found (and returned) before ever reaching a more distant
-      // ancestor's image, since that nearer opaque layer would visually cover
-      // whatever is behind it anyway.
       if (style.backgroundImage && style.backgroundImage !== 'none') {
         return { kind: 'unverifiable' }
       }
       const parsed = parseRgb(style.backgroundColor)
       if (parsed && parsed[3] > 0.5) return { kind: 'color', rgb: [parsed[0], parsed[1], parsed[2]] }
-      node = node.parentElement
     }
-    // Walked all the way to the top without finding an opaque color OR an
-    // image/gradient anywhere in the chain — the page's default white canvas
-    // genuinely is the background here, not a guess.
+    return null
+  }
+
+  function resolveBackground(el: HTMLElement): BackgroundResolution {
+    if (typeof document.elementsFromPoint === 'function') {
+      // Hit-test what's actually painted at this point, in real stacking
+      // order — not just DOM ancestry. This is what correctly resolves a
+      // transparent, fixed/absolute-positioned element (e.g. a floating nav)
+      // to whatever *sibling* section is visually behind it, which no
+      // DOM-ancestor walk can ever see. Sampling the first line fragment's
+      // center (falling back to the full box for non-inline layout) keeps
+      // the point on the element's own rendered footprint rather than
+      // landing in empty inter-line space for text that wraps.
+      const rects = el.getClientRects()
+      const rect = rects.length > 0 ? rects[0] : el.getBoundingClientRect()
+      const x = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 1)
+      const y = Math.min(Math.max(rect.top + rect.height / 2, 0), window.innerHeight - 1)
+      const result = firstRenderedBackground(document.elementsFromPoint(x, y))
+      if (result) return result
+    } else {
+      // Fallback for a browser without elementsFromPoint: DOM-ancestor walk
+      // only. Doesn't see a transparent overlay's non-ancestor sibling
+      // content, but is still correct for a straightforward ancestor chain.
+      const ancestors: Element[] = []
+      let node: HTMLElement | null = el
+      while (node) {
+        ancestors.push(node)
+        node = node.parentElement
+      }
+      const result = firstRenderedBackground(ancestors)
+      if (result) return result
+    }
+    // Walked everything and found neither an opaque color nor an image/
+    // gradient anywhere — the page's default white canvas genuinely is the
+    // background here, not a guess.
     return { kind: 'color', rgb: [255, 255, 255] }
   }
 
