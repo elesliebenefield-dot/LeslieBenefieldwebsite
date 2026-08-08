@@ -61,7 +61,7 @@ const VISUAL_CATEGORY_INFO: Record<VisualFindingBucket, { title: string; descrip
   },
   improve: {
     title: 'Visual items worth reviewing',
-    description: 'Measurable rendered-page issues, or heuristic suggestions worth a manual look.',
+    description: 'Possible website issues and suggestions worth a closer look.',
   },
   unverified: {
     title: 'Unable to verify automatically',
@@ -495,8 +495,8 @@ function ResultsReport({
         <p>
           This automated checkup is a limited snapshot, not a final verdict on your website or the person who built
           it. A lower-than-expected score doesn’t necessarily mean your website is bad or your developer did poor
-          work. Automated visual heuristics in particular can miss context that a human would immediately
-          understand. Use these findings as conversation starters, and have important concerns manually reviewed
+          work. Automated visual checks can sometimes miss details that a person would immediately understand.
+          Use these findings as conversation starters, and have important concerns manually reviewed
           before anyone changes, replaces, or blames anything.
         </p>
       </div>
