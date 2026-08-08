@@ -1498,3 +1498,48 @@ section[id] {
 .footer-phone:hover {
   color: rgba(253, 252, 250, 0.9);
 }
+
+.footer-payments {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(253, 252, 250, 0.1);
+}
+
+.footer-payments-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  color: rgba(253, 252, 250, 0.45);
+  margin: 0 0 0.55rem;
+}
+
+.footer-payment-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pay-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.pay-icon img {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+
+.footer-payments-note {
+  margin-top: 0.55rem;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  color: rgba(253, 252, 250, 0.35);
+}
