@@ -13,6 +13,21 @@ export interface VisualFinding {
   measurable: boolean
 }
 
+// A closed, fixed set of stage names — nothing dynamic (error messages, paths,
+// stack traces, URLs) can ever flow through this field, by construction. Only
+// ever populated on preview deployments (VERCEL_ENV === "preview"); production
+// responses never include it.
+export type DiagnosticStage =
+  | 'validating-request'
+  | 'resolving-chromium'
+  | 'launching-browser'
+  | 'creating-context'
+  | 'creating-page'
+  | 'navigating'
+  | 'analyzing-page'
+  | 'building-report'
+  | 'unknown'
+
 export interface VisualCheckSuccess {
   ok: true
   finalUrl: string
@@ -21,6 +36,8 @@ export interface VisualCheckSuccess {
   findings: VisualFinding[]
   checksCompleted: number
   checksTotal: number
+  /** Preview-only. Never present in production responses. */
+  diagnosticStage?: DiagnosticStage
 }
 
 export interface VisualCheckFailure {

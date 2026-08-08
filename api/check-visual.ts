@@ -14,8 +14,13 @@ import { assertSafeUrl, createHostnameSafetyCache, UnsafeUrlError } from '../src
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
 import { collectPageMeasurements, type RawMeasurements } from '../src/lib/visualAnalysis.js'
 import { buildVisualReport } from '../src/lib/visualScoring.js'
-import type { VisualCheckResponse } from '../src/lib/visualCheck.js'
+import type { VisualCheckResponse, DiagnosticStage } from '../src/lib/visualCheck.js'
 import { VISUAL_CHECK_COUNT } from '../src/lib/visualCheck.js'
+
+/** Tracks the last major stage reached, for safe preview-only diagnostics (see the
+ *  catch block in `handler`). A plain mutable holder, not persisted or logged anywhere
+ *  except this one request's own error path. */
+type Stage = { current: DiagnosticStage }
 
 const NAV_TIMEOUT_MS = 18000
 const SETTLE_MS = 900
@@ -34,14 +39,18 @@ function withDeadline<T>(promise: Promise<T>, ms: number, onTimeoutMessage: stri
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>
 }
 
-async function launchBrowser(): Promise<Browser> {
+async function launchBrowser(stage: Stage): Promise<Browser> {
   const puppeteer = (await import('puppeteer-core')).default
 
   if (process.env.VERCEL) {
+    stage.current = 'resolving-chromium'
     const chromium = (await import('@sparticuz/chromium')).default
+    const executablePath = await chromium.executablePath()
+
+    stage.current = 'launching-browser'
     return puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath,
       headless: true,
       defaultViewport: DESKTOP_VIEWPORT,
     })
@@ -49,6 +58,7 @@ async function launchBrowser(): Promise<Browser> {
 
   // Local development: use the machine's installed Chrome instead of the
   // Lambda-specific @sparticuz/chromium binary, which only runs on Linux.
+  stage.current = 'launching-browser'
   return puppeteer.launch({
     executablePath: LOCAL_CHROME_PATH,
     headless: true,
@@ -139,10 +149,13 @@ async function measureViewport(
   browser: Browser,
   url: string,
   viewport: { width: number; height: number },
-  label: 'desktop' | 'mobile'
+  label: 'desktop' | 'mobile',
+  stage: Stage
 ): Promise<RawMeasurements | null> {
+  stage.current = 'creating-context'
   const context = await browser.createBrowserContext()
   try {
+    stage.current = 'creating-page'
     const page = await context.newPage()
     await page.setViewport(viewport)
     await hardenPage(page)
@@ -154,6 +167,7 @@ async function measureViewport(
       }
     })
 
+    stage.current = 'navigating'
     try {
       await page.goto(url, { waitUntil: 'load', timeout: NAV_TIMEOUT_MS })
     } catch {
@@ -162,6 +176,7 @@ async function measureViewport(
     await triggerLazyContent(page)
     await new Promise((r) => setTimeout(r, label === 'desktop' ? SETTLE_MS : MOBILE_SETTLE_MS))
 
+    stage.current = 'analyzing-page'
     const measurements = await page.evaluate(collectPageMeasurements, label)
     return measurements
   } catch {
@@ -214,21 +229,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  const stage: Stage = { current: 'validating-request' }
   let browser: Browser | null = null
   try {
     const targetUrl = normalized.toString()
 
     const result = await withDeadline(
       (async () => {
-        browser = await launchBrowser()
-        const desktop = await measureViewport(browser!, targetUrl, DESKTOP_VIEWPORT, 'desktop')
-        const mobile = await measureViewport(browser!, targetUrl, MOBILE_VIEWPORT, 'mobile')
+        browser = await launchBrowser(stage)
+        const desktop = await measureViewport(browser!, targetUrl, DESKTOP_VIEWPORT, 'desktop', stage)
+        const mobile = await measureViewport(browser!, targetUrl, MOBILE_VIEWPORT, 'mobile', stage)
         return { desktop, mobile }
       })(),
       OVERALL_DEADLINE_MS,
       'The visual review took too long to complete.'
     )
 
+    stage.current = 'building-report'
     const finalUrl = normalized.toString()
     const report = buildVisualReport(result.desktop, result.mobile)
 
@@ -265,7 +282,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // visitor gets a friendly message plus a short reference id for correlation,
     // never the raw error text, which could contain internal paths/stack details.
     const errorRef = randomUUID().slice(0, 8)
-    console.error(`[check-visual:${errorRef}]`, err)
+    console.error(`[check-visual:${errorRef}] stage=${stage.current}`, err)
+
+    // Preview-only, whitelisted diagnostic: a fixed stage name, never anything
+    // derived from the actual error (no messages, paths, stack traces, URLs).
+    // Production responses never include this field at all.
+    const isPreview = process.env.VERCEL_ENV === 'preview'
+
     res.status(200).json({
       ok: true,
       finalUrl: normalized.toString(),
@@ -283,6 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ],
       checksCompleted: 0,
       checksTotal: VISUAL_CHECK_COUNT,
+      diagnosticStage: isPreview ? stage.current : undefined,
     })
   } finally {
     if (browser) {

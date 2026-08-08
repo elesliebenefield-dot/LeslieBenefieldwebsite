@@ -130,7 +130,7 @@ function buildCombinedEmailBody(technical: CheckSuccess, visual: VisualCheckSucc
   lines.push(`Website checked: ${technical.finalUrl}`)
   lines.push(`Technical Basics Score: ${technical.score}/100 (${technical.checksCompleted} of ${technical.checksTotal} checks completed)`)
   lines.push(
-    visual
+    visual && visual.checksCompleted > 0
       ? `Visual & Usability Score: ${visual.score}/100 (${visual.checksCompleted} of ${visual.checksTotal} checks completed)`
       : 'Visual & Usability Score: not available (the visual review did not complete)'
   )
@@ -298,6 +298,9 @@ function VisualSection({
     for (const finding of result.findings) grouped[finding.bucket].push(finding)
   }
   const ecommerceFinding = result?.findings.find((f) => f.id === 'ecommerce-visual')
+  // Zero checks completed means the page couldn't be rendered at all (a crash, a
+  // timeout, or a site that blocks automated browsing) — not a genuine 0/100 score.
+  const unavailable = result?.checksCompleted === 0
 
   return (
     <div className="checkup-visual-section">
@@ -330,22 +333,42 @@ function VisualSection({
           <p className="checkup-score-eyebrow">Visual &amp; Usability Score</p>
           <div className="checkup-score-row">
             <div className="checkup-score">
-              <span className="checkup-score-number">{result.score}</span>
-              <span className="checkup-score-max">/100</span>
+              {unavailable ? (
+                <span className="checkup-score-unavailable">Score not available</span>
+              ) : (
+                <>
+                  <span className="checkup-score-number">{result.score}</span>
+                  <span className="checkup-score-max">/100</span>
+                </>
+              )}
             </div>
             <div>
-              <p className="checkup-score-label">{scoreLabel(result.score)}</p>
+              <p className="checkup-score-label">{unavailable ? 'Review could not be completed' : scoreLabel(result.score)}</p>
               <p className="checkup-summary">{result.summary}</p>
-              <p className="checkup-checks-count">
-                {result.checksCompleted} of {result.checksTotal} visual checks completed
-                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
-              </p>
+              {unavailable ? (
+                <p className="checkup-checks-count">
+                  This does not necessarily mean anything is wrong with the site — some pages can’t be rendered by
+                  an automated browser.
+                </p>
+              ) : (
+                <p className="checkup-checks-count">
+                  {result.checksCompleted} of {result.checksTotal} visual checks completed
+                  {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+                </p>
+              )}
+              {result.diagnosticStage && (
+                <p className="checkup-diagnostic-stage">
+                  Preview diagnostic — last stage reached: <strong>{result.diagnosticStage}</strong>
+                </p>
+              )}
             </div>
           </div>
-          <p className="checkup-score-scope-note">
-            This score covers measurable rendered-page checks only — it is not a verdict on taste, branding
-            quality, business quality, or the developer who built the site.
-          </p>
+          {!unavailable && (
+            <p className="checkup-score-scope-note">
+              This score covers measurable rendered-page checks only — it is not a verdict on taste, branding
+              quality, business quality, or the developer who built the site.
+            </p>
+          )}
 
           {ecommerceFinding && (
             <div className="checkup-scope-callout" role="note">

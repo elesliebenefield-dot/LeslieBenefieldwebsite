@@ -1830,6 +1830,24 @@ section[id] {
   opacity: 0.85;
 }
 
+.checkup-score-unavailable {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.checkup-diagnostic-stage {
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-alt);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  display: inline-block;
+}
+
 .checkup-scope-callout {
   margin-bottom: 2rem;
   padding: 0.9rem 1.1rem;
