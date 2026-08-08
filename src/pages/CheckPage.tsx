@@ -4,6 +4,7 @@ import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
 import { normalizeWebsiteUrl } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
+import type { VisualCheckResponse, VisualCheckSuccess, VisualFinding, VisualFindingBucket } from '../lib/visualCheck'
 
 const RESULTS_EMAIL = 'websitesbyleslie01@gmail.com'
 
@@ -51,6 +52,49 @@ const EMAIL_SECTION_TITLE: Record<FindingBucket, string> = {
   specialist: 'May Need Current Provider or a Specialist',
 }
 
+const VISUAL_CATEGORY_ORDER: VisualFindingBucket[] = ['good', 'improve', 'unverified', 'specialist']
+
+const VISUAL_CATEGORY_INFO: Record<VisualFindingBucket, { title: string; description: string }> = {
+  good: {
+    title: 'Visual checks looking good',
+    description: 'No action appears necessary based on this rendered-page check.',
+  },
+  improve: {
+    title: 'Visual items worth reviewing',
+    description: 'Measurable rendered-page issues, or heuristic suggestions worth a manual look.',
+  },
+  unverified: {
+    title: 'Unable to verify automatically',
+    description: 'This page couldn’t be fully rendered or measured for these items. That does not necessarily mean anything is wrong.',
+  },
+  specialist: {
+    title: 'May need your current provider or a specialist',
+    description: 'Outside the normal scope of this automated check — often platform-specific.',
+  },
+}
+
+const WHAT_WE_CHECK_VISUAL = [
+  'Whether the page causes unintended horizontal scrolling on desktop or mobile',
+  'Whether visible content appears clipped, overlapping, or hidden behind a fixed header',
+  'Whether navigation is present and usable on desktop and mobile',
+  'Logo and header proportions in the rendered page',
+  'Text size, line spacing, line length, and estimated contrast',
+  'Whether tappable buttons and links are reasonably sized and spaced on mobile',
+  'Whether rendered images loaded correctly and look proportional',
+  'Whether a clear heading and next step are visible near the top of the page',
+  'Whether a visible action or contact path is present',
+  'Heading structure (a single clear H1, reasonable order)',
+  'Whether a footer copyright notice looks well-formed',
+  'Whether fixed banners, popups, or widgets obstruct a large part of the mobile screen',
+]
+
+const VISUAL_EMAIL_SECTION_TITLE: Record<VisualFindingBucket, string> = {
+  good: 'Visual — Looking Good',
+  improve: 'Visual — Worth Reviewing',
+  unverified: 'Visual — Unable to Verify',
+  specialist: 'Visual — May Need a Specialist',
+}
+
 // Conservative cross-client budget for a mailto: URL's total length. Some mail clients
 // (notably older Outlook) truncate or reject much longer mailto links.
 const MAILTO_SAFE_LENGTH = 1800
@@ -71,22 +115,67 @@ function checkedDomain(result: CheckSuccess): string {
   }
 }
 
-function buildResultsEmailBody(result: CheckSuccess, detailLimit: number | null): string {
+interface EmailTierOptions {
+  detailLimit: number | null
+  includeGoodSections: boolean
+  unverifiedSummaryOnly: boolean
+}
+
+// Priority order when space is tight (mirrors the fallback tiers below):
+// 1. Checked URL  2. Both scores + completion counts  3. Worth-reviewing findings
+// 4. Specialist warnings  5. Unverified summary. "Looking good" detail is the
+// first thing trimmed, since it's the least actionable content in a tight email.
+function buildCombinedEmailBody(technical: CheckSuccess, visual: VisualCheckSuccess | null, opts: EmailTierOptions): string {
   const lines: string[] = []
-  lines.push(`Website checked: ${result.finalUrl}`)
-  lines.push(`Technical Basics Score: ${result.score}/100`)
-  lines.push(`Checks completed: ${result.checksCompleted} of ${result.checksTotal}`)
+  lines.push(`Website checked: ${technical.finalUrl}`)
+  lines.push(`Technical Basics Score: ${technical.score}/100 (${technical.checksCompleted} of ${technical.checksTotal} checks completed)`)
+  lines.push(
+    visual
+      ? `Visual & Usability Score: ${visual.score}/100 (${visual.checksCompleted} of ${visual.checksTotal} checks completed)`
+      : 'Visual & Usability Score: not available (the visual review did not complete)'
+  )
   lines.push('')
 
-  for (const bucket of CATEGORY_ORDER) {
-    const items = result.findings.filter((f) => f.bucket === bucket)
-    if (items.length === 0) continue
-    lines.push(`${EMAIL_SECTION_TITLE[bucket]}:`)
-    for (const finding of items) {
-      const detail = detailLimit === null ? finding.detail : truncateDetail(finding.detail, detailLimit)
-      lines.push(`- ${finding.label}: ${detail}`)
+  function addSection(bucket: FindingBucket, title: string, items: Finding[]) {
+    if (bucket === 'good' && !opts.includeGoodSections) return
+    if (items.length === 0) return
+    if (bucket === 'unverified' && opts.unverifiedSummaryOnly) {
+      lines.push(`${title}: ${items.length} item${items.length === 1 ? '' : 's'} — see the full report on the checkup page.`)
+      lines.push('')
+      return
+    }
+    lines.push(`${title}:`)
+    for (const f of items) {
+      const detail = opts.detailLimit === null ? f.detail : truncateDetail(f.detail, opts.detailLimit)
+      lines.push(`- ${f.label}: ${detail}`)
     }
     lines.push('')
+  }
+
+  for (const bucket of CATEGORY_ORDER) {
+    addSection(bucket, EMAIL_SECTION_TITLE[bucket], technical.findings.filter((f) => f.bucket === bucket))
+  }
+
+  if (visual) {
+    function addVisualSection(bucket: VisualFindingBucket, title: string, items: VisualFinding[]) {
+      if (bucket === 'good' && !opts.includeGoodSections) return
+      if (items.length === 0) return
+      if (bucket === 'unverified' && opts.unverifiedSummaryOnly) {
+        lines.push(`${title}: ${items.length} item${items.length === 1 ? '' : 's'} — see the full report on the checkup page.`)
+        lines.push('')
+        return
+      }
+      lines.push(`${title}:`)
+      for (const f of items) {
+        const viewportTag = f.viewport !== 'both' ? ` (${f.viewport})` : ''
+        const detail = opts.detailLimit === null ? f.detail : truncateDetail(f.detail, opts.detailLimit)
+        lines.push(`- ${f.label}${viewportTag}: ${detail}`)
+      }
+      lines.push('')
+    }
+    for (const bucket of VISUAL_CATEGORY_ORDER) {
+      addVisualSection(bucket, VISUAL_EMAIL_SECTION_TITLE[bucket], visual.findings.filter((f) => f.bucket === bucket))
+    }
   }
 
   lines.push('I’d like Leslie to review these results and let me know whether this project may be a fit for her services.')
@@ -98,17 +187,23 @@ function buildResultsEmailBody(result: CheckSuccess, detailLimit: number | null)
   return lines.join('\r\n')
 }
 
-function buildMailtoHref(result: CheckSuccess): string {
-  const subject = `Website Checkup Results — ${checkedDomain(result)}`
-
+function buildMailtoHref(technical: CheckSuccess, visual: VisualCheckSuccess | null): string {
+  const subject = `Website Checkup Results — ${checkedDomain(technical)}`
   const toEncoded = (body: string) =>
     `mailto:${RESULTS_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 
-  let href = toEncoded(buildResultsEmailBody(result, null))
-  if (href.length > MAILTO_SAFE_LENGTH) {
-    href = toEncoded(buildResultsEmailBody(result, 70))
+  const tiers: EmailTierOptions[] = [
+    { detailLimit: null, includeGoodSections: true, unverifiedSummaryOnly: false },
+    { detailLimit: 70, includeGoodSections: true, unverifiedSummaryOnly: false },
+    { detailLimit: 70, includeGoodSections: false, unverifiedSummaryOnly: false },
+    { detailLimit: 50, includeGoodSections: false, unverifiedSummaryOnly: true },
+  ]
+
+  for (const tier of tiers) {
+    const href = toEncoded(buildCombinedEmailBody(technical, visual, tier))
+    if (href.length <= MAILTO_SAFE_LENGTH) return href
   }
-  return href
+  return toEncoded(buildCombinedEmailBody(technical, visual, tiers[tiers.length - 1]))
 }
 
 function scoreLabel(score: number): string {
@@ -168,7 +263,137 @@ function FindingRow({ finding }: { finding: Finding }) {
   )
 }
 
-function ResultsReport({ result, headingRef }: { result: CheckSuccess; headingRef: RefObject<HTMLHeadingElement> }) {
+function VisualFindingRow({ finding }: { finding: VisualFinding }) {
+  const Icon = BUCKET_ICON[finding.bucket]
+  const viewportLabel = finding.viewport === 'both' ? 'Desktop & mobile' : finding.viewport === 'desktop' ? 'Desktop' : 'Mobile'
+  return (
+    <li className={`checkup-finding checkup-finding--${finding.bucket}`}>
+      <span className="checkup-finding-icon" aria-hidden="true">
+        <Icon />
+      </span>
+      <span>
+        <span className="checkup-finding-label">{finding.label}</span>
+        <span className="checkup-finding-meta">
+          {viewportLabel} · {finding.measurable ? 'Measured' : 'Suggested — manual review'}
+        </span>
+        <span className="checkup-finding-detail">{finding.detail}</span>
+      </span>
+    </li>
+  )
+}
+
+type VisualStatus = 'idle' | 'loading' | 'success' | 'error'
+
+function VisualSection({
+  status,
+  result,
+  errorMessage,
+}: {
+  status: VisualStatus
+  result: VisualCheckSuccess | null
+  errorMessage: string | null
+}) {
+  const grouped: Record<VisualFindingBucket, VisualFinding[]> = { good: [], improve: [], unverified: [], specialist: [] }
+  if (result) {
+    for (const finding of result.findings) grouped[finding.bucket].push(finding)
+  }
+  const ecommerceFinding = result?.findings.find((f) => f.id === 'ecommerce-visual')
+
+  return (
+    <div className="checkup-visual-section">
+      <h2 className="section-title checkup-results-title checkup-visual-title">Visual &amp; Usability Review</h2>
+      <p className="checkup-visual-intro">
+        A real browser opens your homepage at desktop and mobile widths and checks for measurable rendered-page
+        issues. This is a separate review from the Technical Basics Score above — the two are not combined into
+        one overall score.
+      </p>
+
+      {(status === 'loading' || status === 'idle') && (
+        <div className="checkup-loading" role="status">
+          <span className="checkup-spinner" aria-hidden="true" />
+          Rendering your website in a browser at desktop and mobile widths — this can take up to a minute…
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="checkup-api-error" role="alert">
+          <strong>The visual review couldn’t run.</strong>
+          <p>
+            {errorMessage ??
+              'Something went wrong on our end while rendering this page. Your Technical Basics results above are unaffected.'}
+          </p>
+        </div>
+      )}
+
+      {status === 'success' && result && (
+        <>
+          <p className="checkup-score-eyebrow">Visual &amp; Usability Score</p>
+          <div className="checkup-score-row">
+            <div className="checkup-score">
+              <span className="checkup-score-number">{result.score}</span>
+              <span className="checkup-score-max">/100</span>
+            </div>
+            <div>
+              <p className="checkup-score-label">{scoreLabel(result.score)}</p>
+              <p className="checkup-summary">{result.summary}</p>
+              <p className="checkup-checks-count">
+                {result.checksCompleted} of {result.checksTotal} visual checks completed
+                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+              </p>
+            </div>
+          </div>
+          <p className="checkup-score-scope-note">
+            This score covers measurable rendered-page checks only — it is not a verdict on taste, branding
+            quality, business quality, or the developer who built the site.
+          </p>
+
+          {ecommerceFinding && (
+            <div className="checkup-scope-callout" role="note">
+              {ecommerceFinding.detail}
+            </div>
+          )}
+
+          {VISUAL_CATEGORY_ORDER.map((bucket) =>
+            grouped[bucket].length > 0 ? (
+              <div className="checkup-category" key={bucket}>
+                <h3 className="checkup-category-title">{VISUAL_CATEGORY_INFO[bucket].title}</h3>
+                <p className="checkup-category-desc">{VISUAL_CATEGORY_INFO[bucket].description}</p>
+                <ul className="checkup-finding-list">
+                  {grouped[bucket].map((finding) => (
+                    <VisualFindingRow finding={finding} key={finding.id} />
+                  ))}
+                </ul>
+              </div>
+            ) : null
+          )}
+
+          <div className="checkup-about">
+            <h3 className="checkup-category-title">What the visual review checks</h3>
+            <ul className="checkup-about-list">
+              {WHAT_WE_CHECK_VISUAL.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function ResultsReport({
+  result,
+  headingRef,
+  visualStatus,
+  visualResult,
+  visualErrorMessage,
+}: {
+  result: CheckSuccess
+  headingRef: RefObject<HTMLHeadingElement>
+  visualStatus: VisualStatus
+  visualResult: VisualCheckSuccess | null
+  visualErrorMessage: string | null
+}) {
   const grouped: Record<FindingBucket, Finding[]> = { good: [], improve: [], unverified: [], specialist: [] }
   for (const finding of result.findings) grouped[finding.bucket].push(finding)
   const ecommerceFinding = result.findings.find((f) => f.id === 'ecommerce')
@@ -230,15 +455,19 @@ function ResultsReport({ result, headingRef }: { result: CheckSuccess; headingRe
           This automated checkup reviews a limited set of common website basics. It is not a complete security,
           accessibility, SEO, legal, or performance audit. Some findings may require manual review.
         </p>
-        <div className="checkup-friendly-caution">
-          <p className="checkup-friendly-caution-lead">Before anybody fires their web developer…</p>
-          <p>
-            This automated checkup is a limited snapshot, not a final verdict on your website or the person who
-            built it. A lower-than-expected score doesn’t necessarily mean your website is bad or your developer
-            did poor work. Use these findings as conversation starters, and have important concerns manually
-            reviewed before making changes.
-          </p>
-        </div>
+      </div>
+
+      <VisualSection status={visualStatus} result={visualResult} errorMessage={visualErrorMessage} />
+
+      <div className="checkup-friendly-caution">
+        <p className="checkup-friendly-caution-lead">Before anybody fires their web developer…</p>
+        <p>
+          This automated checkup is a limited snapshot, not a final verdict on your website or the person who built
+          it. A lower-than-expected score doesn’t necessarily mean your website is bad or your developer did poor
+          work. Automated visual heuristics in particular can miss context that a human would immediately
+          understand. Use these findings as conversation starters, and have important concerns manually reviewed
+          before anyone changes, replaces, or blames anything.
+        </p>
       </div>
 
       <div className="checkup-cta">
@@ -248,7 +477,7 @@ function ResultsReport({ result, headingRef }: { result: CheckSuccess; headingRe
           results and I’ll let you know whether your project is a good fit for my current services. This isn’t a
           guarantee that I can take on or fix everything found here.
         </p>
-        <a href={buildMailtoHref(result)} className="btn btn-primary">
+        <a href={buildMailtoHref(result, visualResult)} className="btn btn-primary">
           Email My Results to Leslie
         </a>
         <p className="checkup-cta-note">
@@ -266,6 +495,10 @@ export default function CheckPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [result, setResult] = useState<CheckSuccess | null>(null)
 
+  const [visualStatus, setVisualStatus] = useState<VisualStatus>('idle')
+  const [visualResult, setVisualResult] = useState<VisualCheckSuccess | null>(null)
+  const [visualErrorMessage, setVisualErrorMessage] = useState<string | null>(null)
+
   const validationErrorRef = useRef<HTMLParagraphElement>(null)
   const apiErrorRef = useRef<HTMLDivElement>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -278,6 +511,37 @@ export default function CheckPage() {
     if (status === 'error') apiErrorRef.current?.focus()
     if (status === 'success') resultsHeadingRef.current?.focus()
   }, [status])
+
+  async function runVisualCheck(url: string) {
+    setVisualStatus('loading')
+    setVisualResult(null)
+    setVisualErrorMessage(null)
+    try {
+      const res = await fetch('/api/check-visual', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+
+      // Check the HTTP status before assuming the body is our normal JSON shape —
+      // a 429 from the Vercel Firewall rate limit isn't shaped like our API responses.
+      if (res.status === 429) {
+        setVisualErrorMessage('You’re running checks faster than we can keep up with. Please wait a minute and try again.')
+        setVisualStatus('error')
+        return
+      }
+
+      const data: VisualCheckResponse = await res.json()
+      if (!data.ok) {
+        setVisualStatus('error')
+        return
+      }
+      setVisualResult(data)
+      setVisualStatus('success')
+    } catch {
+      setVisualStatus('error')
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -293,6 +557,9 @@ export default function CheckPage() {
     setApiError(null)
     setResult(null)
     setStatus('loading')
+    setVisualStatus('idle')
+    setVisualResult(null)
+    setVisualErrorMessage(null)
 
     try {
       const res = await fetch('/api/check-website', {
@@ -308,6 +575,9 @@ export default function CheckPage() {
       }
       setResult(data)
       setStatus('success')
+      // The visual review runs after the technical check completes, and independently
+      // of it — a slow or failed visual review never blocks or hides technical results.
+      void runVisualCheck(data.finalUrl)
     } catch {
       setApiError('Something went wrong on our end. Please check your connection and try again.')
       setStatus('error')
@@ -398,7 +668,15 @@ export default function CheckPage() {
               )}
             </div>
 
-            {status === 'success' && result && <ResultsReport result={result} headingRef={resultsHeadingRef} />}
+            {status === 'success' && result && (
+              <ResultsReport
+                result={result}
+                headingRef={resultsHeadingRef}
+                visualStatus={visualStatus}
+                visualResult={visualResult}
+                visualErrorMessage={visualErrorMessage}
+              />
+            )}
           </div>
         </section>
       </main>

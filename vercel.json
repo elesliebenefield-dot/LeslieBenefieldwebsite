@@ -5,6 +5,10 @@
   "functions": {
     "api/check-website.ts": {
       "maxDuration": 20
+    },
+    "api/check-visual.ts": {
+      "maxDuration": 55,
+      "memory": 2048
     }
   }
 }
