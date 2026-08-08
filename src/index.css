@@ -3,10 +3,16 @@
   --color-dark: #1F3347;
   --color-bg: #FDFCFA;
   --color-bg-alt: #EEF5F5;
-  /* Same hue/saturation as the original coastal teal, deepened for WCAG AA text
-     contrast (was ~2.9:1 as small text/button text, now ~5.3-5.5:1). */
-  --color-accent: #357277;
-  --color-accent-hover: #2A5E63;
+  --color-accent: #4DA3A8;
+  --color-accent-hover: #3E9398;
+  /* Accessible alternatives to --color-accent for the specific spots where it's
+     used AS TEXT (small labels/links) or as a button fill under white text — the
+     original lighter teal fails WCAG AA in both roles (~2.9:1). Decorative uses
+     (borders, icons, large background numerals/watermarks, hover-only accents)
+     keep the original --color-accent unchanged. */
+  --color-accent-text: var(--color-text); /* small teal text on light backgrounds -> navy, ~12.6:1 */
+  --color-accent-button: #346573; /* buttons with white text -> deep blue-green, ~6.5:1 */
+  --color-accent-button-hover: #2F5A69; /* ~7.5:1 */
   --color-pop: #E4BDC6;
   --color-pop-light: #F5E8EC;
   --color-text: #1F3347;
@@ -101,7 +107,7 @@ section[id] {
   font-weight: 600;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   margin-bottom: 1.1rem;
 }
 
@@ -150,13 +156,13 @@ section[id] {
 }
 
 .btn-primary {
-  background: var(--color-accent);
+  background: var(--color-accent-button);
   color: #fff;
   box-shadow: 0 2px 8px rgba(77, 163, 168, 0.28);
 }
 
 .btn-primary:hover {
-  background: var(--color-accent-hover);
+  background: var(--color-accent-button-hover);
   transform: translateY(-2px);
   box-shadow: 0 5px 16px rgba(77, 163, 168, 0.38);
 }
@@ -248,7 +254,7 @@ section[id] {
   font-weight: 600;
   padding: 0.4rem 1rem;
   border-radius: var(--radius-sm);
-  background: var(--color-accent);
+  background: var(--color-accent-button);
   color: #fff;
   white-space: nowrap;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -329,7 +335,7 @@ section[id] {
 
 .nav-mobile-cta {
   margin-top: 0.5rem;
-  background: var(--color-accent);
+  background: var(--color-accent-button);
   color: #fff !important;
   text-align: center;
   padding: 0.65rem 1rem !important;
@@ -398,7 +404,7 @@ section[id] {
   font-weight: 600;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   margin-bottom: 1.1rem;
 }
 
@@ -899,8 +905,8 @@ section[id] {
   display: inline-block;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--color-accent);
-  border: 1.5px solid var(--color-accent);
+  color: var(--color-accent-text);
+  border: 1.5px solid var(--color-accent-text);
   border-radius: var(--radius-sm);
   padding: 0.45rem 1rem;
   transition: background 0.22s, color 0.22s, transform 0.22s;
@@ -1593,7 +1599,7 @@ section[id] {
   font-family: var(--font-display);
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   margin-bottom: 1.75rem;
   transition: color 0.2s;
 }
@@ -1955,7 +1961,7 @@ section[id] {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   opacity: 0.85;
   margin-bottom: 0.25rem;
 }
