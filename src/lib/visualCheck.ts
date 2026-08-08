@@ -21,7 +21,6 @@ export type DiagnosticStage =
   | 'validating-request'
   | 'resolving-chromium'
   | 'launching-browser'
-  | 'creating-context'
   | 'creating-page'
   | 'navigating'
   | 'analyzing-page'

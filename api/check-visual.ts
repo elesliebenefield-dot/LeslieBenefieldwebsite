@@ -5,11 +5,13 @@
 // imported or modified by this file.
 //
 // Nothing submitted or rendered here is stored — screenshots, HTML, and page
-// content are discarded once the report is computed. Each request gets its own
-// isolated, cookie-free browser context, closed in every success/failure path.
+// content are discarded once the report is computed. Each request launches its
+// own fresh browser, closed in every success/failure path; each viewport check
+// gets its own page with cookies cleared beforehand, so no check's state can
+// leak into another.
 
 import { randomUUID } from 'node:crypto'
-import type { Browser, Page } from 'puppeteer-core'
+import type { Browser, Page, Target } from 'puppeteer-core'
 import { assertSafeUrl, createHostnameSafetyCache, UnsafeUrlError } from '../src/lib/urlSafety.js'
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
 import { collectPageMeasurements, type RawMeasurements } from '../src/lib/visualAnalysis.js'
@@ -67,7 +69,9 @@ async function launchBrowser(stage: Stage): Promise<Browser> {
 }
 
 /** Locks down what a page is allowed to do: safe navigation/subresources only, no
- *  downloads, no popups, no dialogs, no permission grants. */
+ *  downloads, no popups, no dialogs, no permission grants — and, since viewport
+ *  checks now share the browser's default context rather than each getting its
+ *  own incognito context, clears any cookies left over from a prior check. */
 async function hardenPage(page: Page): Promise<void> {
   const isUrlSafe = createHostnameSafetyCache()
 
@@ -107,6 +111,11 @@ async function hardenPage(page: Page): Promise<void> {
   const client = await page.createCDPSession()
   try {
     await client.send('Page.setDownloadBehavior', { behavior: 'deny' })
+  } catch {
+    /* not fatal if unsupported */
+  }
+  try {
+    await client.send('Network.clearBrowserCookies')
   } catch {
     /* not fatal if unsupported */
   }
@@ -152,20 +161,27 @@ async function measureViewport(
   label: 'desktop' | 'mobile',
   stage: Stage
 ): Promise<RawMeasurements | null> {
-  stage.current = 'creating-context'
-  const context = await browser.createBrowserContext()
+  stage.current = 'creating-page'
+  const page = await browser.newPage()
+
+  // Immediately close any popup/new tab a page tries to open. Scoped to the
+  // browser (there's no per-check context anymore) and removed again in
+  // `finally`, so it only applies while this specific viewport check is active.
+  const onTargetCreated = (target: Target) => {
+    if (target.type() === 'page' && target.page) {
+      target
+        .page()
+        .then((p) => {
+          if (p && p !== page) p.close().catch(() => {})
+        })
+        .catch(() => {})
+    }
+  }
+  browser.on('targetcreated', onTargetCreated)
+
   try {
-    stage.current = 'creating-page'
-    const page = await context.newPage()
     await page.setViewport(viewport)
     await hardenPage(page)
-
-    // Immediately close any popup/new tab a page tries to open.
-    context.on('targetcreated', (target) => {
-      if (target.type() === 'page' && target.page) {
-        target.page().then((p) => p?.close().catch(() => {})).catch(() => {})
-      }
-    })
 
     stage.current = 'navigating'
     try {
@@ -182,7 +198,8 @@ async function measureViewport(
   } catch {
     return null
   } finally {
-    await context.close().catch(() => {})
+    browser.off('targetcreated', onTargetCreated)
+    await page.close().catch(() => {})
   }
 }
 
