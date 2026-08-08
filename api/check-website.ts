@@ -4,8 +4,8 @@
 // in a single request/response cycle.
 
 import { lookup } from 'node:dns/promises'
-import { normalizeWebsiteUrl } from '../src/lib/websiteCheck'
-import type { Finding, CheckResponse } from '../src/lib/websiteCheck'
+import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
+import type { Finding, CheckResponse } from '../src/lib/websiteCheck.js'
 
 // ─── Safety limits ──────────────────────────────────────────────
 const REQUEST_TIMEOUT_MS = 8000
