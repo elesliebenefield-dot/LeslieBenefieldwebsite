@@ -349,8 +349,29 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     return null
   }
 
+  function ancestorChain(el: HTMLElement): Element[] {
+    const ancestors: Element[] = []
+    let node: HTMLElement | null = el
+    while (node) {
+      ancestors.push(node)
+      node = node.parentElement
+    }
+    return ancestors
+  }
+
   function resolveBackground(el: HTMLElement): BackgroundResolution {
-    if (typeof document.elementsFromPoint === 'function') {
+    const rects = el.getClientRects()
+    const rect = rects.length > 0 ? rects[0] : el.getBoundingClientRect()
+    // elementsFromPoint operates in viewport-relative coordinates and can only
+    // ever hit-test what's currently painted on screen. An element scrolled
+    // entirely out of view (e.g. footer content while the page sits at
+    // scrollY 0 for measurement) reports a rect far outside [0, innerHeight) —
+    // clamping that into the viewport wouldn't "find" this element's real
+    // position, it would silently hit-test whatever unrelated content happens
+    // to be on screen at the clamped point instead.
+    const isWithinViewport = rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth
+
+    if (isWithinViewport && typeof document.elementsFromPoint === 'function') {
       // Hit-test what's actually painted at this point, in real stacking
       // order — not just DOM ancestry. This is what correctly resolves a
       // transparent, fixed/absolute-positioned element (e.g. a floating nav)
@@ -359,23 +380,18 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
       // center (falling back to the full box for non-inline layout) keeps
       // the point on the element's own rendered footprint rather than
       // landing in empty inter-line space for text that wraps.
-      const rects = el.getClientRects()
-      const rect = rects.length > 0 ? rects[0] : el.getBoundingClientRect()
       const x = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 1)
       const y = Math.min(Math.max(rect.top + rect.height / 2, 0), window.innerHeight - 1)
       const result = firstRenderedBackground(document.elementsFromPoint(x, y))
       if (result) return result
     } else {
-      // Fallback for a browser without elementsFromPoint: DOM-ancestor walk
-      // only. Doesn't see a transparent overlay's non-ancestor sibling
-      // content, but is still correct for a straightforward ancestor chain.
-      const ancestors: Element[] = []
-      let node: HTMLElement | null = el
-      while (node) {
-        ancestors.push(node)
-        node = node.parentElement
-      }
-      const result = firstRenderedBackground(ancestors)
+      // Off-screen element, or a browser without elementsFromPoint: a
+      // viewport hit-test is meaningless here, so fall back to a DOM-ancestor
+      // walk. That's always geometry-independent and correct for a
+      // straightforward ancestor chain — it just can't see a transparent
+      // overlay's non-ancestor sibling content, the one case only the
+      // on-screen hit-test path above can resolve.
+      const result = firstRenderedBackground(ancestorChain(el))
       if (result) return result
     }
     // Walked everything and found neither an opaque color nor an image/

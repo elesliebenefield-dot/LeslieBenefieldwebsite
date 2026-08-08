@@ -327,6 +327,73 @@ test('falls back to an ancestor-only walk when elementsFromPoint is unavailable'
   assert.equal(lowContrast.length, 1, `expected the fallback to reproduce the original false low-contrast read, got: ${JSON.stringify(result.textIssues)}`)
 })
 
+// ─── Off-screen (below-the-fold) elements at measurement time ───────────
+
+test('an off-screen element with genuinely high contrast is not falsely flagged (its real background is used, not the on-screen content above it)', async () => {
+  // Mirrors the real bug found on websitesbyleslie.com: the footer (and any
+  // below-the-fold content) is off-screen at scrollY 0, where the checker
+  // always measures. Clamping the hit-test sample point into the viewport
+  // would silently sample the unrelated white filler on screen instead of
+  // this element's real (black) background, misreading white-on-white as
+  // ~1:1 even though the real, rendered text is white-on-black (~21:1).
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .filler { height: 3000px; background: #ffffff; }
+      .below-fold { background: #000000; padding: 20px; }
+      .below-fold p { color: #ffffff; font-size: 16px; margin: 0; }
+    </style></head>
+    <body>
+      <div class="filler"></div>
+      <div class="below-fold"><p>Genuinely high contrast text far below the fold.</p></div>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  assert.deepEqual(lowContrast, [], `expected no false low-contrast finding, got: ${JSON.stringify(lowContrast)}`)
+})
+
+test('an off-screen element with genuinely low contrast is still detected (the ancestor-walk fallback still catches real problems)', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .filler { height: 3000px; background: #ffffff; }
+      .below-fold { background: #000000; padding: 20px; }
+      .below-fold p { color: #111111; font-size: 16px; margin: 0; }
+    </style></head>
+    <body>
+      <div class="filler"></div>
+      <div class="below-fold"><p>Genuinely low contrast text far below the fold.</p></div>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  assert.equal(lowContrast.length, 1, `expected the genuinely low-contrast off-screen text to still be flagged, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('an off-screen element over a background-image/gradient ancestor is marked unable to verify', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .filler { height: 3000px; background: #ffffff; }
+      .below-fold { background-image: linear-gradient(#000, #000); padding: 20px; }
+      .below-fold p { color: #ffffff; font-size: 16px; margin: 0; }
+    </style></head>
+    <body>
+      <div class="filler"></div>
+      <div class="below-fold"><p>Text below the fold over a gradient background.</p></div>
+    </body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(lowContrast, [], `expected no false low-contrast finding, got: ${JSON.stringify(lowContrast)}`)
+  assert.equal(unverifiable.length, 1, `expected the off-screen gradient ancestor to be found via the ancestor-walk fallback, got: ${JSON.stringify(result.textIssues)}`)
+})
+
 // ─── Ancestor-hidden elements (opacity, pointer-events, aria-hidden, hidden, inert) ──
 
 test('elements inside a closed (opacity:0, pointer-events:none) menu are not treated as visible tap targets', async () => {
