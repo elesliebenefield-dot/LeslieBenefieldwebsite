@@ -8,7 +8,7 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
-import { collectPageMeasurements } from '../src/lib/visualAnalysis.ts'
+import { collectPageMeasurements, type ViewportLabel } from '../src/lib/visualAnalysis.ts'
 
 const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
@@ -22,12 +22,12 @@ after(async () => {
   await browser.close()
 })
 
-async function measure(html: string): Promise<ReturnType<typeof collectPageMeasurements>> {
+async function measure(html: string, viewportLabel: ViewportLabel = 'desktop'): Promise<ReturnType<typeof collectPageMeasurements>> {
   const page: Page = await browser.newPage()
   try {
-    await page.setViewport({ width: 1024, height: 768 })
+    await page.setViewport(viewportLabel === 'mobile' ? { width: 390, height: 844 } : { width: 1024, height: 768 })
     await page.setContent(html, { waitUntil: 'load' })
-    return await page.evaluate(collectPageMeasurements, 'desktop')
+    return await page.evaluate(collectPageMeasurements, viewportLabel)
   } finally {
     await page.close()
   }
@@ -138,4 +138,252 @@ test('non-overlapping interactive elements are not falsely flagged', async () =>
   const result = await measure(html)
   const overlaps = result.clippedOrOverlapping.filter((i) => i.kind === 'overlap')
   assert.deepEqual(overlaps, [])
+})
+
+// ─── Contrast over background images/gradients ──────────────────────────
+
+test('text over a background-image is marked unable to verify, not falsely flagged as low-contrast', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero { background-image: linear-gradient(#000, #000); background-size: cover; padding: 40px; }
+      h1 { color: #fff; font-size: 48px; margin: 0; }
+    </style></head>
+    <body><div class="hero"><h1>Hero Heading Text</h1></div></body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(lowContrast, [], `expected no low-contrast findings, got: ${JSON.stringify(lowContrast)}`)
+  assert.equal(unverifiable.length, 1, `expected one contrast-unverifiable finding, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('an element with both a background-image and a solid background-color is still unverifiable (image paints over color)', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero {
+        background-color: #ffffff;
+        background-image: linear-gradient(#000, #000);
+        background-size: cover;
+        padding: 40px;
+      }
+      h1 { color: #fff; font-size: 48px; margin: 0; }
+    </style></head>
+    <body><div class="hero"><h1>Hero Heading Text</h1></div></body></html>
+  `
+  const result = await measure(html)
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  assert.deepEqual(
+    lowContrast,
+    [],
+    `expected no low-contrast findings (white-on-white would be a false read from the color layer), got: ${JSON.stringify(lowContrast)}`
+  )
+  assert.equal(unverifiable.length, 1, `expected the image to take precedence over the same element's own color, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('a nearer element\'s own opaque background takes precedence over a more distant ancestor\'s image', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .hero { background-image: linear-gradient(#000, #000); background-size: cover; padding: 40px; }
+      .card { background-color: #ffffff; padding: 16px; }
+      p { color: #eeeeee; font-size: 16px; margin: 0; }
+    </style></head>
+    <body><div class="hero"><div class="card"><p>Card text over its own solid background.</p></div></div></body></html>
+  `
+  const result = await measure(html)
+  const unverifiable = result.textIssues.filter((i) => i.kind === 'contrast-unverifiable')
+  const lowContrast = result.textIssues.filter((i) => i.kind === 'low-contrast')
+  assert.deepEqual(
+    unverifiable,
+    [],
+    `expected the nearer .card background-color to resolve the background (not the ancestor's image), got: ${JSON.stringify(result.textIssues)}`
+  )
+  assert.equal(
+    lowContrast.length,
+    1,
+    `expected the genuinely low-contrast text (#eee on the card's white) to still be detected, got: ${JSON.stringify(result.textIssues)}`
+  )
+})
+
+// ─── Ancestor-hidden elements (opacity, pointer-events, aria-hidden, hidden, inert) ──
+
+test('elements inside a closed (opacity:0, pointer-events:none) menu are not treated as visible tap targets', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      button { width: 60px; height: 60px; }
+      nav { opacity: 0; pointer-events: none; position: absolute; top: 0; left: 0; }
+      nav a { display: inline-block; width: 20px; height: 20px; }
+    </style></head>
+    <body>
+      <button>Real Button</button>
+      <nav><a href="#">Hidden 1</a><a href="#">Hidden 2</a></nav>
+    </body></html>
+  `
+  const result = await measure(html, 'mobile')
+  assert.deepEqual(result.tapTargets, [], `expected no tap-target findings at all, got: ${JSON.stringify(result.tapTargets)}`)
+})
+
+test('an aria-hidden ancestor excludes its contents from visibility-based checks', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      a { display: inline-block; width: 20px; height: 20px; }
+    </style></head>
+    <body>
+      <div aria-hidden="true"><a href="#">Hidden</a></div>
+    </body></html>
+  `
+  const result = await measure(html, 'mobile')
+  assert.deepEqual(result.tapTargets, [], `expected the aria-hidden link to be excluded, got: ${JSON.stringify(result.tapTargets)}`)
+})
+
+test('elements inside [hidden] or [inert] containers are excluded from visibility-based checks', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      button { width: 20px; height: 20px; }
+    </style></head>
+    <body>
+      <div hidden><button>In hidden</button></div>
+      <div inert><button>In inert</button></div>
+    </body></html>
+  `
+  const result = await measure(html, 'mobile')
+  assert.deepEqual(result.tapTargets, [], `expected both to be excluded, got: ${JSON.stringify(result.tapTargets)}`)
+})
+
+test('a hidden phantom element no longer corrupts a real button\'s neighbor-spacing result', async () => {
+  // Before the fix, the invisible (but still laid-out) nav overlapped the real
+  // button in screen coordinates, giving the real, correctly-sized button a
+  // false minGapToNeighbor of 0 and getting it wrongly flagged as crowded.
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      button { width: 60px; height: 60px; }
+      nav { opacity: 0; pointer-events: none; position: absolute; top: 0; left: 0; }
+      nav a { display: inline-block; width: 20px; height: 20px; }
+    </style></head>
+    <body>
+      <button>Real Button</button>
+      <nav><a href="#">Hidden 1</a></nav>
+    </body></html>
+  `
+  const result = await measure(html, 'mobile')
+  const realButtonFinding = result.tapTargets.find((t) => t.label === 'Real Button')
+  assert.equal(realButtonFinding, undefined, `expected the real, well-sized button to not be flagged, got: ${JSON.stringify(result.tapTargets)}`)
+})
+
+test('genuinely undersized, unhidden tap targets are still detected', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      button { width: 24px; height: 24px; }
+    </style></head>
+    <body><button>Tiny</button></body></html>
+  `
+  const result = await measure(html, 'mobile')
+  assert.equal(result.tapTargets.length, 1, `expected the genuinely tiny button to be flagged, got: ${JSON.stringify(result.tapTargets)}`)
+  assert.equal(result.tapTargets[0].label, 'Tiny')
+})
+
+test('genuinely crowded (small-gap), fully visible tap targets are still detected', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      button { position: absolute; width: 44px; height: 44px; top: 0; }
+      .btn-a { left: 0px; }
+      .btn-b { left: 46px; } /* 2px gap: under the 4px minimum */
+    </style></head>
+    <body>
+      <button class="btn-a">A</button>
+      <button class="btn-b">B</button>
+    </body></html>
+  `
+  const result = await measure(html, 'mobile')
+  assert.equal(result.tapTargets.length, 2, `expected both crowded buttons to be flagged, got: ${JSON.stringify(result.tapTargets)}`)
+})
+
+// ─── Heading-only line-height leniency ───────────────────────────────────
+
+test('a large heading (h1) with tight line-height is not flagged as cramped', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      h1 { font-size: 56px; line-height: 1; margin: 0; }
+    </style></head>
+    <body><h1>Big Display Heading</h1></body></html>
+  `
+  const result = await measure(html)
+  const tight = result.textIssues.filter((i) => i.kind === 'tight-line-height')
+  assert.deepEqual(tight, [], `expected no tight-line-height finding for a heading, got: ${JSON.stringify(tight)}`)
+})
+
+test('an element with role="heading" gets the same line-height leniency as a real heading tag', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      .fake-heading { font-size: 56px; line-height: 1; margin: 0; display: block; }
+    </style></head>
+    <body><div class="fake-heading" role="heading" aria-level="1">Big Display Heading</div></body></html>
+  `
+  const result = await measure(html)
+  const tight = result.textIssues.filter((i) => i.kind === 'tight-line-height')
+  assert.deepEqual(tight, [], `expected role="heading" to get the same leniency, got: ${JSON.stringify(tight)}`)
+})
+
+test('a large NON-heading element with tight line-height is still flagged (font size alone is not enough to exempt it)', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      p.pull-quote { font-size: 32px; line-height: 1; margin: 0; }
+    </style></head>
+    <body><p class="pull-quote">A large styled pull-quote that is not semantically a heading.</p></body></html>
+  `
+  const result = await measure(html)
+  const tight = result.textIssues.filter((i) => i.kind === 'tight-line-height')
+  assert.equal(tight.length, 1, `expected a large non-heading element to still use the strict threshold, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('a heading with genuinely broken (overlapping) line-height is still flagged', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; width: 300px; }
+      h1 { font-size: 56px; line-height: 0.5; margin: 0; }
+    </style></head>
+    <body><h1>A Heading Long Enough To Wrap Onto More Than One Line</h1></body></html>
+  `
+  const result = await measure(html)
+  const tight = result.textIssues.filter((i) => i.kind === 'tight-line-height')
+  assert.equal(tight.length, 1, `expected genuinely broken heading line-height to still be flagged, got: ${JSON.stringify(result.textIssues)}`)
+})
+
+test('normal body text with tight line-height is still flagged (unchanged threshold for non-heading text)', async () => {
+  const html = `
+    <!doctype html>
+    <html><head><style>
+      body { margin: 0; }
+      p { font-size: 16px; line-height: 1; margin: 0; }
+    </style></head>
+    <body><p>Ordinary paragraph text with line-height exactly matching its font size.</p></body></html>
+  `
+  const result = await measure(html)
+  const tight = result.textIssues.filter((i) => i.kind === 'tight-line-height')
+  assert.equal(tight.length, 1, `expected ordinary body text to still use the strict threshold, got: ${JSON.stringify(result.textIssues)}`)
 })

@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test"
+    "test": "node --experimental-strip-types --import ./test-support/register-ts-sibling-loader.mjs --test"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",

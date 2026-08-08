@@ -35,7 +35,7 @@ export interface RawTapTarget {
 }
 
 export interface RawTextIssue {
-  kind: 'tiny-font' | 'tight-line-height' | 'long-line' | 'clipped' | 'low-contrast'
+  kind: 'tiny-font' | 'tight-line-height' | 'long-line' | 'clipped' | 'low-contrast' | 'contrast-unverifiable'
   sample: string
   detail: string
 }
@@ -91,10 +91,55 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   const viewportHeight = window.innerHeight
 
   function isVisible(el: Element): boolean {
-    const style = window.getComputedStyle(el)
-    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') === 0) return false
+    const htmlEl = el as HTMLElement
+    if (typeof htmlEl.checkVisibility === 'function') {
+      // Ancestor-aware: unlike reading this element's own computed style, this
+      // correctly catches e.g. a closed mobile menu whose *container* has
+      // opacity:0 even though the element being checked has no hiding style
+      // of its own.
+      if (!htmlEl.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })) {
+        return false
+      }
+    } else {
+      // Fallback for a browser without checkVisibility: walk ancestors manually.
+      let node: Element | null = el
+      while (node) {
+        const s = window.getComputedStyle(node)
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false
+        node = node.parentElement
+      }
+    }
+    // checkVisibility() doesn't cover the hidden/inert attributes' semantic
+    // intent (an author can override their default styling) or aria-hidden
+    // (an accessibility-tree signal, not a paint one) — check those explicitly,
+    // on the element itself or any ancestor.
+    if (el.closest('[inert], [hidden], [aria-hidden="true"]')) return false
     const rect = el.getBoundingClientRect()
     return rect.width > 0 && rect.height > 0
+  }
+
+  // A closed menu is often `pointer-events: none` on its container — content
+  // inside it genuinely cannot be tapped regardless of its own visual state,
+  // so it shouldn't be evaluated as a tap target at all. This is deliberately
+  // separate from isVisible(): a decorative pointer-events:none overlay can
+  // still show real, readable text, so this only applies where interactivity
+  // (not visibility) is what matters.
+  function hasNonInteractiveAncestor(el: Element): boolean {
+    let node: Element | null = el
+    while (node) {
+      if (window.getComputedStyle(node).pointerEvents === 'none') return true
+      node = node.parentElement
+    }
+    return false
+  }
+
+  // Headings conventionally use tight leading as a deliberate display-type
+  // choice; ordinary paragraph/body text does not get that allowance just for
+  // being large (a big styled pull-quote can still be genuinely cramped).
+  function isHeadingLike(el: Element): boolean {
+    if (/^H[1-6]$/.test(el.tagName)) return true
+    const role = el.getAttribute('role')
+    return !!role && role.toLowerCase() === 'heading'
   }
 
   function isSrOnly(el: Element): boolean {
@@ -281,15 +326,31 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     if (!m) return null
     return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] !== undefined ? Number(m[4]) : 1]
   }
-  function resolveBackground(el: HTMLElement): [number, number, number] | null {
+  type BackgroundResolution = { kind: 'color'; rgb: [number, number, number] } | { kind: 'unverifiable' }
+
+  function resolveBackground(el: HTMLElement): BackgroundResolution {
     let node: HTMLElement | null = el
-    for (let depth = 0; depth < 8 && node; depth++) {
-      const bg = window.getComputedStyle(node).backgroundColor
-      const parsed = parseRgb(bg)
-      if (parsed && parsed[3] > 0.5) return [parsed[0], parsed[1], parsed[2]]
+    while (node) {
+      const style = window.getComputedStyle(node)
+      // A background-image paints over that same element's own background-color
+      // (color is the bottom layer, image sits above it), so it must be checked
+      // first at each node — otherwise an element with both would be misread as
+      // having a solid, reliable background. Checking image-then-color at each
+      // node while walking outward also means a nearer element's own opaque
+      // color is found (and returned) before ever reaching a more distant
+      // ancestor's image, since that nearer opaque layer would visually cover
+      // whatever is behind it anyway.
+      if (style.backgroundImage && style.backgroundImage !== 'none') {
+        return { kind: 'unverifiable' }
+      }
+      const parsed = parseRgb(style.backgroundColor)
+      if (parsed && parsed[3] > 0.5) return { kind: 'color', rgb: [parsed[0], parsed[1], parsed[2]] }
       node = node.parentElement
     }
-    return [255, 255, 255] // fall back to assuming a light page background
+    // Walked all the way to the top without finding an opaque color OR an
+    // image/gradient anywhere in the chain — the page's default white canvas
+    // genuinely is the background here, not a guess.
+    return { kind: 'color', rgb: [255, 255, 255] }
   }
 
   let sampledForContrast = 0
@@ -302,8 +363,14 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     if (viewportLabel === 'mobile' && fontSize > 0 && fontSize < 12) {
       textIssues.push({ kind: 'tiny-font', sample, detail: `${fontSize.toFixed(0)}px` })
     }
-    if (!Number.isNaN(lineHeight) && fontSize > 0 && lineHeight / fontSize < 1.1) {
-      textIssues.push({ kind: 'tight-line-height', sample, detail: `${(lineHeight / fontSize).toFixed(2)}x` })
+    if (!Number.isNaN(lineHeight) && fontSize > 0) {
+      // Headings conventionally use tight leading as a deliberate display-type
+      // choice — that's not the same readability problem tight leading causes
+      // in wrapped paragraph/body text, so they get a more lenient threshold.
+      const tightThreshold = isHeadingLike(el) ? 0.9 : 1.1
+      if (lineHeight / fontSize < tightThreshold) {
+        textIssues.push({ kind: 'tight-line-height', sample, detail: `${(lineHeight / fontSize).toFixed(2)}x` })
+      }
     }
     if (viewportLabel === 'desktop' && el.tagName === 'P' && el.clientWidth > 920 && (el.textContent || '').trim().length > 80) {
       textIssues.push({ kind: 'long-line', sample, detail: `${el.clientWidth}px wide` })
@@ -318,13 +385,17 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
 
     if (sampledForContrast < 40 && fontSize >= 10) {
       const fg = parseRgb(style.color)
-      const bg = resolveBackground(el)
-      if (fg && bg) {
-        const l1 = relativeLuminance(fg[0], fg[1], fg[2])
-        const l2 = relativeLuminance(bg[0], bg[1], bg[2])
-        const contrast = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
-        if (contrast < 3.0) {
-          textIssues.push({ kind: 'low-contrast', sample, detail: `~${contrast.toFixed(1)}:1` })
+      if (fg) {
+        const bg = resolveBackground(el)
+        if (bg.kind === 'unverifiable') {
+          textIssues.push({ kind: 'contrast-unverifiable', sample, detail: 'text over a background image or gradient' })
+        } else {
+          const l1 = relativeLuminance(fg[0], fg[1], fg[2])
+          const l2 = relativeLuminance(bg.rgb[0], bg.rgb[1], bg.rgb[2])
+          const contrast = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05)
+          if (contrast < 3.0) {
+            textIssues.push({ kind: 'low-contrast', sample, detail: `~${contrast.toFixed(1)}:1` })
+          }
         }
         sampledForContrast++
       }
@@ -338,7 +409,7 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
       document.querySelectorAll<HTMLElement>(
         'nav a, header a, footer a, button, [role="button"], input[type="submit"], input[type="button"], li > a'
       )
-    ).filter((el) => isVisible(el) && !(el.closest('p')))
+    ).filter((el) => isVisible(el) && !hasNonInteractiveAncestor(el) && !(el.closest('p')))
 
     const rects = candidates.map((el) => ({ el, rect: el.getBoundingClientRect() }))
     for (let i = 0; i < rects.length && i < 80; i++) {

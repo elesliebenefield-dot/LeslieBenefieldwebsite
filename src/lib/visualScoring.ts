@@ -207,23 +207,43 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
     if (!desktop && !mobile) {
       unverified('readability', 'Text readability', 'Could not be measured for this page.', 'both')
     } else {
-      const total = dIssues.length + mIssues.length
-      if (total === 0) {
+      const allIssues = [...dIssues, ...mIssues]
+      // Contrast over a background image/gradient can't be reliably measured —
+      // it's neither a confirmed problem (so it shouldn't cost score) nor a
+      // confirmed pass (so it shouldn't be silently counted as "good" either).
+      const genuineIssues = allIssues.filter((i) => i.kind !== 'contrast-unverifiable')
+      const unverifiableCount = allIssues.length - genuineIssues.length
+
+      if (genuineIssues.length === 0 && unverifiableCount === 0) {
         good('readability', 'Text readability', 'No unusually small text, cramped line spacing, overly long lines, or low-contrast text was detected.', 'both')
         credit('readability', 1)
+      } else if (genuineIssues.length === 0) {
+        unverified(
+          'readability',
+          'Text readability',
+          `${unverifiableCount} piece${unverifiableCount === 1 ? '' : 's'} of text sit${unverifiableCount === 1 ? 's' : ''} over a background image or gradient, so contrast couldn’t be reliably measured there. Everything else checked (font size, line spacing, line length) looked fine. A manual look is the best way to confirm this text is readable.`,
+          combineViewport(
+            dIssues.some((i) => i.kind === 'contrast-unverifiable'),
+            mIssues.some((i) => i.kind === 'contrast-unverifiable')
+          )
+        )
       } else {
-        const kinds = new Set([...dIssues, ...mIssues].map((i) => i.kind))
+        const kinds = new Set(genuineIssues.map((i) => i.kind))
         const parts: string[] = []
         if (kinds.has('tiny-font')) parts.push('unusually small mobile text')
         if (kinds.has('tight-line-height')) parts.push('cramped line spacing')
         if (kinds.has('long-line')) parts.push('very long text lines on desktop')
         if (kinds.has('clipped')) parts.push('text clipped by its container')
         if (kinds.has('low-contrast')) parts.push('text with low contrast against its background')
-        const ratioLost = Math.min(1, total / 10)
+        const ratioLost = Math.min(1, genuineIssues.length / 10)
+        const unverifiableNote =
+          unverifiableCount > 0
+            ? ` ${unverifiableCount} additional piece${unverifiableCount === 1 ? '' : 's'} of text sit${unverifiableCount === 1 ? 's' : ''} over a background image or gradient and couldn’t be reliably checked for contrast.`
+            : ''
         improve(
           'readability',
           'Text readability',
-          `Found ${parts.join(', ')}. This contrast estimate may be inaccurate over background images or color gradients.`,
+          `Found ${parts.join(', ')}.${unverifiableNote}`,
           combineViewport(dIssues.length > 0, mIssues.length > 0),
           ratioLost
         )
