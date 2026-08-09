@@ -35,6 +35,13 @@ export type DiagnosticStage =
 
 export interface VisualCheckSuccess {
   ok: true
+  /** Discriminant reserved for a genuine measurement attempt — including a
+   *  whole-page render failure (checksCompleted: 0 is still a genuine
+   *  attempt that ran and failed, not "nothing was tried"). While the
+   *  public V2 route is contained (patch v0.1.1-containment), it never
+   *  constructs this — it only ever returns 'withdrawn'. This type and
+   *  discriminant exist for when real measurement resumes. */
+  status: 'complete'
   finalUrl: string
   score: number
   summary: string
@@ -45,12 +52,31 @@ export interface VisualCheckSuccess {
   diagnosticStage?: DiagnosticStage
 }
 
+/** The V2 checker is temporarily withdrawn from public use (patch
+ *  v0.1.1-containment, see cody-projects/checker-reliability-rebuild) —
+ *  no measurement of any kind is attempted for any URL while this is
+ *  active. Deliberately excludes score/checksCompleted/checksTotal/
+ *  findings entirely (not zeroed — structurally absent) so this can
+ *  never be confused with a failed, incomplete, or genuine result. */
+export interface VisualCheckWithdrawn {
+  ok: true
+  status: 'withdrawn'
+  message: string
+}
+
 export interface VisualCheckFailure {
   ok: false
   error: string
 }
 
-export type VisualCheckResponse = VisualCheckSuccess | VisualCheckFailure
+export type VisualCheckResponse = VisualCheckSuccess | VisualCheckWithdrawn | VisualCheckFailure
+
+// Single source of truth for the withdrawal copy — read by both the API
+// response (so any consumer, not just this site's own UI, gets the honest
+// reason) and CheckPage's rendering, so the two can never drift apart.
+export const VISUAL_CHECK_WITHDRAWN_LABEL = 'Under independent review'
+export const VISUAL_CHECK_WITHDRAWN_MESSAGE =
+  'The Visual & Usability Review is temporarily paused while we rebuild and independently validate it for consistency, accuracy, and clear explanations. It will return only after it passes that review. Your Technical Basics results above are unaffected.'
 
 // ─── Scoring weights ──────────────────────────────────────────────
 // Sums to 100. Functional-usability checks dominate; cosmetic/manual-judgment

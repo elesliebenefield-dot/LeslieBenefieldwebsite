@@ -62,6 +62,7 @@ function technicalResponse(finalUrl: string, marker: string) {
 function visualResponse(marker: string) {
   return {
     ok: true,
+    status: 'complete',
     finalUrl: `https://${marker.toLowerCase()}.example`,
     score: 77,
     summary: `VISUAL-${marker}`,
