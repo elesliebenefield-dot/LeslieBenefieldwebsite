@@ -70,6 +70,11 @@ function incompleteCoverageDetail(seenSummary: string): string {
 // These two helpers are deliberately scoped to just the overflow check below,
 // not merged into combineViewport/availableViewport above, which every other
 // check still uses in their original 2-way form.
+//
+// Overflow also separately folds a narrow (320px) measurement into the
+// "mobile" flag below (see buildVisualReport's mobileOver/mobilePresent)
+// rather than adding a 4th category here — a 320px-only overflow is still,
+// in every customer-facing sense, a mobile-width problem.
 
 /** Natural-language join: ['desktop'] -> "desktop"; ['desktop','tablet'] ->
  *  "desktop and tablet"; ['desktop','tablet','mobile'] -> "desktop, tablet,
@@ -203,7 +208,12 @@ export function buildVisualReport(
   // Optional and defaulted to null so every existing 2-argument call site
   // (tests included) keeps working unchanged — only the overflow check below
   // reads this.
-  tablet: RawMeasurements | null = null
+  tablet: RawMeasurements | null = null,
+  // Same as tablet: optional, defaulted, only read by the overflow check.
+  // A 320px-wide measurement, folded into the "mobile" flag there rather
+  // than treated as its own category (see the comment above
+  // overflowViewportLabel).
+  narrow: RawMeasurements | null = null
 ): VisualReport {
   const findings: ScoredFinding[] = []
   let earned = 0
@@ -282,21 +292,32 @@ export function buildVisualReport(
   // — a real bug reproduced only in that range (desktop and mobile both
   // clean), so a tablet-only overflow must be able to deduct score and be
   // reported, exactly like a desktop-only or mobile-only one always could.
+  //
+  // "Mobile" here is itself the OR of two measurements — 390px (mobile) and
+  // 320px (narrow) — because a second real bug was later found that only
+  // reproduced at 320px, with 390px clean. Either one overflowing makes the
+  // combined mobile flag true; both must be absent for it to be null
+  // (unmeasured), and if only one of the two loaded, its result is used
+  // alone exactly as before narrow existed — so 390px coverage is never
+  // weakened by narrow being unavailable.
   {
     const dOver = desktop ? desktop.overflow.overflowPx > 20 : null
     const tOver = tablet ? tablet.overflow.overflowPx > 20 : null
-    const mOver = mobile ? mobile.overflow.overflowPx > 20 : null
+    const mOverRaw = mobile ? mobile.overflow.overflowPx > 20 : null
+    const nOverRaw = narrow ? narrow.overflow.overflowPx > 20 : null
+    const mobilePresent = !!mobile || !!narrow
+    const mOver = mOverRaw === null && nOverRaw === null ? null : mOverRaw === true || nOverRaw === true
     if (dOver === null && tOver === null && mOver === null) {
       unverified('overflow', 'Horizontal overflow', 'Could not be measured for this page.', 'both')
     } else if (!dOver && !tOver && !mOver) {
-      const measured = [desktop && 'desktop', tablet && 'tablet', mobile && 'mobile'].filter((v): v is string => !!v)
-      const missing = [!desktop && 'Desktop', !tablet && 'Tablet', !mobile && 'Mobile'].filter((v): v is string => !!v)
+      const measured = [desktop && 'desktop', tablet && 'tablet', mobilePresent && 'mobile'].filter((v): v is string => !!v)
+      const missing = [!desktop && 'Desktop', !tablet && 'Tablet', !mobilePresent && 'Mobile'].filter((v): v is string => !!v)
       const note = missing.length > 0 ? ` (${formatViewportList(missing)} could not be measured for this page, so this reflects ${formatViewportList(measured)} only.)` : ''
       good(
         'overflow',
         'Horizontal overflow',
         `No unintended horizontal scrolling was detected at ${formatViewportList(measured)} widths.${note}`,
-        overflowViewportLabel(!!desktop, !!tablet, !!mobile)
+        overflowViewportLabel(!!desktop, !!tablet, mobilePresent)
       )
     } else {
       const affected = [dOver && 'desktop', tOver && 'tablet', mOver && 'mobile'].filter((v): v is string => !!v)

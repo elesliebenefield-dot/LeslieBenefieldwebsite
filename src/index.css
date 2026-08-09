@@ -364,6 +364,19 @@ section[id] {
   }
 }
 
+/* At the narrowest real device widths (<=336px — e.g. 320px-wide phones),
+   the collapsed row's fixed-size logo + hamburger button, plus the
+   standard padding/gap, need 337px minimum — a few pixels more than the
+   viewport provides, overflowing it. Tightening padding/gap only in this
+   exact range removes the overflow; 337px and up are unaffected since
+   this rule doesn't apply there. */
+@media (max-width: 336px) {
+  .nav-inner {
+    padding: 0 0.5rem;
+    gap: 0.25rem;
+  }
+}
+
 /* ─── Hero ───────────────────────────────────────────────── */
 .hero {
   position: relative;

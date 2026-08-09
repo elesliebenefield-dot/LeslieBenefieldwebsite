@@ -92,6 +92,26 @@ test('/check has no horizontal overflow anywhere across the affected intermediat
   }
 })
 
+test('/check has no horizontal overflow at 320px (narrowest common real device width) or anywhere in the 300-340px boundary region', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    // A second, separate overflow bug was found here: the collapsed row's
+    // fixed-size logo + hamburger button, plus standard padding/gap, need
+    // 337px minimum — a few pixels more than 320px provides. Fixed via a
+    // narrow-width-only media query (see src/index.css) that only applies
+    // below 337px. 320px (the narrowest common real device width) is the
+    // specifically-required floor for this fix; this sweeps it plus its
+    // surrounding boundary up to 340px to catch any regression nearby.
+    const widths = [320, 321, 325, 330, 336, 337, 338, 340]
+    for (const width of widths) {
+      const overflow = await overflowAt(page, width)
+      assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
 test('/check specifically at the new nav breakpoint boundary (960/961px) has no overflow on either side', async () => {
   const page: Page = await browser.newPage()
   try {

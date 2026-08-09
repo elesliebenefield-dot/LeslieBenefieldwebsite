@@ -40,6 +40,12 @@ const DESKTOP_VIEWPORT = { width: 1440, height: 900 }
 // desktop/mobile check can never see.
 const TABLET_VIEWPORT = { width: 820, height: 1180 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
+// 320px is the narrowest common real device width (older/smaller phones) —
+// a real overflow bug was found there (fixed nav-logo + hamburger button
+// no longer fit the row's padding/gap below 337px) that a 390px-only mobile
+// check can't see, since 390px itself was already clean. Measured alongside,
+// never instead of, MOBILE_VIEWPORT.
+const NARROW_VIEWPORT = { width: 320, height: 844 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, onTimeoutMessage: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>
@@ -247,7 +253,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // ever read from this measurement — see buildVisualReport).
         const tablet = await measureViewport(browser!, targetUrl, TABLET_VIEWPORT, 'desktop', stage)
         const mobile = await measureViewport(browser!, targetUrl, MOBILE_VIEWPORT, 'mobile', stage)
-        return { desktop, tablet, mobile }
+        // Only .overflow is ever read from this measurement (see
+        // buildVisualReport) — 'mobile' label is used because, unlike the
+        // tablet viewport, 320px genuinely is a mobile-scale width.
+        const narrow = await measureViewport(browser!, targetUrl, NARROW_VIEWPORT, 'mobile', stage)
+        return { desktop, tablet, mobile, narrow }
       })(),
       OVERALL_DEADLINE_MS,
       'The visual review took too long to complete.'
@@ -255,7 +265,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     stage.current = 'building-report'
     const finalUrl = normalized.toString()
-    const report = buildVisualReport(result.desktop, result.mobile, result.tablet)
+    const report = buildVisualReport(result.desktop, result.mobile, result.tablet, result.narrow)
 
     const summary = summarizeVisualReport(report)
 
