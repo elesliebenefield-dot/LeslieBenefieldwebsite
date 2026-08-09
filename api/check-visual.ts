@@ -28,7 +28,12 @@ type Stage = { current: DiagnosticStage }
 const NAV_TIMEOUT_MS = 18000
 const SETTLE_MS = 900
 const MOBILE_SETTLE_MS = 500
-const OVERALL_DEADLINE_MS = 42000 // headroom under the 55s function maxDuration
+// A fourth (narrow, 320px) viewport measurement was added alongside desktop/
+// tablet/mobile, adding real wall-clock time (its own navigation + settle
+// wait) to every request — this and maxDuration (vercel.json) were bumped
+// together (42s/55s -> 48s/60s) to keep the same ~12s headroom, after a live
+// production check timed out at the old deadline once this measurement was added.
+const OVERALL_DEADLINE_MS = 48000 // headroom under the 60s function maxDuration
 const LOCAL_CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 }
