@@ -542,6 +542,14 @@ export default function CheckPage() {
   const apiErrorRef = useRef<HTMLDivElement>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
 
+  // Identifies "the current submission" so a still-in-flight request from a
+  // previous submission can recognize it's been superseded and ignore its own
+  // response when it eventually arrives, instead of overwriting whatever the
+  // newer submission already displayed. Both the technical and visual checks
+  // share one counter since either can race against a later submission — the
+  // technical fetch is usually fast, but network conditions aren't guaranteed.
+  const requestIdRef = useRef(0)
+
   useEffect(() => {
     if (validationError) validationErrorRef.current?.focus()
   }, [validationError])
@@ -551,7 +559,7 @@ export default function CheckPage() {
     if (status === 'success') resultsHeadingRef.current?.focus()
   }, [status])
 
-  async function runVisualCheck(url: string) {
+  async function runVisualCheck(url: string, requestId: number) {
     setVisualStatus('loading')
     setVisualResult(null)
     setVisualErrorMessage(null)
@@ -561,6 +569,7 @@ export default function CheckPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ url }),
       })
+      if (requestId !== requestIdRef.current) return // superseded by a newer submission
 
       // Check the HTTP status before assuming the body is our normal JSON shape —
       // a 429 from the Vercel Firewall rate limit isn't shaped like our API responses.
@@ -571,6 +580,7 @@ export default function CheckPage() {
       }
 
       const data: VisualCheckResponse = await res.json()
+      if (requestId !== requestIdRef.current) return // superseded while parsing the response
       if (!data.ok) {
         setVisualStatus('error')
         return
@@ -578,6 +588,7 @@ export default function CheckPage() {
       setVisualResult(data)
       setVisualStatus('success')
     } catch {
+      if (requestId !== requestIdRef.current) return
       setVisualStatus('error')
     }
   }
@@ -591,6 +602,8 @@ export default function CheckPage() {
       setStatus('idle')
       return
     }
+
+    const requestId = ++requestIdRef.current
 
     setValidationError(null)
     setApiError(null)
@@ -606,7 +619,10 @@ export default function CheckPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ url: normalized.toString() }),
       })
+      if (requestId !== requestIdRef.current) return // superseded by a newer submission
+
       const data: CheckResponse = await res.json()
+      if (requestId !== requestIdRef.current) return // superseded while parsing the response
       if (!data.ok) {
         setApiError(data.error)
         setStatus('error')
@@ -616,8 +632,9 @@ export default function CheckPage() {
       setStatus('success')
       // The visual review runs after the technical check completes, and independently
       // of it — a slow or failed visual review never blocks or hides technical results.
-      void runVisualCheck(data.finalUrl)
+      void runVisualCheck(data.finalUrl, requestId)
     } catch {
+      if (requestId !== requestIdRef.current) return
       setApiError('Something went wrong on our end. Please check your connection and try again.')
       setStatus('error')
     }

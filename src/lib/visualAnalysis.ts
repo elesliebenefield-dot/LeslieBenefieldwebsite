@@ -11,6 +11,17 @@
 
 export type ViewportLabel = 'desktop' | 'mobile'
 
+export interface IncompleteCoverage {
+  /** true if this page had more tiny-font/line-height/contrast candidates than TEXT_CANDIDATE_CAP. */
+  textIssues: boolean
+  /** true if this page had more mobile tap-target candidates than TAP_TARGET_CANDIDATE_CAP. */
+  tapTargets: boolean
+  /** true if this page had more <img> elements than IMAGE_CAP. */
+  images: boolean
+  /** true if this page had more heading/nav-link/button candidates than IMPORTANT_ELEMENT_CAP. */
+  overlap: boolean
+}
+
 export interface RawImageMeasurement {
   src: string
   alt: string | null
@@ -34,10 +45,24 @@ export interface RawTapTarget {
   minGapToNeighbor: number | null
 }
 
+// A coarse guess at what role a piece of text plays on the page — used only to
+// weight how much a tiny-font instance should matter (see visualScoring.ts).
+// Order of precedence when classifying: nav > footer > label > body > unknown.
+export type TinyFontRole = 'body' | 'nav' | 'footer' | 'label' | 'unknown'
+
 export interface RawTextIssue {
   kind: 'tiny-font' | 'tight-line-height' | 'long-line' | 'clipped' | 'low-contrast' | 'contrast-unverifiable'
   sample: string
   detail: string
+  /** Only present for 'tiny-font' issues — the scoring-relevant raw data the
+   *  severity/role/grouping model in visualScoring.ts needs. Kept separate from
+   *  `detail` (customer-facing text) so scoring never has to parse a string. */
+  fontSizePx?: number
+  role?: TinyFontRole
+  /** Identifies "the same underlying style" (tag + class list + rounded font
+   *  size) so repeated instances of one CSS rule can be scored as one group
+   *  rather than N unrelated defects. */
+  groupKey?: string
 }
 
 export interface RawMeasurements {
@@ -83,10 +108,34 @@ export interface RawMeasurements {
   }
   copyrightTexts: string[]
   overlays: Array<{ areaRatio: number; sample: string }>
+  incompleteCoverage: IncompleteCoverage
 }
 
 /** Runs inside the target page. Must not reference anything outside its own body. */
 export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasurements {
+  // ─── Measurement bounds ──────────────────────────────────────────────────
+  // Every cap below exists purely to bound worst-case processing time on a
+  // pathological page — real small-business marketing sites (this tool's
+  // actual target audience) never come close to these counts. Each is
+  // generous enough that hitting it is itself notable, so a page whose real
+  // candidate count exceeds its cap is flagged via `incompleteCoverage`
+  // (see the return statement), letting the scoring layer add an honest
+  // "this reflects a partial scan" caveat instead of silently presenting
+  // partial coverage as complete. Candidate SELECTION is always plain DOM
+  // order (querySelectorAll), which is deterministic and stable across
+  // repeated runs of the same page — raising or lowering these numbers
+  // changes how MUCH is examined, never WHICH elements win a tie or in what
+  // order they're considered. Declared inside the function body (not at
+  // module scope) because this whole function is serialized via
+  // `Function.prototype.toString()` and injected into the target page by
+  // Puppeteer's page.evaluate() — only its own body, not any surrounding
+  // module-level bindings, exists once it runs there.
+  const TEXT_CANDIDATE_CAP = 400
+  const IMPORTANT_ELEMENT_CAP = 200
+  const TAP_TARGET_CANDIDATE_CAP = 200
+  const IMAGE_CAP = 100
+  const COPYRIGHT_MATCH_CAP = 20
+
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
 
@@ -140,6 +189,34 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     if (/^H[1-6]$/.test(el.tagName)) return true
     const role = el.getAttribute('role')
     return !!role && role.toLowerCase() === 'heading'
+  }
+
+  // A coarse, DOM-signal-based heuristic — not a reliable content-understanding
+  // system. It exists only to stop every tiny-font instance being weighted as
+  // if it were illegible body copy: a small uppercase/letter-spaced eyebrow
+  // label is a named, conventional type-scale role (Material Design's
+  // "caption"/"overline", Apple HIG's "footnote"), not a defect on its own.
+  function classifyTinyFontRole(el: HTMLElement): TinyFontRole {
+    if (el.closest('nav, header')) return 'nav'
+    if (el.closest('footer')) return 'footer'
+    const style = window.getComputedStyle(el)
+    const letterSpacing = parseFloat(style.letterSpacing)
+    const looksLikeLabel = style.textTransform === 'uppercase' || (!Number.isNaN(letterSpacing) && letterSpacing > 0.5)
+    if (looksLikeLabel) return 'label'
+    const text = (el.textContent || '').trim()
+    if (el.tagName === 'SPAN' && text.length <= 30) return 'label'
+    if (el.tagName === 'P' || el.tagName === 'LI') return 'body'
+    return 'unknown'
+  }
+
+  // "Same underlying style" for grouping purposes: elements sharing a tag,
+  // class list, and rendered font size are very likely styled by the same CSS
+  // rule, so a fix to that one rule fixes all of them together. Deliberately
+  // coarser than a full CSS selector (which would make every element its own
+  // group, defeating the purpose).
+  function tinyFontGroupKey(el: HTMLElement, fontSizePx: number): string {
+    const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).sort().join('.') : ''
+    return `${el.tagName.toLowerCase()}|${cls}|${Math.round(fontSizePx)}`
   }
 
   function isSrOnly(el: Element): boolean {
@@ -204,8 +281,9 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   const importantEls = Array.from(
     document.querySelectorAll<HTMLElement>('h1, h2, nav a, header a, button, [role="button"], a.btn')
   ).filter(isVisible)
+  const overlapCoverageIncomplete = importantEls.length > IMPORTANT_ELEMENT_CAP
 
-  for (const el of importantEls.slice(0, 60)) {
+  for (const el of importantEls.slice(0, IMPORTANT_ELEMENT_CAP)) {
     const style = window.getComputedStyle(el)
     if (
       el.scrollWidth > el.clientWidth + 3 &&
@@ -223,8 +301,8 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     }
   }
 
-  for (let i = 0; i < importantEls.length && i < 40; i++) {
-    for (let j = i + 1; j < importantEls.length && j < 40; j++) {
+  for (let i = 0; i < importantEls.length && i < IMPORTANT_ELEMENT_CAP; i++) {
+    for (let j = i + 1; j < importantEls.length && j < IMPORTANT_ELEMENT_CAP; j++) {
       const a = importantEls[i]
       const b = importantEls[j]
       if (a.contains(b) || b.contains(a)) continue
@@ -314,6 +392,41 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     (el) => isVisible(el) && !isSrOnly(el) && hasOwnText(el) && (el.textContent || '').trim().length > 3
   )
 
+  // A wrapper with no text of its own (e.g. an <li> around an <a>) is already
+  // excluded above by hasOwnText. This handles the opposite, more common case:
+  // a MIXED-content element — its own direct text plus a nested candidate,
+  // e.g. `<p>Designed by <a>Name</a></p>` — where the nested element renders
+  // no distinct style of its own (same font size, line height, and color as
+  // its ancestor; only a text-decoration or href differs). That nested element
+  // isn't a separate styling decision, just extra markup — usually a hyperlink
+  // — around a piece of text its ancestor already accounts for. Counting it
+  // again as its own finding would score the exact same rendered pixels twice.
+  // A nested element that DOES render distinctly (a different font size, or a
+  // deliberately different link color that changes contrast) is a genuinely
+  // separate rendering decision and is deliberately NOT covered by this — it
+  // keeps its own finding. This is structural (DOM ancestry + computed style),
+  // not tied to any site's specific classes or selectors.
+  const textElsSet = new Set(textEls)
+  function nearestEligibleAncestor(el: HTMLElement): HTMLElement | null {
+    let ancestor = el.parentElement
+    while (ancestor) {
+      if (textElsSet.has(ancestor)) return ancestor
+      ancestor = ancestor.parentElement
+    }
+    return null
+  }
+  function isRedundantWithAncestor(el: HTMLElement): boolean {
+    const ancestor = nearestEligibleAncestor(el)
+    if (!ancestor) return false
+    const elStyle = window.getComputedStyle(el)
+    const ancestorStyle = window.getComputedStyle(ancestor)
+    return (
+      elStyle.fontSize === ancestorStyle.fontSize &&
+      elStyle.lineHeight === ancestorStyle.lineHeight &&
+      elStyle.color === ancestorStyle.color
+    )
+  }
+
   function relativeLuminance(r: number, g: number, b: number): number {
     const chan = (c: number) => {
       const v = c / 255
@@ -400,15 +513,23 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     return { kind: 'color', rgb: [255, 255, 255] }
   }
 
-  let sampledForContrast = 0
-  for (const el of textEls.slice(0, 120)) {
+  const textCoverageIncomplete = textEls.length > TEXT_CANDIDATE_CAP
+  for (const el of textEls.slice(0, TEXT_CANDIDATE_CAP)) {
+    if (isRedundantWithAncestor(el)) continue
     const style = window.getComputedStyle(el)
     const fontSize = parseFloat(style.fontSize)
     const lineHeight = parseFloat(style.lineHeight)
     const sample = (el.textContent || '').trim().slice(0, 50)
 
     if (viewportLabel === 'mobile' && fontSize > 0 && fontSize < 12) {
-      textIssues.push({ kind: 'tiny-font', sample, detail: `${fontSize.toFixed(0)}px` })
+      textIssues.push({
+        kind: 'tiny-font',
+        sample,
+        detail: `${fontSize.toFixed(0)}px`,
+        fontSizePx: fontSize,
+        role: classifyTinyFontRole(el),
+        groupKey: tinyFontGroupKey(el, fontSize),
+      })
     }
     if (!Number.isNaN(lineHeight) && fontSize > 0) {
       // Headings conventionally use tight leading as a deliberate display-type
@@ -430,7 +551,14 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
       textIssues.push({ kind: 'clipped', sample, detail: 'text wider than its container' })
     }
 
-    if (sampledForContrast < 40 && fontSize >= 10) {
+    // Deliberately no separate sampling budget here beyond the shared
+    // TEXT_CANDIDATE_CAP above: an earlier version capped contrast checks at
+    // a flat 40, shared across the whole page in DOM order — meaning a run
+    // of early, harmless (or already-unverifiable) elements could silently
+    // consume the entire budget and leave a genuinely low-contrast element
+    // later in the DOM never checked at all. Every candidate that reaches
+    // this point gets evaluated.
+    if (fontSize >= 10) {
       const fg = parseRgb(style.color)
       if (fg) {
         const bg = resolveBackground(el)
@@ -444,22 +572,23 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
             textIssues.push({ kind: 'low-contrast', sample, detail: `~${contrast.toFixed(1)}:1` })
           }
         }
-        sampledForContrast++
       }
     }
   }
 
   // ─── 6. Tap targets (mobile) ────────────────────────────────
   const tapTargets: RawTapTarget[] = []
+  let tapTargetCoverageIncomplete = false
   if (viewportLabel === 'mobile') {
     const candidates = Array.from(
       document.querySelectorAll<HTMLElement>(
         'nav a, header a, footer a, button, [role="button"], input[type="submit"], input[type="button"], li > a'
       )
     ).filter((el) => isVisible(el) && !hasNonInteractiveAncestor(el) && !(el.closest('p')))
+    tapTargetCoverageIncomplete = candidates.length > TAP_TARGET_CANDIDATE_CAP
 
     const rects = candidates.map((el) => ({ el, rect: el.getBoundingClientRect() }))
-    for (let i = 0; i < rects.length && i < 80; i++) {
+    for (let i = 0; i < rects.length && i < TAP_TARGET_CANDIDATE_CAP; i++) {
       const { el, rect } = rects[i]
       if (rect.width < 5 || rect.height < 5) continue
       let minGap: number | null = null
@@ -484,9 +613,9 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   }
 
   // ─── 7. Images ───────────────────────────────────────────────
-  const images: RawImageMeasurement[] = Array.from(document.querySelectorAll('img'))
-    .slice(0, 40)
-    .map((img) => {
+  const allImgEls = Array.from(document.querySelectorAll('img'))
+  const imageCoverageIncomplete = allImgEls.length > IMAGE_CAP
+  const images: RawImageMeasurement[] = allImgEls.slice(0, IMAGE_CAP).map((img) => {
       const rect = img.getBoundingClientRect()
       const style = window.getComputedStyle(img)
       const intentionallyHidden = style.display === 'none' || style.visibility === 'hidden' || img.getAttribute('aria-hidden') === 'true'
@@ -514,8 +643,14 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   const ctaTop = ctaVisible ? ctaEl!.getBoundingClientRect().top + window.scrollY : null
 
   // ─── 9. CTA / contact paths ─────────────────────────────────
-  const hasContactLink = !!document.querySelector('a[href^="tel:"], a[href^="mailto:"], a[href*="contact" i]')
-  const hasPrimaryAction = !!document.querySelector('a.btn, a.btn-primary, button.btn, [class*="cta" i]')
+  // A hidden (display:none, aria-hidden, off-screen-clipped, etc.) contact
+  // link or CTA button can't actually be used by a visitor — querySelector
+  // alone would find it in the DOM regardless, so every candidate is
+  // filtered through isVisible() before counting as "found."
+  const hasContactLink = Array.from(document.querySelectorAll<HTMLElement>('a[href^="tel:"], a[href^="mailto:"], a[href*="contact" i]')).some(
+    isVisible
+  )
+  const hasPrimaryAction = Array.from(document.querySelectorAll<HTMLElement>('a.btn, a.btn-primary, button.btn, [class*="cta" i]')).some(isVisible)
   const bodyText = (document.body.innerText || '').toLowerCase()
   const bodyHtml = document.body.innerHTML.toLowerCase()
   const ecommerceSignal =
@@ -542,9 +677,13 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
   const footerText = footerEl ? footerEl.innerText || '' : ''
   const copyrightPattern = /(?:©|\(c\)|copyright)\s*(\d{4}|20XX|YYYY)(?:\s*[-–—]\s*(\d{4}|20XX|YYYY))?/gi
   const copyrightMatches = Array.from(footerText.matchAll(copyrightPattern)).map((m) => m[0].trim())
-  const copyrightTexts = copyrightMatches.slice(0, 5)
+  const copyrightTexts = copyrightMatches.slice(0, COPYRIGHT_MATCH_CAP)
 
   // ─── 12. Fixed overlays ───────────────────────────────────────
+  // Sorted worst-first (largest areaRatio) before any capping — scoring only
+  // ever looks at the single worst overlay, so an uncapped/unsorted list
+  // risks the actual worst offender falling outside the cap while a lesser
+  // one survives and gets scored in its place.
   const overlays = fixedLikeEls
     .filter((el) => el !== topHeader)
     .map((el) => {
@@ -553,11 +692,17 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
       return { areaRatio: area, sample: (el.className || el.id || el.tagName).toString().slice(0, 60) }
     })
     .filter((o) => o.areaRatio > 0.15)
+    .sort((a, b) => b.areaRatio - a.areaRatio)
 
   return {
     viewport: { width: viewportWidth, height: viewportHeight },
     overflow: { scrollWidth, clientWidth, overflowPx },
-    clippedOrOverlapping: clippedOrOverlapping.slice(0, 10),
+    // Not capped: only .length (and, for tapTargets, a single [0] example) is
+    // ever read downstream — no per-item list is displayed — so trimming this
+    // array would only silently undercount a real page's true total without
+    // saving any meaningful payload size. The underlying candidate scan is
+    // what's bounded (see IMPORTANT_ELEMENT_CAP above), not this output.
+    clippedOrOverlapping,
     nav: {
       found: !!navEl && navLinks.length > 0,
       linkCount: navLinks.length,
@@ -567,8 +712,14 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
       stickyHeaderHeight,
     },
     logo: logoMeasurement,
-    textIssues: textIssues.slice(0, 15),
-    tapTargets: tapTargets.slice(0, 15),
+    // Deliberately not capped here either: scoring needs the complete set to
+    // group tiny-font issues by style and detect severe, widely-repeated
+    // cases correctly. The underlying scan is what's bounded (see
+    // TEXT_CANDIDATE_CAP above) — trimming for display, if ever needed,
+    // happens downstream in how the finding message is worded, never by
+    // discarding data before it's scored.
+    textIssues,
+    tapTargets,
     images,
     hero: {
       headingFound: headingVisible,
@@ -580,6 +731,12 @@ export function collectPageMeasurements(viewportLabel: ViewportLabel): RawMeasur
     cta: { hasContactLink, hasPrimaryAction, ecommerceSignal },
     headings: { h1Count, hasSkippedLevel, emptyHeadingCount },
     copyrightTexts,
-    overlays: overlays.slice(0, 5),
+    overlays,
+    incompleteCoverage: {
+      textIssues: textCoverageIncomplete,
+      tapTargets: tapTargetCoverageIncomplete,
+      images: imageCoverageIncomplete,
+      overlap: overlapCoverageIncomplete,
+    },
   }
 }
