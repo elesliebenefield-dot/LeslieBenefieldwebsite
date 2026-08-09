@@ -1,7 +1,13 @@
 // Shared between the browser (CheckPage) and the serverless function (api/check-visual).
 
 export type VisualFindingBucket = 'good' | 'improve' | 'unverified' | 'specialist'
-export type FindingViewport = 'desktop' | 'mobile' | 'both'
+// 'tablet' is currently only ever produced by the overflow check (the only
+// one that also measures an intermediate/tablet-width viewport); every other
+// check still only ever reports 'desktop' | 'mobile' | 'both'. 'both' means
+// "more than one viewport" generally — for overflow specifically, the
+// finding's detail text always names every affected viewport explicitly, so
+// 'both' there just means "not just one."
+export type FindingViewport = 'desktop' | 'tablet' | 'mobile' | 'both'
 
 export interface VisualFinding {
   id: string

@@ -63,6 +63,38 @@ function incompleteCoverageDetail(seenSummary: string): string {
   return `This page has more elements to check than the checker can safely scan in a single pass, so this couldn't be automatically verified for scoring. ${seenSummary}`
 }
 
+// ─── Overflow-only 3-way viewport helpers ──────────────────────────────────
+// Overflow is currently the only check that also measures an intermediate/
+// tablet-width viewport (see api/check-visual.ts) — a real bug was found
+// that only reproduced at tablet widths, with desktop and mobile both clean.
+// These two helpers are deliberately scoped to just the overflow check below,
+// not merged into combineViewport/availableViewport above, which every other
+// check still uses in their original 2-way form.
+
+/** Natural-language join: ['desktop'] -> "desktop"; ['desktop','tablet'] ->
+ *  "desktop and tablet"; ['desktop','tablet','mobile'] -> "desktop, tablet,
+ *  and mobile". */
+function formatViewportList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+/** Collapses which of desktop/tablet/mobile a boolean applies to into a
+ *  single FindingViewport: the one specific viewport if exactly one is true,
+ *  otherwise 'both' (this check's existing catch-all for "more than one" —
+ *  the finding's own detail text always names every affected viewport, so
+ *  the badge doesn't need to enumerate every 2-of-3 combination). */
+function overflowViewportLabel(desktopFlag: boolean, tabletFlag: boolean, mobileFlag: boolean): FindingViewport {
+  const flags: Array<[boolean, FindingViewport]> = [
+    [desktopFlag, 'desktop'],
+    [tabletFlag, 'tablet'],
+    [mobileFlag, 'mobile'],
+  ]
+  const present = flags.filter(([f]) => f).map(([, name]) => name)
+  return present.length === 1 ? present[0] : 'both'
+}
+
 // ─── Tiny-font scoring model ───────────────────────────────────────────────
 // A raw instance count treats a 10.5px category tag the same as a 6px
 // paragraph, and treats one CSS rule applied to nine elements as nine
@@ -165,7 +197,14 @@ export function computeTinyFontRatioLost(issues: RawTextIssue[]): number {
   return Math.min(1, weightedSum / TINY_FONT_K)
 }
 
-export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMeasurements | null): VisualReport {
+export function buildVisualReport(
+  desktop: RawMeasurements | null,
+  mobile: RawMeasurements | null,
+  // Optional and defaulted to null so every existing 2-argument call site
+  // (tests included) keeps working unchanged — only the overflow check below
+  // reads this.
+  tablet: RawMeasurements | null = null
+): VisualReport {
   const findings: ScoredFinding[] = []
   let earned = 0
   let possible = 0
@@ -239,27 +278,35 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
   const currentYear = new Date().getFullYear()
 
   // ─── 1. Horizontal overflow ─────────────────────────────────
+  // The only check that also measures an intermediate/tablet-width viewport
+  // — a real bug reproduced only in that range (desktop and mobile both
+  // clean), so a tablet-only overflow must be able to deduct score and be
+  // reported, exactly like a desktop-only or mobile-only one always could.
   {
     const dOver = desktop ? desktop.overflow.overflowPx > 20 : null
+    const tOver = tablet ? tablet.overflow.overflowPx > 20 : null
     const mOver = mobile ? mobile.overflow.overflowPx > 20 : null
-    if (dOver === null && mOver === null) {
+    if (dOver === null && tOver === null && mOver === null) {
       unverified('overflow', 'Horizontal overflow', 'Could not be measured for this page.', 'both')
-    } else if (!dOver && !mOver) {
+    } else if (!dOver && !tOver && !mOver) {
+      const measured = [desktop && 'desktop', tablet && 'tablet', mobile && 'mobile'].filter((v): v is string => !!v)
+      const missing = [!desktop && 'Desktop', !tablet && 'Tablet', !mobile && 'Mobile'].filter((v): v is string => !!v)
+      const note = missing.length > 0 ? ` (${formatViewportList(missing)} could not be measured for this page, so this reflects ${formatViewportList(measured)} only.)` : ''
       good(
         'overflow',
         'Horizontal overflow',
-        `No unintended horizontal scrolling was detected at desktop or mobile widths.${partialCoverageNote(desktop, mobile)}`,
-        availableViewport(desktop, mobile)
+        `No unintended horizontal scrolling was detected at ${formatViewportList(measured)} widths.${note}`,
+        overflowViewportLabel(!!desktop, !!tablet, !!mobile)
       )
     } else {
-      const viewport = combineViewport(!!dOver, !!mOver)
-      const both = dOver && mOver
+      const affected = [dOver && 'desktop', tOver && 'tablet', mOver && 'mobile'].filter((v): v is string => !!v)
+      const ratioLost = affected.length / 3
       improve(
         'overflow',
         'Horizontal overflow',
-        `Page content extends beyond the visible width on ${viewport === 'both' ? 'both desktop and mobile' : viewport}, creating unintended horizontal scrolling.`,
-        viewport,
-        both ? 1 : 0.5
+        `Page content extends beyond the visible width on ${formatViewportList(affected)}, creating unintended horizontal scrolling.`,
+        overflowViewportLabel(!!dOver, !!tOver, !!mOver),
+        ratioLost
       )
     }
   }
@@ -799,4 +846,27 @@ export function buildVisualReport(desktop: RawMeasurements | null, mobile: RawMe
 
   const score = possible > 0 ? Math.max(0, Math.min(100, Math.round((earned / possible) * 100))) : 0
   return { score, findings, checksCompleted, checksTotal: VISUAL_CHECK_COUNT }
+}
+
+/** The one-sentence status shown alongside the numeric score. Pulled out as
+ *  its own pure function (rather than left inline in api/check-visual.ts) so
+ *  it can be tested directly against a report, independent of the browser/
+ *  network pipeline that produces one in production.
+ *
+ *  A perfect numeric score can still leave manual-review suggestions
+ *  (measurable:false, never scored) or unverified checks (not assessable,
+ *  excluded from both earned and possible) outstanding — 100 must never read
+ *  as "nothing left to look at" when either is true. */
+export function summarizeVisualReport(report: VisualReport): string {
+  if (report.findings.some((f) => f.id === 'render')) {
+    return 'This website could not be rendered for a visual review.'
+  }
+  const hasReviewItems = report.findings.some((f) => f.bucket === 'improve' || f.bucket === 'unverified')
+  if (report.score === 100 && hasReviewItems) {
+    return 'Measured checks look strong; review the items below.'
+  }
+  if (report.score >= 85) return 'The rendered page looks solid overall, with just a few small things worth a look.'
+  if (report.score >= 65) return 'The rendered page is workable overall, with some room to improve.'
+  if (report.score >= 40) return 'A few rendered-page issues could be affecting visitors.'
+  return 'Several rendered-page issues were found — a closer look would likely help.'
 }

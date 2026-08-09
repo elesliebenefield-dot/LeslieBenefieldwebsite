@@ -47,7 +47,15 @@ export default function Process() {
               data-reveal-delay={i + 1}
             >
               <div className="process-number">{s.number}</div>
-              <h3 className="process-title">{s.title}</h3>
+              {/* h2, not h3: each .process-step card reveals independently of
+                  the "My Process" h2 above (separate data-reveal wrapper), so
+                  a step title can be visible while that h2 isn't — with h3 that
+                  produced an h1->h3 skip in the visible heading sequence on
+                  mobile. Same level as the section's own h2 keeps the visible
+                  sequence valid regardless of which cards have revealed.
+                  className="process-title" is styled purely by class, not
+                  tag, so this is a structural-only change (see index.css). */}
+              <h2 className="process-title">{s.title}</h2>
               <p className="process-desc">{s.desc}</p>
             </div>
           ))}

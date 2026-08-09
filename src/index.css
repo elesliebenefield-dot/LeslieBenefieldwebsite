@@ -345,7 +345,12 @@ section[id] {
 }
 
 
-@media (max-width: 768px) {
+/* The full nav row (logo + 6 links + contact button, all non-wrapping)
+   needs ~950px of width to lay out without crowding — below that, the
+   hamburger menu takes over. This must stay >= that natural content
+   width or the row overflows the viewport at intermediate/tablet widths
+   before the hamburger breakpoint kicks in. */
+@media (max-width: 960px) {
   .nav-links {
     display: none;
   }

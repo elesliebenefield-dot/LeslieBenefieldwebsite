@@ -15,7 +15,7 @@ import type { Browser, Page, Target } from 'puppeteer-core'
 import { assertSafeUrl, createHostnameSafetyCache, UnsafeUrlError } from '../src/lib/urlSafety.js'
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
 import { collectPageMeasurements, type RawMeasurements } from '../src/lib/visualAnalysis.js'
-import { buildVisualReport } from '../src/lib/visualScoring.js'
+import { buildVisualReport, summarizeVisualReport } from '../src/lib/visualScoring.js'
 import { scrollThroughPageAndSettle } from '../src/lib/scrollSettle.js'
 import type { VisualCheckResponse, DiagnosticStage } from '../src/lib/visualCheck.js'
 import { VISUAL_CHECK_COUNT } from '../src/lib/visualCheck.js'
@@ -32,6 +32,13 @@ const OVERALL_DEADLINE_MS = 42000 // headroom under the 55s function maxDuration
 const LOCAL_CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 }
+// Chosen to fall inside the intermediate/tablet range (roughly 769-949px)
+// where a real horizontal-overflow bug was found and fixed — the site's nav
+// only collapses to a hamburger menu below its own breakpoint, so a width in
+// this range genuinely exercises the "wide enough for the desktop nav layout
+// to try to render, narrow enough that it doesn't fit" case a plain
+// desktop/mobile check can never see.
+const TABLET_VIEWPORT = { width: 820, height: 1180 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
 
 function withDeadline<T>(promise: Promise<T>, ms: number, onTimeoutMessage: string): Promise<T> {
@@ -232,8 +239,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (async () => {
         browser = await launchBrowser(stage)
         const desktop = await measureViewport(browser!, targetUrl, DESKTOP_VIEWPORT, 'desktop', stage)
+        // Internally measured with the 'desktop' label (not a new 'tablet'
+        // label) — tablet only needs its overflow measurement, and 'desktop'
+        // already gets everything collectPageMeasurements can give an
+        // overflow check (mobile-only heuristics like tiny-font/tap-target
+        // detection would be irrelevant here anyway, since only .overflow is
+        // ever read from this measurement — see buildVisualReport).
+        const tablet = await measureViewport(browser!, targetUrl, TABLET_VIEWPORT, 'desktop', stage)
         const mobile = await measureViewport(browser!, targetUrl, MOBILE_VIEWPORT, 'mobile', stage)
-        return { desktop, mobile }
+        return { desktop, tablet, mobile }
       })(),
       OVERALL_DEADLINE_MS,
       'The visual review took too long to complete.'
@@ -241,18 +255,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     stage.current = 'building-report'
     const finalUrl = normalized.toString()
-    const report = buildVisualReport(result.desktop, result.mobile)
+    const report = buildVisualReport(result.desktop, result.mobile, result.tablet)
 
-    const summary =
-      result.desktop === null && result.mobile === null
-        ? 'This website could not be rendered for a visual review.'
-        : report.score >= 85
-          ? 'The rendered page looks solid overall, with just a few small things worth a look.'
-          : report.score >= 65
-            ? 'The rendered page is workable overall, with some room to improve.'
-            : report.score >= 40
-              ? 'A few rendered-page issues could be affecting visitors.'
-              : 'Several rendered-page issues were found — a closer look would likely help.'
+    const summary = summarizeVisualReport(report)
 
     const response: VisualCheckResponse = {
       ok: true,

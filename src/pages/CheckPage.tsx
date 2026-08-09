@@ -74,7 +74,7 @@ const VISUAL_CATEGORY_INFO: Record<VisualFindingBucket, { title: string; descrip
 }
 
 const WHAT_WE_CHECK_VISUAL = [
-  'Whether the page causes unintended horizontal scrolling on desktop or mobile',
+  'Whether the page causes unintended horizontal scrolling on desktop, tablet, or mobile',
   'Whether visible content appears clipped, overlapping, or hidden behind a fixed header',
   'Whether navigation is present and usable on desktop and mobile',
   'Logo and header proportions in the rendered page',
@@ -271,9 +271,15 @@ function FindingRow({ finding }: { finding: Finding }) {
   )
 }
 
+const VIEWPORT_LABEL: Record<VisualFinding['viewport'], string> = {
+  both: 'Desktop & mobile',
+  desktop: 'Desktop',
+  tablet: 'Tablet',
+  mobile: 'Mobile',
+}
+
 function VisualFindingRow({ finding }: { finding: VisualFinding }) {
   const Icon = BUCKET_ICON[finding.bucket]
-  const viewportLabel = finding.viewport === 'both' ? 'Desktop & mobile' : finding.viewport === 'desktop' ? 'Desktop' : 'Mobile'
   return (
     <li className={`checkup-finding checkup-finding--${finding.bucket}`}>
       <span className="checkup-finding-icon" aria-hidden="true">
@@ -282,7 +288,10 @@ function VisualFindingRow({ finding }: { finding: VisualFinding }) {
       <span>
         <span className="checkup-finding-label">{finding.label}</span>
         <span className="checkup-finding-meta">
-          {viewportLabel} · {finding.measurable ? 'Measured' : 'Suggested — manual review'}
+          {VIEWPORT_LABEL[finding.viewport]} ·{' '}
+          {finding.measurable
+            ? 'Measured'
+            : 'Suggested — manual review (doesn’t affect this score; it needs a human judgment call)'}
         </span>
         <span className="checkup-finding-detail">{finding.detail}</span>
       </span>
@@ -309,20 +318,26 @@ function VisualSection({
   // Zero checks completed means the page couldn't be rendered at all (a crash, a
   // timeout, or a site that blocks automated browsing) — not a genuine 0/100 score.
   const unavailable = result?.checksCompleted === 0
+  // A perfect number can still leave manual-review suggestions (measurable:false,
+  // never scored) or unverified checks (not assessable, excluded from scoring)
+  // outstanding — 100 must never read as "nothing left to look at" when either
+  // is true. Only meaningful once `result` exists and isn't the unavailable case.
+  const hasReviewItems = !!result && result.findings.some((f) => f.bucket === 'improve' || f.bucket === 'unverified')
+  const isMeasuredPerfect = !unavailable && !!result && result.score === 100 && hasReviewItems
 
   return (
     <div className="checkup-visual-section">
       <h2 className="section-title checkup-results-title checkup-visual-title">Visual &amp; Usability Review</h2>
       <p className="checkup-visual-intro">
-        A real browser opens your homepage at desktop and mobile widths and checks for measurable rendered-page
-        issues. This is a separate review from the Technical Basics Score above — the two are not combined into
-        one overall score.
+        A real browser opens your homepage at desktop, tablet, and mobile widths and checks for measurable
+        rendered-page issues. This is a separate review from the Technical Basics Score above — the two are not
+        combined into one overall score.
       </p>
 
       {(status === 'loading' || status === 'idle') && (
         <div className="checkup-loading" role="status">
           <span className="checkup-spinner" aria-hidden="true" />
-          Rendering your website in a browser at desktop and mobile widths — this can take up to a minute…
+          Rendering your website in a browser at desktop, tablet, and mobile widths — this can take up to a minute…
         </div>
       )}
 
@@ -351,7 +366,9 @@ function VisualSection({
               )}
             </div>
             <div>
-              <p className="checkup-score-label">{unavailable ? 'Review could not be completed' : scoreLabel(result.score)}</p>
+              <p className="checkup-score-label">
+                {unavailable ? 'Review could not be completed' : isMeasuredPerfect ? '100/100 for the checks that could be measured' : scoreLabel(result.score)}
+              </p>
               <p className="checkup-summary">{result.summary}</p>
               {unavailable ? (
                 <p className="checkup-checks-count">
@@ -361,7 +378,11 @@ function VisualSection({
               ) : (
                 <p className="checkup-checks-count">
                   {result.checksCompleted} of {result.checksTotal} visual checks completed
-                  {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+                  {result.checksCompleted < result.checksTotal
+                    ? ' — this score reflects only what could be verified.'
+                    : isMeasuredPerfect
+                      ? ' — see the item(s) below still worth a manual look; they don’t affect this score.'
+                      : '.'}
                 </p>
               )}
               {result.diagnosticStage && (

@@ -49,8 +49,8 @@ function base(overrides: Partial<RawMeasurements> = {}): RawMeasurements {
   }
 }
 
-function findingFor(desktop: RawMeasurements | null, mobile: RawMeasurements | null, id: string) {
-  const report = buildVisualReport(desktop, mobile)
+function findingFor(desktop: RawMeasurements | null, mobile: RawMeasurements | null, id: string, tablet: RawMeasurements | null = null) {
+  const report = buildVisualReport(desktop, mobile, tablet)
   const finding = report.findings.find((f) => f.id === id)
   if (!finding) throw new Error(`no ${id} finding in report`)
   return { report, finding }
@@ -227,7 +227,10 @@ test('navigation: mobile unavailable, desktop nav fine — credited, but notes m
 })
 
 test('both viewports available and clean: no partial-coverage note leaks into any of these checks', () => {
-  const { finding: overflowF } = findingFor(base(), base(), 'overflow')
+  // Overflow is the one check that also reads a third (tablet) measurement —
+  // supplying it here keeps this "everything available" test honest for that
+  // check too; the tablet-specific behavior has its own dedicated tests.
+  const { finding: overflowF } = findingFor(base(), base(), 'overflow', base())
   const { finding: navF } = findingFor(base(), base(), 'navigation')
   assert.doesNotMatch(overflowF.detail, /could not be measured/)
   assert.doesNotMatch(navF.detail, /could not be measured/)
