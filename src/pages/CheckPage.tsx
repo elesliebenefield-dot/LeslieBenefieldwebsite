@@ -4,7 +4,8 @@ import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
 import { normalizeWebsiteUrl } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
-import type { VisualCheckResponse, VisualCheckSuccess, VisualFinding, VisualFindingBucket } from '../lib/visualCheck'
+import type { VisualCheckResponse, VisualCheckSuccess, VisualCheckWithdrawn, VisualFinding, VisualFindingBucket } from '../lib/visualCheck'
+import { VISUAL_CHECK_WITHDRAWN_LABEL } from '../lib/visualCheck'
 
 const RESULTS_EMAIL = 'websitesbyleslie01@gmail.com'
 
@@ -307,23 +308,29 @@ function VisualSection({
   errorMessage,
 }: {
   status: VisualStatus
-  result: VisualCheckSuccess | null
+  result: VisualCheckSuccess | VisualCheckWithdrawn | null
   errorMessage: string | null
 }) {
+  // Withdrawn (patch v0.1.1-containment) is a distinct, discriminated state —
+  // never derived from or confusable with a genuine 'complete' result, whether
+  // that result succeeded, scored 0, or had zero checks completed.
+  const withdrawn = result?.status === 'withdrawn' ? result : null
+  const completeResult = result?.status === 'complete' ? result : null
+
   const grouped: Record<VisualFindingBucket, VisualFinding[]> = { good: [], improve: [], unverified: [], specialist: [] }
-  if (result) {
-    for (const finding of result.findings) grouped[finding.bucket].push(finding)
+  if (completeResult) {
+    for (const finding of completeResult.findings) grouped[finding.bucket].push(finding)
   }
-  const ecommerceFinding = result?.findings.find((f) => f.id === 'ecommerce-visual')
+  const ecommerceFinding = completeResult?.findings.find((f) => f.id === 'ecommerce-visual')
   // Zero checks completed means the page couldn't be rendered at all (a crash, a
   // timeout, or a site that blocks automated browsing) — not a genuine 0/100 score.
-  const unavailable = result?.checksCompleted === 0
+  const unavailable = completeResult?.checksCompleted === 0
   // A perfect number can still leave manual-review suggestions (measurable:false,
   // never scored) or unverified checks (not assessable, excluded from scoring)
   // outstanding — 100 must never read as "nothing left to look at" when either
-  // is true. Only meaningful once `result` exists and isn't the unavailable case.
-  const hasReviewItems = !!result && result.findings.some((f) => f.bucket === 'improve' || f.bucket === 'unverified')
-  const isMeasuredPerfect = !unavailable && !!result && result.score === 100 && hasReviewItems
+  // is true. Only meaningful once `completeResult` exists and isn't the unavailable case.
+  const hasReviewItems = !!completeResult && completeResult.findings.some((f) => f.bucket === 'improve' || f.bucket === 'unverified')
+  const isMeasuredPerfect = !unavailable && !!completeResult && completeResult.score === 100 && hasReviewItems
 
   return (
     <div className="checkup-visual-section">
@@ -351,7 +358,14 @@ function VisualSection({
         </div>
       )}
 
-      {status === 'success' && result && (
+      {status === 'success' && withdrawn && (
+        <div className="checkup-visual-withdrawn" role="status">
+          <p className="checkup-score-label">{VISUAL_CHECK_WITHDRAWN_LABEL}</p>
+          <p className="checkup-summary">{withdrawn.message}</p>
+        </div>
+      )}
+
+      {status === 'success' && completeResult && (
         <>
           <p className="checkup-score-eyebrow">Visual &amp; Usability Score</p>
           <div className="checkup-score-row">
@@ -360,16 +374,16 @@ function VisualSection({
                 <span className="checkup-score-unavailable">Score not available</span>
               ) : (
                 <>
-                  <span className="checkup-score-number">{result.score}</span>
+                  <span className="checkup-score-number">{completeResult.score}</span>
                   <span className="checkup-score-max">/100</span>
                 </>
               )}
             </div>
             <div>
               <p className="checkup-score-label">
-                {unavailable ? 'Review could not be completed' : isMeasuredPerfect ? '100/100 for the checks that could be measured' : scoreLabel(result.score)}
+                {unavailable ? 'Review could not be completed' : isMeasuredPerfect ? '100/100 for the checks that could be measured' : scoreLabel(completeResult.score)}
               </p>
-              <p className="checkup-summary">{result.summary}</p>
+              <p className="checkup-summary">{completeResult.summary}</p>
               {unavailable ? (
                 <p className="checkup-checks-count">
                   This does not necessarily mean anything is wrong with the site — some pages can’t be rendered by
@@ -377,17 +391,17 @@ function VisualSection({
                 </p>
               ) : (
                 <p className="checkup-checks-count">
-                  {result.checksCompleted} of {result.checksTotal} visual checks completed
-                  {result.checksCompleted < result.checksTotal
+                  {completeResult.checksCompleted} of {completeResult.checksTotal} visual checks completed
+                  {completeResult.checksCompleted < completeResult.checksTotal
                     ? ' — this score reflects only what could be verified.'
                     : isMeasuredPerfect
                       ? ' — see the item(s) below still worth a manual look; they don’t affect this score.'
                       : '.'}
                 </p>
               )}
-              {result.diagnosticStage && (
+              {completeResult.diagnosticStage && (
                 <p className="checkup-diagnostic-stage">
-                  Preview diagnostic — last stage reached: <strong>{result.diagnosticStage}</strong>
+                  Preview diagnostic — last stage reached: <strong>{completeResult.diagnosticStage}</strong>
                 </p>
               )}
             </div>
@@ -443,7 +457,7 @@ function ResultsReport({
   result: CheckSuccess
   headingRef: RefObject<HTMLHeadingElement>
   visualStatus: VisualStatus
-  visualResult: VisualCheckSuccess | null
+  visualResult: VisualCheckSuccess | VisualCheckWithdrawn | null
   visualErrorMessage: string | null
 }) {
   const grouped: Record<FindingBucket, Finding[]> = { good: [], improve: [], unverified: [], specialist: [] }
@@ -534,7 +548,10 @@ function ResultsReport({
             Preparing your results…
           </button>
         ) : (
-          <a href={buildMailtoHref(result, visualResult)} className="btn btn-primary">
+          <a
+            href={buildMailtoHref(result, visualResult && visualResult.status === 'complete' ? visualResult : null)}
+            className="btn btn-primary"
+          >
             Email My Results to Leslie
           </a>
         )}
@@ -556,7 +573,7 @@ export default function CheckPage() {
   const [result, setResult] = useState<CheckSuccess | null>(null)
 
   const [visualStatus, setVisualStatus] = useState<VisualStatus>('idle')
-  const [visualResult, setVisualResult] = useState<VisualCheckSuccess | null>(null)
+  const [visualResult, setVisualResult] = useState<VisualCheckSuccess | VisualCheckWithdrawn | null>(null)
   const [visualErrorMessage, setVisualErrorMessage] = useState<string | null>(null)
 
   const validationErrorRef = useRef<HTMLParagraphElement>(null)
