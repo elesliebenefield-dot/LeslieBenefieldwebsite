@@ -19,6 +19,42 @@ import type { RawCapture, ViewportName } from '../types/rawCapture.js'
 import { NORMALIZED_EVIDENCE_ENVELOPE_SCHEMA_VERSION, type NormalizedEvidence } from '../types/normalizedEvidence.js'
 import { EMPTY_CHECK_EVIDENCE } from '../types/checkSpecification.js'
 
+// ─── First real checks (overflow, readability) — each captured as
+// exactly one mobile-viewport RawCapture per check by captureService.ts,
+// unlike 'empty' above which tolerates a multi-viewport collection. A
+// single, already-typed capture has no runtime invariant left to check
+// (no empty-collection case, no duplicate-viewport case), so these are
+// plain total functions — no Result wrapper, because there is honestly
+// nothing here that can fail. ──────────────────────────────────────────
+
+/** overflowPx is clamped to never go negative — a viewport wider than
+ *  the document (no overflow) reports 0, not a negative "underflow". */
+export function normalizeOverflowEvidence(capture: RawCapture<'overflow'>): NormalizedEvidence<'overflow'> {
+  const { viewportWidthPx, documentScrollWidthPx } = capture.payload
+  const overflowPx = Math.max(0, documentScrollWidthPx - viewportWidthPx)
+  return {
+    envelopeSchemaVersion: NORMALIZED_EVIDENCE_ENVELOPE_SCHEMA_VERSION,
+    checkId: 'overflow',
+    sourceCapturePayloadSchemaVersion: '1.0.0',
+    evidenceSchemaVersion: '1.0.0',
+    evidence: { __brand: 'OverflowCheckEvidence', viewportWidthPx, documentScrollWidthPx, overflowPx },
+    viewportsPresent: [capture.provenance.viewport.name],
+    incompleteCoverage: { ...capture.incompleteCoverage },
+  }
+}
+
+export function normalizeReadabilityEvidence(capture: RawCapture<'readability'>): NormalizedEvidence<'readability'> {
+  return {
+    envelopeSchemaVersion: NORMALIZED_EVIDENCE_ENVELOPE_SCHEMA_VERSION,
+    checkId: 'readability',
+    sourceCapturePayloadSchemaVersion: '1.0.0',
+    evidenceSchemaVersion: '1.0.0',
+    evidence: { __brand: 'ReadabilityCheckEvidence', minVisibleFontSizePx: capture.payload.minVisibleFontSizePx },
+    viewportsPresent: [capture.provenance.viewport.name],
+    incompleteCoverage: { ...capture.incompleteCoverage },
+  }
+}
+
 /** Canonical, documented viewport order — output `viewportsPresent` is
  *  always sorted to this order, regardless of input array order, so
  *  equivalent capture sets produce deeply equal normalized evidence. */

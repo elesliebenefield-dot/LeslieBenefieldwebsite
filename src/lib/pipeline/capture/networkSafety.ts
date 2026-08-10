@@ -283,7 +283,17 @@ export interface UrlSafetyDeps {
    *  connect to — production code never supplies this, so production
    *  behavior always uses the real, unmodified classifier. */
   classify?: (ip: string) => IpAddressClassification
+  /** Test-only override for the allowed-port allowlist (default: the
+   *  real ['80', '443'] below). Exists so end-to-end tests can point a
+   *  fixture hostname at a local test server's own ephemeral port
+   *  (which can't realistically bind to 80/443 without elevated
+   *  privileges) without weakening the real, unmodified allowlist any
+   *  production caller actually gets — this field is never set outside
+   *  test code. */
+  allowedPorts?: readonly string[]
 }
+
+const DEFAULT_ALLOWED_PORTS: readonly string[] = ['80', '443']
 
 export type HostnameFailure =
   | { kind: 'ambiguous-or-malformed-host' }
@@ -359,7 +369,8 @@ export async function validateCaptureUrl(rawUrl: string, deps: UrlSafetyDeps = {
   if (url.username !== '' || url.password !== '') {
     return { ok: false, error: { kind: 'credentials-in-url' } }
   }
-  if (url.port !== '' && url.port !== '80' && url.port !== '443') {
+  const allowedPorts = deps.allowedPorts ?? DEFAULT_ALLOWED_PORTS
+  if (url.port !== '' && !allowedPorts.includes(url.port)) {
     return { ok: false, error: { kind: 'unsafe-port', port: url.port } }
   }
 

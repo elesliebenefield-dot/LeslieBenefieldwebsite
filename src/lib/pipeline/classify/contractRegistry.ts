@@ -59,3 +59,56 @@ export function lookupEmptyContract(checkId: string, version: string): ContractL
 export function getEmptyContract(): CheckContract<'empty'> {
   return EMPTY_CONTRACT
 }
+
+// ─── First real checks: overflow, readability. Both standardsBasis
+// entries are `product-policy`, not `standard` — neither threshold is
+// drawn from a cited spec (see classificationEngine.ts's header comment
+// on why); the rationale says so plainly rather than implying a standard
+// backs either check. ───────────────────────────────────────────────
+
+const OVERFLOW_CONTRACT: CheckContract<'overflow'> = Object.freeze({
+  id: 'overflow',
+  version: '1.0.0',
+  claim: 'Flags page content that is wider than the mobile viewport, causing visible horizontal scrolling on a phone.',
+  standardsBasis: Object.freeze({
+    type: 'product-policy',
+    rationale: 'The overflow tolerance used here is a product judgment call about what a visitor would actually notice, not drawn from any accessibility or usability standard.',
+  }),
+  requiredEvidenceFields: Object.freeze([]),
+})
+
+const READABILITY_CONTRACT: CheckContract<'readability'> = Object.freeze({
+  id: 'readability',
+  version: '1.0.0',
+  claim: 'Flags the smallest visible text on the page when it is small enough to be hard to read on a phone.',
+  standardsBasis: Object.freeze({
+    type: 'product-policy',
+    rationale: 'There is no WCAG-mandated minimum font size — the size cutoffs used here are a product judgment call, not a citation of any standard. This check does not evaluate or claim WCAG compliance.',
+  }),
+  requiredEvidenceFields: Object.freeze([]),
+})
+
+export type ContractLookupFailureFor2Checks = { kind: 'unregistered-check-id'; checkId: string } | { kind: 'unsupported-contract-version'; checkId: 'overflow' | 'readability'; version: string }
+
+/** Fail-closed by (checkId, version), matching lookupEmptyContract's
+ *  own rule: an unregistered ID or unsupported version is rejected, not
+ *  silently coerced. */
+export function lookupOverflowContract(checkId: string, version: string): { ok: true; value: CheckContract<'overflow'> } | { ok: false; error: ContractLookupFailureFor2Checks } {
+  if (checkId !== 'overflow') return { ok: false, error: { kind: 'unregistered-check-id', checkId } }
+  if (version !== OVERFLOW_CONTRACT.version) return { ok: false, error: { kind: 'unsupported-contract-version', checkId: 'overflow', version } }
+  return { ok: true, value: OVERFLOW_CONTRACT }
+}
+
+export function lookupReadabilityContract(checkId: string, version: string): { ok: true; value: CheckContract<'readability'> } | { ok: false; error: ContractLookupFailureFor2Checks } {
+  if (checkId !== 'readability') return { ok: false, error: { kind: 'unregistered-check-id', checkId } }
+  if (version !== READABILITY_CONTRACT.version) return { ok: false, error: { kind: 'unsupported-contract-version', checkId: 'readability', version } }
+  return { ok: true, value: READABILITY_CONTRACT }
+}
+
+export function getOverflowContract(): CheckContract<'overflow'> {
+  return OVERFLOW_CONTRACT
+}
+
+export function getReadabilityContract(): CheckContract<'readability'> {
+  return READABILITY_CONTRACT
+}

@@ -10,7 +10,7 @@
 // never consume an AuditRecord. See findings.ts and
 // test/pipeline.siblingOutputs.test.ts / test/pipeline.importBoundaries.test.ts.
 
-import type { ClassificationResult } from '../types/classification.js'
+import type { ClassificationResult, StandardsBasis } from '../types/classification.js'
 import type { VisitorFinding } from '../types/findings.js'
 
 const EMPTY_FINDINGS: readonly VisitorFinding<'empty'>[] = Object.freeze([])
@@ -22,4 +22,48 @@ const EMPTY_FINDINGS: readonly VisitorFinding<'empty'>[] = Object.freeze([])
  *  evidence) ever changes what gets presented. */
 export function presentEmptyFindings(_result: ClassificationResult<'empty'>): readonly VisitorFinding<'empty'>[] {
   return EMPTY_FINDINGS
+}
+
+// ─── First real checks: overflow, readability. Plain-English labels
+// only — never a score, never a "compliant"/"passed" claim. `bucket`
+// carries the same outcome for callers that need it structurally; the
+// visitor-facing text is entirely in `label`/`detail`. Lead-prioritization
+// wording, not an audit finding: "likely opportunity" means "worth
+// reaching out about," not "this is broken."
+
+const LABEL_BY_OUTCOME: Record<ClassificationResult['outcome'], string> = {
+  improve: 'Likely opportunity',
+  'manual-review-advisory': 'Worth a manual look',
+  good: 'No clear issue found',
+  unverified: "Couldn't be checked",
+}
+
+function standardsLabelFor(basis: StandardsBasis): string {
+  return basis.type === 'standard' ? basis.citation : basis.rationale
+}
+
+export function presentOverflowFindings(result: ClassificationResult<'overflow'>): readonly VisitorFinding<'overflow'>[] {
+  return Object.freeze([
+    Object.freeze({
+      checkId: 'overflow',
+      label: LABEL_BY_OUTCOME[result.outcome],
+      bucket: result.outcome,
+      standardsLabel: standardsLabelFor(result.standardsBasis),
+      detail: result.reasoning,
+      viewportNote: 'Checked at mobile width (390px)',
+    }),
+  ])
+}
+
+export function presentReadabilityFindings(result: ClassificationResult<'readability'>): readonly VisitorFinding<'readability'>[] {
+  return Object.freeze([
+    Object.freeze({
+      checkId: 'readability',
+      label: LABEL_BY_OUTCOME[result.outcome],
+      bucket: result.outcome,
+      standardsLabel: standardsLabelFor(result.standardsBasis),
+      detail: result.reasoning,
+      viewportNote: 'Checked at mobile width (390px)',
+    }),
+  ])
 }

@@ -85,18 +85,52 @@ export interface EmptyCheckEvidence {
 export const EMPTY_CHECK_EVIDENCE: EmptyCheckEvidence = Object.freeze({ __brand: 'EmptyCheckEvidence' })
 
 /**
- * Milestone 2 registers exactly one entry — deliberately trivial, proving
- * the mechanism without committing to any real check's shape. Each
- * migrated check (Milestone 3+) adds its own entry here: the single place
- * a new check's capture payload, evidence, contract version, and auditable
- * fields all become associated with its ID at once.
+ * Raw, unprocessed measurements the browser captured for the overflow
+ * check — window.innerWidth and document.documentElement.scrollWidth at
+ * the mobile viewport. Deriving `overflowPx` from these is the Evidence
+ * Normalizer's job (evidenceNormalizer.ts), not this capture stage's.
+ */
+export interface OverflowCapturePayload {
+  readonly __brand: 'OverflowCapturePayload'
+  readonly viewportWidthPx: number
+  readonly documentScrollWidthPx: number
+}
+
+export interface OverflowCheckEvidence {
+  readonly __brand: 'OverflowCheckEvidence'
+  readonly viewportWidthPx: number
+  readonly documentScrollWidthPx: number
+  /** max(0, documentScrollWidthPx - viewportWidthPx) — never negative. */
+  readonly overflowPx: number
+}
+
+/**
+ * The smallest font size found among visible, non-empty text nodes at
+ * the mobile viewport — `null` if no visible text could be measured at
+ * all (an honest "couldn't determine" case, not coerced to 0 or
+ * silently dropped; the classifier maps this to `unverified`).
+ */
+export interface ReadabilityCapturePayload {
+  readonly __brand: 'ReadabilityCapturePayload'
+  readonly minVisibleFontSizePx: number | null
+}
+
+export interface ReadabilityCheckEvidence {
+  readonly __brand: 'ReadabilityCheckEvidence'
+  readonly minVisibleFontSizePx: number | null
+}
+
+/**
+ * Milestone 2 registered exactly one trivial entry; this first real
+ * release adds two genuine checks (overflow, readability) — the first
+ * real use of the registry's extension point.
  *
- * `auditFields: Record<never, never>` is deliberate, not a placeholder:
- * the trivial contract has genuinely nothing worth auditing, so its
- * audit-key type is `never` — no `AuditFieldRef<'empty'>` is constructible
- * at all (see auditRecord.ts). Inventing a fictional auditable field here
- * ("present: boolean") would misrepresent a contract that classifies
- * nothing as if it had real evidence to point to.
+ * Both new checks register `auditFields: Record<never, never>`: the
+ * audit-trail layer (AuditRecord/auditRecordBuilder) is deliberately not
+ * wired up for this release (out of the fast-lane scope — findings are
+ * shown to the visitor and that's the whole product surface right now),
+ * so there is genuinely nothing auditable registered yet — not a
+ * placeholder standing in for a real audit design.
  */
 export interface CheckRegistry {
   empty: {
@@ -104,6 +138,22 @@ export interface CheckRegistry {
     capturePayload: EmptyCapturePayload
     evidenceSchemaVersion: '1.0.0'
     evidence: EmptyCheckEvidence
+    contractVersion: '1.0.0'
+    auditFields: Record<never, never>
+  }
+  overflow: {
+    captureSchemaVersion: '1.0.0'
+    capturePayload: OverflowCapturePayload
+    evidenceSchemaVersion: '1.0.0'
+    evidence: OverflowCheckEvidence
+    contractVersion: '1.0.0'
+    auditFields: Record<never, never>
+  }
+  readability: {
+    captureSchemaVersion: '1.0.0'
+    capturePayload: ReadabilityCapturePayload
+    evidenceSchemaVersion: '1.0.0'
+    evidence: ReadabilityCheckEvidence
     contractVersion: '1.0.0'
     auditFields: Record<never, never>
   }
