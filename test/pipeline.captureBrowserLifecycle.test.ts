@@ -122,7 +122,6 @@ skippableTest('navigation to a validated-safe target loads real content through 
     assert.ok(response?.ok(), 'navigation must succeed with a 2xx response')
     const bodyText = await page.evaluate(() => document.body.innerText)
     assert.match(bodyText, /fixture page/)
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -140,7 +139,6 @@ skippableTest('navigation to a private target fails safely — the proxy rejects
     // failures), so the block is proven via the response status/ok(),
     // not by assuming a thrown exception.
     assert.ok(!response || !response.ok(), 'the private target must never be reachable — either goto() fails outright, or the response is a non-2xx (the proxy\'s 502)')
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -156,7 +154,6 @@ skippableTest('a JS dialog (alert) is auto-dismissed and does not hang navigatio
     await new Promise((r) => setTimeout(r, 200))
     const dialogResult = await page.evaluate(() => (window as unknown as { __dialogResult: string }).__dialogResult)
     assert.notEqual(dialogResult, 'not-run', 'the page script must have actually reached the alert() call')
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -173,10 +170,20 @@ skippableTest('window.open() is suppressed — no second reachable page is creat
     await new Promise((r) => setTimeout(r, 200))
     const popupResult = await page.evaluate(() => (window as unknown as { __popupResult: unknown }).__popupResult)
     assert.equal(popupResult, null, 'window.open must be overridden to return null')
-    const pages = await context.pages()
-    assert.equal(pages.length, 1, 'no second page/tab must exist')
+    // The default context (see newIsolatedContext's own doc comment) has
+    // its own pre-existing initial blank tab from browser launch, so
+    // context.pages().length is no longer a clean "exactly one page"
+    // signal — and hardenPage's own window.open override (confirmed just
+    // above) already prevents a popup TARGET from ever being created in
+    // the first place, so suppressPopups's own reactive
+    // targetcreated-based close-it-after-the-fact counter has nothing to
+    // catch here either, regardless of context strategy. What actually
+    // matters — and what's genuinely still worth asserting — is that no
+    // page anywhere in the context ever reached the popup's own content,
+    // independent of exactly how many incidental tabs exist.
+    const pageUrls = await Promise.all((await context.pages()).map((p) => p.url()))
+    assert.ok(!pageUrls.some((u) => u.includes('/popup')), `no page must have reached the popup's URL, got: ${JSON.stringify(pageUrls)}`)
     stop()
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -192,7 +199,6 @@ skippableTest('a WebSocket connection attempt is blocked', async () => {
     await new Promise((r) => setTimeout(r, 300))
     const wsResult = await page.evaluate(() => (window as unknown as { __wsResult: string }).__wsResult)
     assert.notEqual(wsResult, 'opened', 'a WebSocket must never successfully open')
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -226,7 +232,6 @@ skippableTest('a chunked, headerless response exceeding maxResponseBytes is cut 
 
     const receivedLength = await page.evaluate(() => document.body.innerText.length).catch(() => 0)
     assert.ok(receivedLength < 300000, `the full 300000-byte body must not have been allowed to finish loading (got ${receivedLength} chars)`)
-    await context.close()
   } finally {
     await ctx.teardown()
   }
@@ -256,27 +261,37 @@ skippableTest('browser-resource limit: overallBudgetMs force-kills the browser p
   }
 })
 
-skippableTest('a fresh incognito context has no cookies from a previous capture (storage isolation)', async () => {
-  const ctx = await setup()
+skippableTest('a fresh browser process for the next capture has no cookies from a previous capture (storage isolation)', async () => {
+  // Storage isolation between captures comes from launchCaptureBrowser
+  // giving each capture its own fresh browser PROCESS, never pooled or
+  // reused — not from a separate CDP-created context within one shared
+  // process (see browserLifecycle.ts's crash-diagnostics patch, and
+  // newIsolatedContext's own doc comment for why). This test proves
+  // isolation at the level it now actually happens at: two independent
+  // setup() calls, i.e. two independent launchCaptureBrowser() launches.
+  const ctxA = await setup()
   try {
-    const contextA = await ctx.handle.newIsolatedContext()
+    const contextA = await ctxA.handle.newIsolatedContext()
     const pageA = await contextA.newPage()
     await hardenPage(pageA, { navigationTimeoutMs: 8000 })
-    await pageA.goto(`http://safe.invalid:${ctx.originPort}/`, { waitUntil: 'load', timeout: 8000 })
+    await pageA.goto(`http://safe.invalid:${ctxA.originPort}/`, { waitUntil: 'load', timeout: 8000 })
     await pageA.evaluate(() => {
       document.cookie = 'capture-marker=should-not-leak'
     })
-    await contextA.close()
+  } finally {
+    await ctxA.teardown()
+  }
 
-    const contextB = await ctx.handle.newIsolatedContext()
+  const ctxB = await setup()
+  try {
+    const contextB = await ctxB.handle.newIsolatedContext()
     const pageB = await contextB.newPage()
     await hardenPage(pageB, { navigationTimeoutMs: 8000 })
-    await pageB.goto(`http://safe.invalid:${ctx.originPort}/`, { waitUntil: 'load', timeout: 8000 })
+    await pageB.goto(`http://safe.invalid:${ctxB.originPort}/`, { waitUntil: 'load', timeout: 8000 })
     const cookies = await pageB.evaluate(() => document.cookie)
-    assert.ok(!cookies.includes('capture-marker'), 'a fresh context must not see the previous context\'s cookies')
-    await contextB.close()
+    assert.ok(!cookies.includes('capture-marker'), 'a fresh browser process for the next capture must not see the previous capture\'s cookies')
   } finally {
-    await ctx.teardown()
+    await ctxB.teardown()
   }
 })
 

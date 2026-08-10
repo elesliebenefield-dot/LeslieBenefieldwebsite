@@ -204,8 +204,13 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
 
       return { ok: true, value: { overflow, readability } }
     } finally {
+      // No context.close() here: `context` is now the browser's default
+      // context (see browserLifecycle.ts's crash-diagnostics patch) —
+      // puppeteer-core asserts on closing it ('Default BrowserContext
+      // cannot be closed!'). Nothing is leaked: the entire browser
+      // process, including its default context, is torn down by
+      // handle.close() below.
       stopPopupWatch()
-      await context.close().catch(() => {})
     }
   } finally {
     await handle.close().catch(() => {})
