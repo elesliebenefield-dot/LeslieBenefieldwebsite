@@ -71,9 +71,18 @@ test('2c (fixtures + invariant framework) contains exactly its approved files �
   assert.deepEqual(benchmarkFiles.sort(), ['test/fixtures/visual-checker/benchmark/empty-scaffold.v1.json'].sort(), 'the benchmark/ directory must contain exactly the one Milestone 2 synthetic fixture — no real-check fixture content')
 })
 
-test('2d (capture-service safety boundary) is not implemented: pipeline/capture/ does not exist', async () => {
-  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/pipeline/capture'))
-  assert.deepEqual(files, [], 'src/lib/pipeline/capture/ belongs to sub-patch 2d, and is additionally blocked on an unproven design spike — see threat-model.md')
+test('2d (practical capture safety boundary) contains exactly its approved files — no more', async () => {
+  const files = (await listFilesRecursive(path.join(ROOT, 'src/lib/pipeline/capture'))).map((f) => path.relative(ROOT, f))
+  assert.deepEqual(
+    files.sort(),
+    [
+      'src/lib/pipeline/capture/networkSafety.ts',
+      'src/lib/pipeline/capture/connectionBindingProxy.ts',
+      'src/lib/pipeline/capture/browserLifecycle.ts',
+      'src/lib/pipeline/capture/pageHardening.ts',
+    ].sort(),
+    'src/lib/pipeline/capture/ must contain exactly these 2d files — deliberately no captureService.ts (RawCapture-producing orchestration is out of the practical-2d reset\'s scope; see patch.md\'s Scope Reset section)'
+  )
 })
 
 test('2e (oracle adapters + comparison mapping) is not implemented: no adapter or mapper file exists under offline/oracle/, only types and its compile-time proof', async () => {
@@ -229,6 +238,68 @@ test('no exported function in offline/invariants/ decides a real classification 
       const source = await readFile(file, 'utf8')
       for (const pattern of forbiddenFunctionNamePatterns) {
         assert.ok(!pattern.test(source), `${path.relative(ROOT, file)} must not export a runtime pipeline-logic function matching ${pattern}`)
+      }
+    }
+  }
+})
+
+// ─── Sub-patch 2d (practical scope reset) — content audits. Unlike
+// every earlier sub-patch, 2d's own modules ARE expected to reference
+// puppeteer/Browser/Page/captureService-adjacent terms (that's the
+// whole point of a capture safety boundary) — so the forbidden-term
+// lists here are deliberately narrower than 2b/2c's, covering only what
+// actually must not appear: scoring, real-check content, real domains,
+// oracle/shadow/axe/lighthouse work, and any reference back to the
+// withdrawn public API.
+
+test('no scoring fields or logic anywhere in 2d\'s new modules — Milestone 2 makes no scoring decision', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/pipeline/capture']
+  const forbiddenScoringTerms = ['scoreContribution', 'weight:', 'weight?:', "outcome: 'good'", 'passRate', 'scoreAggregator', 'acceptanceThreshold']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenScoringTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not contain scoring-related term "${term}"`)
+      }
+    }
+  }
+})
+
+test('no real-site domain, oracle-adapter, shadow-runner, or public-API reference in 2d\'s new modules', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/pipeline/capture']
+  const forbiddenTerms = ['websitesbyleslie', 'sissyssweets', 'axe-core', 'lighthouse', 'OracleTool', 'ShadowRun', "from 'express'", 'api/check-visual', '/oracle/', '/shadow/', '/invariants/']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not reference "${term}" in code`)
+      }
+    }
+  }
+})
+
+test('no exported function in pipeline/capture/ presents a visitor finding or builds an audit record — only capture/network-safety/browser-lifecycle functions exist. (Not banning "classify": networkSafety.ts legitimately exports classifyIpv4/classifyIpv6/classifyIpAddress/classifyHostnameShape — network-address classification, unrelated to and not to be confused with a CHECK\'s classification outcome, which nothing in this directory produces.)', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/pipeline/capture']
+  const forbiddenFunctionNamePatterns = [/export function present/i, /export function buildAuditRecord/i]
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      for (const pattern of forbiddenFunctionNamePatterns) {
+        assert.ok(!pattern.test(source), `${path.relative(ROOT, file)} must not export a check-decision/presentation function matching ${pattern}`)
       }
     }
   }
