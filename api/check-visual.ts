@@ -42,6 +42,8 @@ function friendlyErrorFor(error: CaptureFailure): string {
   switch (error.kind) {
     case 'unsafe-url':
       return 'That website address isn’t supported.'
+    case 'browser-crashed':
+      return 'This page couldn’t be checked right now — the checker closed unexpectedly. Please try again in a moment.'
     case 'navigation-failed':
       return 'We couldn’t load that page in a browser — it may be blocking automated visits, or it took too long to respond.'
     case 'measurement-failed':

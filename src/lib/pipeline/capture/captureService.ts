@@ -11,6 +11,7 @@
 // separate captures — since both need nothing more than one already-
 // loaded, already-settled page.
 
+import type { BrowserContext, Page } from 'puppeteer-core'
 import { validateCaptureUrl, type UrlSafetyFailure, type UrlSafetyDeps } from './networkSafety.js'
 import { startConnectionBindingProxy, type ConnectionBindingProxy } from './connectionBindingProxy.js'
 import { launchCaptureBrowser, resolveLocalChromePath, type CaptureBrowserHandle } from './browserLifecycle.js'
@@ -21,6 +22,12 @@ export type CaptureFailure =
   | { kind: 'unsafe-url'; error: UrlSafetyFailure }
   | { kind: 'proxy-start-failed'; reason: string }
   | { kind: 'browser-launch-failed'; reason: string }
+  /** The browser process launched successfully but died (crash, OOM-kill,
+   *  disconnect) before or while creating the first page — distinct from
+   *  browser-launch-failed (puppeteer.launch itself rejecting). Previously
+   *  this threw uncaught past captureOverflowAndReadability entirely; see
+   *  the crash-diagnostics patch. */
+  | { kind: 'browser-crashed'; reason: string }
   | { kind: 'navigation-failed'; reason: string }
   | { kind: 'measurement-failed'; reason: string }
 
@@ -47,6 +54,13 @@ export interface CaptureOptions {
    *  real defaults (443/80) apply. */
   allowedConnectPort?: number
   allowedHttpPort?: number
+  /** Test-only hook, called after the browser has launched but before a
+   *  context/page is created — lets tests deterministically reproduce a
+   *  browser-crashed-after-launch scenario (e.g. killing the real
+   *  process) against captureOverflowAndReadability's actual failure
+   *  mapping, without a fragile, version-specific way to make Chromium
+   *  itself crash on cue. Production never supplies this. */
+  onHandleReady?: (handle: CaptureBrowserHandle) => Promise<void> | void
 }
 
 export interface CapturedEvidence {
@@ -122,9 +136,21 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
     return { ok: false, error: { kind: 'browser-launch-failed', reason: describeThrown(e) } }
   }
 
+  if (options.onHandleReady) await options.onHandleReady(handle)
+
   try {
-    const context = await handle.newIsolatedContext()
-    const page = await context.newPage()
+    let context: BrowserContext
+    let page: Page
+    try {
+      context = await handle.newIsolatedContext()
+      page = await context.newPage()
+    } catch (e) {
+      // The browser launched (we got a handle), but died before or while
+      // creating a page — a crash/OOM-kill/disconnect, not a launch
+      // failure. Structured, not thrown: see the crash-diagnostics patch.
+      return { ok: false, error: { kind: 'browser-crashed', reason: describeThrown(e) } }
+    }
+
     const { stop: stopPopupWatch } = suppressPopups(context, page)
     try {
       await hardenPage(page, { navigationTimeoutMs: options.navigationTimeoutMs })

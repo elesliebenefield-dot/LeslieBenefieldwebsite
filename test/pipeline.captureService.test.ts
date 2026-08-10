@@ -44,6 +44,14 @@ async function startFixtureServer(fileName: string): Promise<{ server: http.Serv
   return { server, port: address.port }
 }
 
+async function killAndAwaitDisconnect(handle: { browser: { process(): { kill(signal: string): void } | null }; isDisconnected(): boolean }): Promise<void> {
+  handle.browser.process()?.kill('SIGKILL')
+  const deadline = Date.now() + 3000
+  while (!handle.isDisconnected() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
 function depsFor(port: number) {
   return {
     lookup: async (hostname: string) => {
@@ -132,4 +140,53 @@ skippableTest('an invalid URL is rejected before any browser is launched', async
   const result = await captureOverflowAndReadability('not a url at all', { executablePath: CHROME_PATH })
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.error.kind, 'unsafe-url')
+})
+
+// ─── Crash diagnostics: a browser that launches but dies before/while
+// creating a page is a structured 'browser-crashed' failure, not an
+// uncaught exception — see api/check-visual.ts's production incident
+// (TargetCloseError at context.newPage(), thrown past this function
+// entirely before this patch). onHandleReady deterministically kills the
+// REAL browser process right after a REAL launch succeeds, so this
+// reproduces production's actual failure class end-to-end rather than
+// mocking the outcome.
+
+skippableTest('a browser that dies right after launch (killed before a page is created) is reported as a structured "browser-crashed" failure, not thrown', async () => {
+  const { server, port } = await startFixtureServer('clean.html')
+  try {
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 5000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      onHandleReady: (handle) => killAndAwaitDisconnect(handle),
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) {
+      assert.equal(result.error.kind, 'browser-crashed')
+      assert.ok(result.error.reason.length > 0)
+    }
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('the browser layer itself: newIsolatedContext()/newPage() reject once the underlying process has been killed', async () => {
+  const { launchCaptureBrowser } = await import('../src/lib/pipeline/capture/browserLifecycle.ts')
+  const { startConnectionBindingProxy } = await import('../src/lib/pipeline/capture/connectionBindingProxy.ts')
+  const proxy = await startConnectionBindingProxy({})
+  try {
+    const handle = await launchCaptureBrowser({ executablePath: CHROME_PATH, proxyPort: proxy.port })
+    try {
+      await killAndAwaitDisconnect(handle)
+      await assert.rejects(async () => {
+        const context = await handle.newIsolatedContext()
+        await context.newPage()
+      })
+    } finally {
+      await handle.close()
+    }
+  } finally {
+    await proxy.close()
+  }
 })

@@ -223,3 +223,37 @@ skippableTest('a capture failure (unsafe target, real safety boundary) still yie
     server.close()
   }
 })
+
+// ─── Crash diagnostics: a browser that launches but dies before/while
+// creating a page (production's actual TargetCloseError incident — see
+// captureService.ts's crash-diagnostics patch) reaches the CLIENT as a
+// clean 200 with a friendly, non-leaking message — never an uncaught
+// exception / raw 500. onHandleReady kills the real browser process
+// right after a real launch, reproducing the exact failure class.
+
+skippableTest('a browser that crashes right after launch still yields a 200 with a friendly, non-leaking "couldn\'t be checked" message — not an uncaught exception', async () => {
+  const { server, port } = await startFixtureServer('clean.html')
+  try {
+    const { res, state } = mockRes()
+    await handleCheckVisual({ method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/` }) }, res, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 5000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      onHandleReady: async (handle) => {
+        handle.browser.process()?.kill('SIGKILL')
+        const deadline = Date.now() + 3000
+        while (!handle.isDisconnected() && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 20))
+        }
+      },
+    })
+    assert.equal(state.statusCode, 200)
+    assert.equal(state.body?.ok, false)
+    if (state.body?.ok) throw new Error('unreachable')
+    assert.ok(state.body!.error.length > 0)
+    assert.ok(!/TargetCloseError|Protocol error|CallbackRegistry|puppeteer|CDP/i.test(state.body!.error), 'must not leak the internal exception type/stack')
+  } finally {
+    server.close()
+  }
+})
