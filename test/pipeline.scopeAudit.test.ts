@@ -54,10 +54,21 @@ test('2b (pure pipeline skeleton + sibling outputs) contains exactly its approve
   }
 })
 
-test('2c (fixtures + invariant framework) is not implemented: test/fixtures/visual-checker/ and offline/invariants/ do not exist', async () => {
-  assert.equal(await exists(path.join(ROOT, 'test/fixtures/visual-checker')), false, 'test/fixtures/visual-checker/ belongs to sub-patch 2c')
-  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/offline/invariants'))
-  assert.deepEqual(files, [], 'src/lib/offline/invariants/ belongs to sub-patch 2c')
+test('2c (fixtures + invariant framework) contains exactly its approved files — no more', async () => {
+  const invariantsFiles = (await listFilesRecursive(path.join(ROOT, 'src/lib/offline/invariants'))).map((f) => path.relative(ROOT, f))
+  assert.deepEqual(
+    invariantsFiles.sort(),
+    [
+      'src/lib/offline/invariants/__compileTimeChecks.ts',
+      'src/lib/offline/invariants/benchmarkFixture.ts',
+      'src/lib/offline/invariants/invariantAssertions.ts',
+      'src/lib/offline/invariants/metamorphicRunner.ts',
+    ].sort(),
+    'src/lib/offline/invariants/ must contain exactly these 2c files'
+  )
+  assert.equal(await exists(path.join(ROOT, 'test/fixtures/visual-checker/README.md')), true)
+  const benchmarkFiles = (await listFilesRecursive(path.join(ROOT, 'test/fixtures/visual-checker/benchmark'))).map((f) => path.relative(ROOT, f))
+  assert.deepEqual(benchmarkFiles.sort(), ['test/fixtures/visual-checker/benchmark/empty-scaffold.v1.json'].sort(), 'the benchmark/ directory must contain exactly the one Milestone 2 synthetic fixture — no real-check fixture content')
 })
 
 test('2d (capture-service safety boundary) is not implemented: pipeline/capture/ does not exist', async () => {
@@ -165,6 +176,59 @@ test('no accidental browser, Capture Service, fixture-library, oracle-adapter, s
         .join('\n')
       for (const term of forbiddenTerms) {
         assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not reference "${term}" in code`)
+      }
+    }
+  }
+})
+
+test('no scoring fields or logic anywhere in 2c\'s new modules — Milestone 2 makes no scoring decision', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/offline/invariants']
+  const forbiddenScoringTerms = ['scoreContribution', 'weight:', 'weight?:', "outcome: 'good'", 'passRate', 'scoreAggregator', 'acceptanceThreshold']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenScoringTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not contain scoring-related term "${term}"`)
+      }
+    }
+  }
+})
+
+test('no accidental browser, Capture Service, oracle-adapter, or shadow-runner work in 2c\'s new modules, and no calibrated real-check tolerance default', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/offline/invariants']
+  const forbiddenTerms = ['puppeteer', 'captureService', 'axe-core', 'lighthouse', 'OracleTool', 'ShadowRun', "from 'express'", 'api/check-visual', 'websitesbyleslie', 'sissyssweets']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not reference "${term}" in code`)
+      }
+    }
+  }
+})
+
+test('no exported function in offline/invariants/ decides a real classification outcome or persists anything — only framework/assertion/parsing functions exist', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/offline/invariants']
+  const forbiddenFunctionNamePatterns = [/export function classify/i, /export function normalize/i, /export function present/i, /export function compare/i, /export function decide/i]
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      for (const pattern of forbiddenFunctionNamePatterns) {
+        assert.ok(!pattern.test(source), `${path.relative(ROOT, file)} must not export a runtime pipeline-logic function matching ${pattern}`)
       }
     }
   }

@@ -87,11 +87,11 @@ test('source scan: 2a\'s new files (pipeline/types/, offline/oracle/) contain no
   }
 })
 
-test('no directory belonging to a sub-patch later than 2b (pipeline/capture; offline/invariants, offline/shadow) exists yet — nothing there to persist through', async () => {
-  const forbidden = ['src/lib/pipeline/capture', 'src/lib/offline/invariants', 'src/lib/offline/shadow']
+test('no directory belonging to a sub-patch later than 2c (pipeline/capture; offline/shadow) exists yet — nothing there to persist through', async () => {
+  const forbidden = ['src/lib/pipeline/capture', 'src/lib/offline/shadow']
   for (const dir of forbidden) {
     const files = await listFilesRecursive(path.join(ROOT, dir))
-    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2b`)
+    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2c`)
   }
 })
 
@@ -119,4 +119,44 @@ test('source scan: 2b\'s new files (pipeline/normalize/, classify/, present/, au
       }
     }
   }
+})
+
+test('source scan: 2c\'s new files (offline/invariants/) contain no filesystem, database, or web-storage reference, and no top-level mutable-collection binding capable of accumulating state across calls', async () => {
+  const dirs = ['src/lib/offline/invariants']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    assert.ok(files.length > 0, `expected files under ${dir}`)
+    for (const file of files) {
+      const isCompileTimeProofFile = path.basename(file) === '__compileTimeChecks.ts'
+      const source = await readFile(file, 'utf8')
+      for (const forbidden of ["from 'node:fs", 'from "node:fs', 'writeFile', 'appendFile', 'localStorage', 'sessionStorage', 'indexedDB', 'console.log']) {
+        assert.ok(!source.includes(forbidden), `${path.relative(ROOT, file)} must not reference "${forbidden}"`)
+      }
+      if (isCompileTimeProofFile) continue
+      const topLevelReassignableCollection = /^(export\s+)?let\s+(\w+)\s*(:[^=]+)?=\s*(\[|\{)/m
+      const reassignableMatch = source.match(topLevelReassignableCollection)
+      if (reassignableMatch) {
+        assert.fail(`${path.relative(ROOT, file)} has a top-level reassignable (let) collection binding: "${reassignableMatch[0]}"`)
+      }
+      const topLevelConstArray = /^(export\s+)?const\s+(\w+)\s*(:[^=]+)?=\s*\[/gm
+      let constArrayMatch: RegExpExecArray | null
+      while ((constArrayMatch = topLevelConstArray.exec(source))) {
+        const name = constArrayMatch[2]
+        const mutated = new RegExp(`\\b${name}\\.(push|unshift|splice|pop|shift|sort|reverse|fill|copyWithin)\\s*\\(`).test(source)
+        assert.ok(!mutated, `${path.relative(ROOT, file)}'s top-level const array/collection "${name}" is mutated in place elsewhere in the file — a de facto accumulator`)
+      }
+    }
+  }
+})
+
+test('offline/invariants/ modules construct only fresh, request-scoped return values — no module-level AuditRecord/NormalizedEvidence/BenchmarkFixture retention', async () => {
+  // Structural proxy, consistent with 2a/2b's own no-persistence tests:
+  // the metamorphic runner and assertion functions return freshly-built
+  // result objects per call; nothing here is assigned to module-level
+  // state and returned from a later call.
+  const { runMetamorphicSuite } = await import('../src/lib/offline/invariants/metamorphicRunner.ts')
+  const a = runMetamorphicSuite([1], [{ id: 't', apply: (x: number[]) => x }], (x: number[]) => x.length, () => ({ holds: true }))
+  const b = runMetamorphicSuite([1], [{ id: 't', apply: (x: number[]) => x }], (x: number[]) => x.length, () => ({ holds: true }))
+  assert.notEqual(a, b, 'each call must return a fresh result object')
+  assert.deepEqual(a, b)
 })

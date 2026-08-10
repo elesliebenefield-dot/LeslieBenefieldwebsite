@@ -178,3 +178,50 @@ test('public api/check-visual.ts cannot reach any 2b module (still unchanged, st
     assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
   }
 })
+
+// ─── Sub-patch 2c: import-boundary and request-path-isolation tests for
+// src/lib/offline/invariants/.
+
+test('src/lib/offline/invariants/ only imports from src/lib/pipeline/types/, never a pipeline implementation module', async () => {
+  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/offline/invariants'))
+  assert.ok(files.length > 0, 'expected files under src/lib/offline/invariants')
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    for (const forbidden of ['/normalize/', '/classify/', '/present/', '/audit/', 'pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit']) {
+      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
+    }
+  }
+})
+
+test('none of 2c\'s new offline/invariants modules import puppeteer-core, browser, Capture Service, or oracle/shadow modules', async () => {
+  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/offline/invariants'))
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    for (const forbidden of ['puppeteer-core', 'captureService', 'browserLifecycle', 'pageHardening', '/capture/', '/oracle/', '/shadow/']) {
+      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
+    }
+  }
+})
+
+test('none of 2c\'s new offline/invariants modules import network, DNS, filesystem, child-process, or database modules, or call fetch()', async () => {
+  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/offline/invariants'))
+  const forbiddenModules = ['node:http', 'node:https', 'node:net', 'node:dns', "'http'", "'https'", "'net'", "'dns'", 'node:child_process', "'child_process'", 'node-fetch']
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    for (const forbidden of forbiddenModules) {
+      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import ${forbidden}: ${JSON.stringify(imports)}`)
+    }
+    assert.ok(!/\bfetch\s*\(/.test(source), `${path.relative(ROOT, file)} must not call fetch()`)
+  }
+})
+
+test('public api/check-visual.ts cannot reach any 2c module (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+  const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
+  const imports = importLinesOf(source)
+  for (const forbidden of ['offline/invariants', 'benchmarkFixture', 'metamorphicRunner', 'invariantAssertions']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
+  }
+})

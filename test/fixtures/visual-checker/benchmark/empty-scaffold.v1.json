@@ -1,0 +1,53 @@
+{
+  "fixtureSchemaVersion": "1.0.0",
+  "fixtureId": "empty-scaffold-desktop-mobile-v1",
+  "checkId": "empty",
+  "rawCaptures": [
+    {
+      "envelopeSchemaVersion": "1.0.0",
+      "checkId": "empty",
+      "payloadSchemaVersion": "1.0.0",
+      "provenance": {
+        "capturedAt": "2026-01-01T00:00:00.000Z",
+        "viewport": { "name": "desktop", "width": 1280, "height": 800 },
+        "finalUrl": "https://fixture.invalid/empty-scaffold"
+      },
+      "payload": { "__brand": "EmptyCapturePayload" },
+      "incompleteCoverage": {}
+    },
+    {
+      "envelopeSchemaVersion": "1.0.0",
+      "checkId": "empty",
+      "payloadSchemaVersion": "1.0.0",
+      "provenance": {
+        "capturedAt": "2026-01-01T00:05:00.000Z",
+        "viewport": { "name": "mobile", "width": 390, "height": 844 },
+        "finalUrl": "https://fixture.invalid/empty-scaffold"
+      },
+      "payload": { "__brand": "EmptyCapturePayload" },
+      "incompleteCoverage": {}
+    }
+  ],
+  "expected": {
+    "normalizedEvidence": {
+      "envelopeSchemaVersion": "1.0.0",
+      "checkId": "empty",
+      "sourceCapturePayloadSchemaVersion": "1.0.0",
+      "evidenceSchemaVersion": "1.0.0",
+      "evidence": { "__brand": "EmptyCheckEvidence" },
+      "viewportsPresent": ["desktop", "mobile"],
+      "incompleteCoverage": {}
+    },
+    "classificationResult": {
+      "checkId": "empty",
+      "contractVersion": "1.0.0",
+      "outcome": "unverified",
+      "standardsBasis": {
+        "type": "product-policy",
+        "rationale": "Internal architecture scaffold, not a standards-based check. No accessibility or usability standard is evaluated or claimed."
+      },
+      "evidenceRefs": [],
+      "reasoning": "Architecture scaffold: no real check was evaluated and no evidence was consulted. This result exists only to prove the pipeline shape end-to-end."
+    }
+  }
+}
