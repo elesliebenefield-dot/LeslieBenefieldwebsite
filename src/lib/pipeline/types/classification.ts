@@ -26,8 +26,10 @@ export type CheckContractFor<Reg extends CheckRegistryShape<Reg>, K extends keyo
       /** The subset of this check's own registered audit-field keys the
        *  contract declares it may need — never another check's keys,
        *  never an arbitrary string. `never[]` (i.e. only `[]`) for a check
-       *  whose `auditFields` is `Record<never, never>`. */
-      requiredEvidenceFields: AuditFieldKeyFor<Reg, K>[]
+       *  whose `auditFields` is `Record<never, never>`. `readonly` so a
+       *  genuinely frozen array (see contractRegistry.ts) can be assigned
+       *  here without a cast — a registered contract is immutable data. */
+      requiredEvidenceFields: readonly AuditFieldKeyFor<Reg, K>[]
     }
   : never
 
