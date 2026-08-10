@@ -85,13 +85,37 @@ test('2d (practical capture safety boundary) contains exactly its approved files
   )
 })
 
-test('2e (oracle adapters + comparison mapping) is not implemented: no adapter or mapper file exists under offline/oracle/, only types and its compile-time proof', async () => {
+test('2e (simplified accessibility cross-check) contains exactly its approved files — axeAdapter.ts only, no lighthouseAdapter.ts or comparisonMapper.ts (deferred/out of scope per the practical reset)', async () => {
   const files = (await listFilesRecursive(path.join(ROOT, 'src/lib/offline/oracle'))).map((f) => path.relative(ROOT, f))
   assert.deepEqual(
     files.sort(),
-    ['src/lib/offline/oracle/__compileTimeChecks.ts', 'src/lib/offline/oracle/types.ts'].sort(),
-    'src/lib/offline/oracle/ must contain only the 2a type/compile-time-proof files — axeAdapter.ts, lighthouseAdapter.ts, and comparisonMapper.ts belong to sub-patch 2e'
+    ['src/lib/offline/oracle/__compileTimeChecks.ts', 'src/lib/offline/oracle/types.ts', 'src/lib/offline/oracle/axeAdapter.ts'].sort(),
+    'src/lib/offline/oracle/ must contain exactly the 2a type/compile-time-proof files plus 2e\'s axeAdapter.ts'
   )
+  const axeFixtures = (await listFilesRecursive(path.join(ROOT, 'test/fixtures/visual-checker/axe')))
+    .map((f) => path.relative(ROOT, f))
+    .filter((f) => !f.endsWith('README.md'))
+  assert.deepEqual(
+    axeFixtures.sort(),
+    [
+      'test/fixtures/visual-checker/axe/positive-accessible.html',
+      'test/fixtures/visual-checker/axe/negative-missing-basics.html',
+      'test/fixtures/visual-checker/axe/boundary-contrast-background-image.html',
+    ].sort(),
+    'the axe/ fixture directory must contain exactly these three local, self-contained fixtures'
+  )
+})
+
+test('no scoring, WCAG-compliance claim, or aggregate outcome field appears in axeAdapter.ts', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(path.join(ROOT, 'src/lib/offline/oracle/axeAdapter.ts'), 'utf8')
+  const codeOnly = source
+    .split('\n')
+    .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+    .join('\n')
+  for (const term of ['score', 'wcagCompliant', 'passRate', 'scoreAggregator', 'grade:']) {
+    assert.ok(!codeOnly.toLowerCase().includes(term.toLowerCase()), `axeAdapter.ts must not contain "${term}"`)
+  }
 })
 
 test('2f (shadow-runner scaffolding) is not implemented: offline/shadow/ does not exist', async () => {
