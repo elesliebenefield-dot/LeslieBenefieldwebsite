@@ -76,11 +76,15 @@ test('src/lib/offline/oracle/types.ts only imports shared types from src/lib/pip
   assert.ok(imports.every((l) => !l.includes('__compileTimeChecks')), 'offline/oracle/types.ts must not import the compile-time-proof file')
 })
 
-test('request-path isolation: none of 2a\'s new pipeline/offline source files import network, DNS, filesystem, or browser modules', async () => {
+test('request-path isolation: none of 2a\'s new pipeline/types/ or offline/oracle/types.ts|__compileTimeChecks.ts source files import network, DNS, filesystem, or browser modules', async () => {
+  // 2e's axeAdapter.ts is EXCLUDED here deliberately: it legitimately
+  // needs puppeteer-core and node:fs (to launch a local browser and read
+  // the axe-core script) — see the dedicated 2e import-boundary test
+  // below, which applies its own, narrower rules to that one file.
   const newDirs = ['src/lib/pipeline/types', 'src/lib/offline/oracle']
   const forbiddenModules = ['node:http', 'node:https', 'node:net', 'node:dns', "'http'", "'https'", "'net'", "'dns'", 'puppeteer-core', 'node:fs', "'fs'", 'node-fetch']
   for (const dir of newDirs) {
-    const files = await listFilesRecursive(path.join(ROOT, dir))
+    const files = (await listFilesRecursive(path.join(ROOT, dir))).filter((f) => path.basename(f) !== 'axeAdapter.ts')
     assert.ok(files.length > 0, `expected files under ${dir}`)
     for (const file of files) {
       const source = await readFile(file, 'utf8')
@@ -93,10 +97,10 @@ test('request-path isolation: none of 2a\'s new pipeline/offline source files im
   }
 })
 
-test('none of 2a\'s new files import puppeteer-core or any not-yet-existing Capture Service module path', async () => {
+test('none of 2a\'s pipeline/types/ or offline/oracle/types.ts|__compileTimeChecks.ts files import puppeteer-core or any not-yet-existing Capture Service module path', async () => {
   const dirs = ['src/lib/pipeline/types', 'src/lib/offline/oracle']
   for (const dir of dirs) {
-    const files = await listFilesRecursive(path.join(ROOT, dir))
+    const files = (await listFilesRecursive(path.join(ROOT, dir))).filter((f) => path.basename(f) !== 'axeAdapter.ts')
     for (const file of files) {
       const source = await readFile(file, 'utf8')
       const imports = importLinesOf(source)
@@ -285,5 +289,31 @@ test('src/lib/pipeline/capture/ does not import any oracle/shadow/invariants off
     for (const forbidden of ['/oracle/', '/shadow/', '/invariants/', 'benchmarkFixture', 'metamorphicRunner', 'invariantAssertions']) {
       assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
     }
+  }
+})
+
+// ─── Sub-patch 2e (simplified accessibility cross-check): import-
+// boundary tests for src/lib/offline/oracle/axeAdapter.ts. Unlike 2a's
+// types.ts, this file LEGITIMATELY imports puppeteer-core/node:fs/
+// node:module (it launches a local browser and reads the axe-core
+// script) — the rules here are narrower: no pipeline implementation
+// module, no reach into pipeline/capture (2d's SSRF-safety machinery is
+// deliberately not reused — fixtures are trusted local content, not
+// arbitrary user-submitted URLs), no API/oracle-shadow/invariants
+// cross-import, and never reachable from api/check-visual.ts.
+
+test('src/lib/offline/oracle/axeAdapter.ts imports no pipeline implementation module, no pipeline/capture (2d\'s SSRF machinery is deliberately not reused for trusted local fixtures), and no shadow/invariants module', async () => {
+  const source = await readFile(path.join(ROOT, 'src/lib/offline/oracle/axeAdapter.ts'), 'utf8')
+  const imports = importLinesOf(source)
+  for (const forbidden of ['/capture/', 'pipeline/capture', '/normalize/', '/classify/', '/present/', '/audit/', '/shadow/', '/invariants/', 'connectionBindingProxy', 'browserLifecycle', 'pageHardening']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `axeAdapter.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
+  }
+})
+
+test('public api/check-visual.ts cannot reach axeAdapter.ts or any offline/oracle adapter (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+  const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
+  const imports = importLinesOf(source)
+  for (const forbidden of ['axeAdapter', 'offline/oracle', '/oracle/']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
   }
 })

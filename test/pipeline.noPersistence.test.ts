@@ -44,9 +44,14 @@ test('no persistence dependency (database, filesystem storage, telemetry, object
 })
 
 test('source scan: 2a\'s new files (pipeline/types/, offline/oracle/) contain no filesystem, database, or web-storage reference, and no top-level mutable-collection binding capable of accumulating state across calls', async () => {
+  // 2e's axeAdapter.ts is EXCLUDED here deliberately: it legitimately
+  // reads (never writes) node:fs to check for a local Chrome binary and
+  // load axe-core's own script — a read, not a persistence concern. See
+  // the dedicated 2e no-persistence test below, which allows reads but
+  // still forbids writes/database/web-storage for that one file.
   const dirs = ['src/lib/pipeline/types', 'src/lib/offline/oracle']
   for (const dir of dirs) {
-    const files = await listFilesRecursive(path.join(ROOT, dir))
+    const files = (await listFilesRecursive(path.join(ROOT, dir))).filter((f) => path.basename(f) !== 'axeAdapter.ts')
     assert.ok(files.length > 0, `expected files under ${dir}`)
     for (const file of files) {
       // __compileTimeChecks.ts files are never imported by anything (see
@@ -213,4 +218,31 @@ test('startConnectionBindingProxy() instances are independently scoped — no mo
 test('launchCaptureBrowser() rejects an invalid executablePath rather than silently falling back to some other browser — no hidden global browser instance is reused across captures', async () => {
   const { launchCaptureBrowser } = await import('../src/lib/pipeline/capture/browserLifecycle.ts')
   await assert.rejects(() => launchCaptureBrowser({ executablePath: '/nonexistent/path/to/chrome-binary', proxyPort: 1 }))
+})
+
+// ─── Sub-patch 2e (simplified accessibility cross-check) —
+// axeAdapter.ts. Legitimately reads node:fs (checking for a local
+// Chrome binary, loading axe-core's own script) — a read is not a
+// persistence concern; what must never appear is a WRITE, a database
+// dependency, web-storage, or module-level mutable state that could
+// leak findings between separate fixture runs.
+
+test('source scan: axeAdapter.ts never writes to the filesystem, never touches a database or web-storage API, and has no top-level mutable-collection binding', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const filePath = path.join(ROOT, 'src/lib/offline/oracle/axeAdapter.ts')
+  const source = await readFile(filePath, 'utf8')
+  for (const forbidden of ['writeFile', 'appendFile', 'unlink', 'rm(', 'localStorage', 'sessionStorage', 'indexedDB']) {
+    assert.ok(!source.includes(forbidden), `axeAdapter.ts must not reference "${forbidden}"`)
+  }
+  const topLevelReassignableCollection = /^(export\s+)?let\s+(\w+)\s*(:[^=]+)?=\s*(\[|\{)/m
+  assert.ok(!topLevelReassignableCollection.test(source), 'axeAdapter.ts must not have a top-level reassignable (let) collection binding')
+})
+
+test('runAxeAgainstFixture() returns fresh, independent results per call — no module-level retention of findings between fixture runs', async () => {
+  const { runAxeAgainstFixture } = await import('../src/lib/offline/oracle/axeAdapter.ts')
+  const html = '<!DOCTYPE html><html lang="en"><body><main><h1>x</h1></main></body></html>'
+  const a = await runAxeAgainstFixture(html, { executablePath: '/nonexistent/path/to/chrome-binary' })
+  const b = await runAxeAgainstFixture(html, { executablePath: '/nonexistent/path/to/chrome-binary' })
+  assert.notEqual(a, b, 'each call must return a fresh result object')
+  assert.deepEqual(a, b)
 })
