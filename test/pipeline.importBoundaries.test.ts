@@ -39,22 +39,19 @@ function importLinesOf(source: string): string[] {
   return source.split('\n').filter((line) => /^\s*import\b/.test(line))
 }
 
-test('api/check-visual.ts (Milestone 1, unchanged) still does not import src/lib/pipeline/ or src/lib/offline/', async () => {
-  const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
-  const imports = importLinesOf(source)
-  for (const forbidden of ['src/lib/pipeline', 'src/lib/offline', '../src/lib/pipeline', '../src/lib/offline']) {
-    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
-  }
-})
-
-test('no file under api/ imports anything from src/lib/pipeline/ or src/lib/offline/', async () => {
+// api/check-visual.ts legitimately reaches src/lib/pipeline/ as of the
+// first real-checker release (captureService.ts, and the normalize/
+// classify/present stages it feeds) — that reachability is the entire
+// point of this release, not a boundary violation. src/lib/offline/
+// (oracle/shadow/invariants — 2c/2e's accuracy-validation machinery) is a
+// separate, still-untouched subsystem with no reason to be reachable from
+// the public route, so that boundary still holds.
+test('no file under api/ imports anything from src/lib/offline/', async () => {
   const apiFiles = await listFilesRecursive(path.join(ROOT, 'api'))
   for (const file of apiFiles) {
     const source = await readFile(file, 'utf8')
     const imports = importLinesOf(source)
-    for (const forbidden of ['lib/pipeline', 'lib/offline']) {
-      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
-    }
+    assert.ok(imports.every((l) => !l.includes('lib/offline')), `${path.relative(ROOT, file)} must not import "lib/offline": ${JSON.stringify(imports)}`)
   }
 })
 
@@ -175,12 +172,14 @@ test('none of 2b\'s new modules call fetch(), launch a browser, touch the DOM, u
   }
 })
 
-test('public api/check-visual.ts cannot reach any 2b module (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+// The first real-checker release wires normalize/classify/present into
+// api/check-visual.ts intentionally — that's this release's whole job.
+// pipeline/audit (2b's audit-record builder, a separate sibling output
+// never consumed by the public route) remains unreachable.
+test('public api/check-visual.ts cannot reach pipeline/audit (a separate sibling output, never consumed by the public route)', async () => {
   const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
   const imports = importLinesOf(source)
-  for (const forbidden of ['pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit']) {
-    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
-  }
+  assert.ok(imports.every((l) => !l.includes('pipeline/audit')), `api/check-visual.ts must not import "pipeline/audit": ${JSON.stringify(imports)}`)
 })
 
 // ─── Sub-patch 2c: import-boundary and request-path-isolation tests for
@@ -230,30 +229,26 @@ test('public api/check-visual.ts cannot reach any 2c module (still unchanged, st
   }
 })
 
-// ─── Sub-patch 2d (practical scope reset): import-boundary and request-
-// path-isolation tests for src/lib/pipeline/capture/. Unlike every
-// earlier sub-patch's new modules, capture/ modules ARE expected to
-// import puppeteer-core and node:net/node:dns/node:http — that's the
-// whole point of a capture safety boundary. What must still hold: no
-// downstream pipeline stage (normalize/classify/present/audit) or
-// offline module reaches BACKWARD into capture/, capture/ itself
-// imports nothing from those downstream stages, and — as with every
-// sub-patch so far — the public API remains completely unreachable.
+// ─── Sub-patch 2d capture/ modules ARE expected to import puppeteer-core
+// and node:net/node:dns/node:http — that's the whole point of a capture
+// safety boundary. What must still hold: no downstream pipeline stage
+// (normalize/classify/present/audit) or offline module reaches BACKWARD
+// into capture/, and capture/ itself imports nothing from those downstream
+// stages.
+//
+// api/check-visual.ts reaching pipeline/capture (via captureService.ts) is
+// now intentional — the first real-checker release's entire purpose. What
+// remains a genuine invariant: the public route reaches the safety
+// boundary only THROUGH captureService.ts's own orchestration, never by
+// importing networkSafety.ts, connectionBindingProxy.ts, or
+// pageHardening.ts directly and re-sequencing them itself.
 
-test('public api/check-visual.ts cannot reach any 2d module (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+test('api/check-visual.ts reaches the capture safety boundary only through captureService.ts — it does not import networkSafety.ts, connectionBindingProxy.ts, or pageHardening.ts directly', async () => {
   const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
   const imports = importLinesOf(source)
-  for (const forbidden of ['pipeline/capture', '/capture/', 'networkSafety', 'connectionBindingProxy', 'browserLifecycle', 'pageHardening']) {
-    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
-  }
-})
-
-test('no file under api/ imports anything from src/lib/pipeline/capture/ specifically (in addition to the general pipeline/offline check above)', async () => {
-  const apiFiles = await listFilesRecursive(path.join(ROOT, 'api'))
-  for (const file of apiFiles) {
-    const source = await readFile(file, 'utf8')
-    const imports = importLinesOf(source)
-    assert.ok(imports.every((l) => !l.includes('pipeline/capture')), `${path.relative(ROOT, file)} must not import pipeline/capture: ${JSON.stringify(imports)}`)
+  assert.ok(imports.some((l) => l.includes('captureService')), 'api/check-visual.ts is expected to import captureService.ts')
+  for (const forbidden of ['networkSafety', 'connectionBindingProxy', 'pageHardening']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}" directly: ${JSON.stringify(imports)}`)
   }
 })
 

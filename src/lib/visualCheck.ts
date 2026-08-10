@@ -104,3 +104,33 @@ export type VisualCheckId = keyof typeof VISUAL_CHECK_WEIGHTS
 export const VISUAL_CHECK_COUNT = Object.keys(VISUAL_CHECK_WEIGHTS).length
 
 export const VISUAL_CHECK_TOTAL_POINTS = Object.values(VISUAL_CHECK_WEIGHTS).reduce((a, b) => a + b, 0)
+
+// ─── First real-checker release (overflow + readability) ────────────
+// Deliberately separate from everything above: the old, withdrawn V2
+// checker's score/12-check/VISUAL_CHECK_WEIGHTS shape is NOT restored or
+// reused here. This is a genuinely different, narrower, honest replacement
+// — two checks, plain-English outcomes, no score, no automatic rejection.
+
+export type RebuildCheckId = 'overflow' | 'readability'
+
+export interface RebuildFinding {
+  checkId: RebuildCheckId
+  /** "Likely opportunity" | "Worth a manual look" | "No clear issue found"
+   *  | "Couldn't be checked" — see findingsPresenter.ts. */
+  label: string
+  detail: string
+}
+
+export interface RebuildCheckSuccess {
+  ok: true
+  status: 'complete'
+  finalUrl: string
+  findings: RebuildFinding[]
+}
+
+export type RebuildCheckResponse = RebuildCheckSuccess | VisualCheckFailure
+
+export const REBUILD_CHECK_LABEL: Record<RebuildCheckId, string> = {
+  overflow: 'Mobile horizontal scrolling',
+  readability: 'Text readability',
+}

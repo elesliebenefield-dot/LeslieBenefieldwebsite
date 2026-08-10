@@ -4,8 +4,8 @@ import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
 import { normalizeWebsiteUrl } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
-import type { VisualCheckResponse, VisualCheckSuccess, VisualCheckWithdrawn, VisualFinding, VisualFindingBucket } from '../lib/visualCheck'
-import { VISUAL_CHECK_WITHDRAWN_LABEL } from '../lib/visualCheck'
+import type { VisualCheckSuccess, VisualFinding, VisualFindingBucket, RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
+import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
 
 const RESULTS_EMAIL = 'websitesbyleslie01@gmail.com'
 
@@ -55,39 +55,13 @@ const EMAIL_SECTION_TITLE: Record<FindingBucket, string> = {
 
 const VISUAL_CATEGORY_ORDER: VisualFindingBucket[] = ['good', 'improve', 'unverified', 'specialist']
 
-const VISUAL_CATEGORY_INFO: Record<VisualFindingBucket, { title: string; description: string }> = {
-  good: {
-    title: 'Visual checks looking good',
-    description: 'No action appears necessary based on this rendered-page check.',
-  },
-  improve: {
-    title: 'Visual items worth reviewing',
-    description: 'Possible website issues and suggestions worth a closer look.',
-  },
-  unverified: {
-    title: 'Unable to verify automatically',
-    description: 'This page couldn’t be fully rendered or measured for these items. That does not necessarily mean anything is wrong.',
-  },
-  specialist: {
-    title: 'May need your current provider or a specialist',
-    description: 'Outside the normal scope of this automated check — often platform-specific.',
-  },
-}
-
-const WHAT_WE_CHECK_VISUAL = [
-  'Whether the page causes unintended horizontal scrolling on desktop, tablet, or mobile',
-  'Whether visible content appears clipped, overlapping, or hidden behind a fixed header',
-  'Whether navigation is present and usable on desktop and mobile',
-  'Logo and header proportions in the rendered page',
-  'Text size, line spacing, line length, and estimated contrast',
-  'Whether tappable buttons and links are reasonably sized and spaced on mobile',
-  'Whether rendered images loaded correctly and look proportional',
-  'Whether a clear heading and next step are visible near the top of the page',
-  'Whether a visible action or contact path is present',
-  'Heading structure (a single clear main heading, reasonable order)',
-  'Whether a footer copyright notice looks well-formed',
-  'Whether fixed banners, popups, or widgets obstruct a large part of the mobile screen',
-]
+// VISUAL_CATEGORY_INFO and WHAT_WE_CHECK_VISUAL (old scored-review-only
+// display copy) were removed here: the first real-checker release's
+// VisualSection below renders its own plain-English findings list, not
+// the old scored/12-check display. VISUAL_CATEGORY_ORDER/
+// VISUAL_EMAIL_SECTION_TITLE remain — buildCombinedEmailBody still
+// references them (currently always called with visual=null; see
+// runVisualCheck below).
 
 const VISUAL_EMAIL_SECTION_TITLE: Record<VisualFindingBucket, string> = {
   good: 'Visual — Looking Good',
@@ -272,33 +246,10 @@ function FindingRow({ finding }: { finding: Finding }) {
   )
 }
 
-const VIEWPORT_LABEL: Record<VisualFinding['viewport'], string> = {
-  both: 'Desktop & mobile',
-  desktop: 'Desktop',
-  tablet: 'Tablet',
-  mobile: 'Mobile',
-}
-
-function VisualFindingRow({ finding }: { finding: VisualFinding }) {
-  const Icon = BUCKET_ICON[finding.bucket]
-  return (
-    <li className={`checkup-finding checkup-finding--${finding.bucket}`}>
-      <span className="checkup-finding-icon" aria-hidden="true">
-        <Icon />
-      </span>
-      <span>
-        <span className="checkup-finding-label">{finding.label}</span>
-        <span className="checkup-finding-meta">
-          {VIEWPORT_LABEL[finding.viewport]} ·{' '}
-          {finding.measurable
-            ? 'Measured'
-            : 'Suggested — manual review (doesn’t affect this score; it needs a human judgment call)'}
-        </span>
-        <span className="checkup-finding-detail">{finding.detail}</span>
-      </span>
-    </li>
-  )
-}
+// VIEWPORT_LABEL and VisualFindingRow (old scored-review-only rendering,
+// keyed on VisualFinding's viewport/measurable fields) were removed
+// here — the first real-checker release's VisualSection below renders
+// its own plain-English findings list.
 
 type VisualStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -308,43 +259,21 @@ function VisualSection({
   errorMessage,
 }: {
   status: VisualStatus
-  result: VisualCheckSuccess | VisualCheckWithdrawn | null
+  result: RebuildCheckSuccess | null
   errorMessage: string | null
 }) {
-  // Withdrawn (patch v0.1.1-containment) is a distinct, discriminated state —
-  // never derived from or confusable with a genuine 'complete' result, whether
-  // that result succeeded, scored 0, or had zero checks completed.
-  const withdrawn = result?.status === 'withdrawn' ? result : null
-  const completeResult = result?.status === 'complete' ? result : null
-
-  const grouped: Record<VisualFindingBucket, VisualFinding[]> = { good: [], improve: [], unverified: [], specialist: [] }
-  if (completeResult) {
-    for (const finding of completeResult.findings) grouped[finding.bucket].push(finding)
-  }
-  const ecommerceFinding = completeResult?.findings.find((f) => f.id === 'ecommerce-visual')
-  // Zero checks completed means the page couldn't be rendered at all (a crash, a
-  // timeout, or a site that blocks automated browsing) — not a genuine 0/100 score.
-  const unavailable = completeResult?.checksCompleted === 0
-  // A perfect number can still leave manual-review suggestions (measurable:false,
-  // never scored) or unverified checks (not assessable, excluded from scoring)
-  // outstanding — 100 must never read as "nothing left to look at" when either
-  // is true. Only meaningful once `completeResult` exists and isn't the unavailable case.
-  const hasReviewItems = !!completeResult && completeResult.findings.some((f) => f.bucket === 'improve' || f.bucket === 'unverified')
-  const isMeasuredPerfect = !unavailable && !!completeResult && completeResult.score === 100 && hasReviewItems
-
   return (
     <div className="checkup-visual-section">
       <h2 className="section-title checkup-results-title checkup-visual-title">Visual &amp; Usability Review</h2>
       <p className="checkup-visual-intro">
-        A real browser opens your homepage at desktop, tablet, and mobile widths and checks for measurable
-        rendered-page issues. This is a separate review from the Technical Basics Score above — the two are not
-        combined into one overall score.
+        A real browser opens your homepage at mobile width and checks for a couple of specific, measurable issues.
+        This is a separate review from the Technical Basics Score above — the two are not combined into one score.
       </p>
 
       {(status === 'loading' || status === 'idle') && (
         <div className="checkup-loading" role="status">
           <span className="checkup-spinner" aria-hidden="true" />
-          Rendering your website in a browser at desktop, tablet, and mobile widths — this can take up to a minute…
+          Rendering your website in a browser at mobile width — this can take up to a minute…
         </div>
       )}
 
@@ -358,90 +287,16 @@ function VisualSection({
         </div>
       )}
 
-      {status === 'success' && withdrawn && (
-        <div className="checkup-visual-withdrawn" role="status">
-          <p className="checkup-score-label">{VISUAL_CHECK_WITHDRAWN_LABEL}</p>
-          <p className="checkup-summary">{withdrawn.message}</p>
-        </div>
-      )}
-
-      {status === 'success' && completeResult && (
-        <>
-          <p className="checkup-score-eyebrow">Visual &amp; Usability Score</p>
-          <div className="checkup-score-row">
-            <div className="checkup-score">
-              {unavailable ? (
-                <span className="checkup-score-unavailable">Score not available</span>
-              ) : (
-                <>
-                  <span className="checkup-score-number">{completeResult.score}</span>
-                  <span className="checkup-score-max">/100</span>
-                </>
-              )}
-            </div>
-            <div>
-              <p className="checkup-score-label">
-                {unavailable ? 'Review could not be completed' : isMeasuredPerfect ? '100/100 for the checks that could be measured' : scoreLabel(completeResult.score)}
-              </p>
-              <p className="checkup-summary">{completeResult.summary}</p>
-              {unavailable ? (
-                <p className="checkup-checks-count">
-                  This does not necessarily mean anything is wrong with the site — some pages can’t be rendered by
-                  an automated browser.
-                </p>
-              ) : (
-                <p className="checkup-checks-count">
-                  {completeResult.checksCompleted} of {completeResult.checksTotal} visual checks completed
-                  {completeResult.checksCompleted < completeResult.checksTotal
-                    ? ' — this score reflects only what could be verified.'
-                    : isMeasuredPerfect
-                      ? ' — see the item(s) below still worth a manual look; they don’t affect this score.'
-                      : '.'}
-                </p>
-              )}
-              {completeResult.diagnosticStage && (
-                <p className="checkup-diagnostic-stage">
-                  Preview diagnostic — last stage reached: <strong>{completeResult.diagnosticStage}</strong>
-                </p>
-              )}
-            </div>
-          </div>
-          {!unavailable && (
-            <p className="checkup-score-scope-note">
-              This score covers measurable rendered-page checks only — it is not a verdict on taste, branding
-              quality, business quality, or the developer who built the site.
-            </p>
-          )}
-
-          {ecommerceFinding && (
-            <div className="checkup-scope-callout" role="note">
-              {ecommerceFinding.detail}
-            </div>
-          )}
-
-          {VISUAL_CATEGORY_ORDER.map((bucket) =>
-            grouped[bucket].length > 0 ? (
-              <div className="checkup-category" key={bucket}>
-                <h3 className="checkup-category-title">{VISUAL_CATEGORY_INFO[bucket].title}</h3>
-                <p className="checkup-category-desc">{VISUAL_CATEGORY_INFO[bucket].description}</p>
-                <ul className="checkup-finding-list">
-                  {grouped[bucket].map((finding) => (
-                    <VisualFindingRow finding={finding} key={finding.id} />
-                  ))}
-                </ul>
-              </div>
-            ) : null
-          )}
-
-          <div className="checkup-about">
-            <h3 className="checkup-category-title">What the visual review checks</h3>
-            <ul className="checkup-about-list">
-              {WHAT_WE_CHECK_VISUAL.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        </>
+      {status === 'success' && result && (
+        <ul className="checkup-finding-list">
+          {result.findings.map((finding) => (
+            <li className="checkup-finding" key={finding.checkId}>
+              <p className="checkup-finding-title">{REBUILD_CHECK_LABEL[finding.checkId]}</p>
+              <p className="checkup-score-label">{finding.label}</p>
+              <p className="checkup-summary">{finding.detail}</p>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -457,7 +312,7 @@ function ResultsReport({
   result: CheckSuccess
   headingRef: RefObject<HTMLHeadingElement>
   visualStatus: VisualStatus
-  visualResult: VisualCheckSuccess | VisualCheckWithdrawn | null
+  visualResult: RebuildCheckSuccess | null
   visualErrorMessage: string | null
 }) {
   const grouped: Record<FindingBucket, Finding[]> = { good: [], improve: [], unverified: [], specialist: [] }
@@ -549,7 +404,7 @@ function ResultsReport({
           </button>
         ) : (
           <a
-            href={buildMailtoHref(result, visualResult && visualResult.status === 'complete' ? visualResult : null)}
+            href={buildMailtoHref(result, null)}
             className="btn btn-primary"
           >
             Email My Results to Leslie
@@ -573,7 +428,7 @@ export default function CheckPage() {
   const [result, setResult] = useState<CheckSuccess | null>(null)
 
   const [visualStatus, setVisualStatus] = useState<VisualStatus>('idle')
-  const [visualResult, setVisualResult] = useState<VisualCheckSuccess | VisualCheckWithdrawn | null>(null)
+  const [visualResult, setVisualResult] = useState<RebuildCheckSuccess | null>(null)
   const [visualErrorMessage, setVisualErrorMessage] = useState<string | null>(null)
 
   const validationErrorRef = useRef<HTMLParagraphElement>(null)
@@ -617,7 +472,7 @@ export default function CheckPage() {
         return
       }
 
-      const data: VisualCheckResponse = await res.json()
+      const data: RebuildCheckResponse = await res.json()
       if (requestId !== requestIdRef.current) return // superseded while parsing the response
       if (!data.ok) {
         setVisualStatus('error')

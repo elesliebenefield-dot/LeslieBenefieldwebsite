@@ -71,7 +71,7 @@ test('2c (fixtures + invariant framework) contains exactly its approved files �
   assert.deepEqual(benchmarkFiles.sort(), ['test/fixtures/visual-checker/benchmark/empty-scaffold.v1.json'].sort(), 'the benchmark/ directory must contain exactly the one Milestone 2 synthetic fixture — no real-check fixture content')
 })
 
-test('2d (practical capture safety boundary) contains exactly its approved files — no more', async () => {
+test('src/lib/pipeline/capture/ contains exactly its approved files: 2d\'s safety boundary plus the first release\'s captureService.ts orchestration — no more', async () => {
   const files = (await listFilesRecursive(path.join(ROOT, 'src/lib/pipeline/capture'))).map((f) => path.relative(ROOT, f))
   assert.deepEqual(
     files.sort(),
@@ -80,8 +80,9 @@ test('2d (practical capture safety boundary) contains exactly its approved files
       'src/lib/pipeline/capture/connectionBindingProxy.ts',
       'src/lib/pipeline/capture/browserLifecycle.ts',
       'src/lib/pipeline/capture/pageHardening.ts',
+      'src/lib/pipeline/capture/captureService.ts',
     ].sort(),
-    'src/lib/pipeline/capture/ must contain exactly these 2d files — deliberately no captureService.ts (RawCapture-producing orchestration is out of the practical-2d reset\'s scope; see patch.md\'s Scope Reset section)'
+    'src/lib/pipeline/capture/ must contain exactly 2d\'s four safety-boundary modules plus captureService.ts (the RawCapture-producing orchestration deliberately deferred out of 2d itself, now added for the first real-check release)'
   )
 })
 
