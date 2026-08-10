@@ -41,10 +41,16 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-test('2b (pure pipeline skeleton + sibling outputs) is not implemented: normalize/, classify/, present/, audit/ do not exist', async () => {
-  for (const dir of ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']) {
-    const files = await listFilesRecursive(path.join(ROOT, dir))
-    assert.deepEqual(files, [], `${dir} belongs to sub-patch 2b and must not exist in 2a`)
+test('2b (pure pipeline skeleton + sibling outputs) contains exactly its approved files — one module per stage, no more', async () => {
+  const expected: Record<string, string[]> = {
+    'src/lib/pipeline/normalize': ['src/lib/pipeline/normalize/evidenceNormalizer.ts'],
+    'src/lib/pipeline/classify': ['src/lib/pipeline/classify/classificationEngine.ts', 'src/lib/pipeline/classify/contractRegistry.ts'],
+    'src/lib/pipeline/present': ['src/lib/pipeline/present/findingsPresenter.ts'],
+    'src/lib/pipeline/audit': ['src/lib/pipeline/audit/auditRecordBuilder.ts'],
+  }
+  for (const [dir, expectedFiles] of Object.entries(expected)) {
+    const files = (await listFilesRecursive(path.join(ROOT, dir))).map((f) => path.relative(ROOT, f))
+    assert.deepEqual(files.sort(), expectedFiles.sort(), `${dir} must contain exactly its approved 2b file(s)`)
   }
 })
 
@@ -103,6 +109,62 @@ test('no exported function in src/lib/pipeline/types/ or src/lib/offline/oracle/
       const source = await readFile(file, 'utf8')
       for (const pattern of forbiddenFunctionNamePatterns) {
         assert.ok(!pattern.test(source), `${path.relative(ROOT, file)} must not export a runtime pipeline-logic function matching ${pattern}`)
+      }
+    }
+  }
+})
+
+test('no scoring fields or logic anywhere in 2b\'s new modules — Milestone 2 makes no scoring decision', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  const forbiddenScoringTerms = ['scoreContribution', 'weight:', 'weight?:', 'threshold', "outcome: 'good'", 'passRate', 'scoreAggregator']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenScoringTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not contain scoring-related term "${term}"`)
+      }
+    }
+  }
+})
+
+test('no accidental browser, Capture Service, fixture-library, oracle-adapter, shadow-runner, or API work in 2b\'s new modules', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  const forbiddenTerms = [
+    'puppeteer',
+    'Browser',
+    'Page',
+    'captureService',
+    'fixtures/visual-checker',
+    'BenchmarkFixture',
+    'axe-core',
+    'lighthouse',
+    'OracleTool',
+    'ShadowRun',
+    "from 'express'",
+    'api/check-visual',
+  ]
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      // Strip comments first — these modules' own doc comments legitimately
+      // NAME several of these terms (e.g. "no puppeteer-core", "not a real
+      // check like axe-core") to explain why they're forbidden, which a
+      // whole-file substring search would misflag. Only actual code should
+      // trip this check.
+      const codeOnly = source
+        .split('\n')
+        .filter((line) => !/^\s*\/\//.test(line) && !/^\s*\*/.test(line))
+        .join('\n')
+      for (const term of forbiddenTerms) {
+        assert.ok(!codeOnly.includes(term), `${path.relative(ROOT, file)} must not reference "${term}" in code`)
       }
     }
   }

@@ -87,17 +87,36 @@ test('source scan: 2a\'s new files (pipeline/types/, offline/oracle/) contain no
   }
 })
 
-test('no directory belonging to a later sub-patch (pipeline/normalize, classify, present, audit; offline/invariants, offline/shadow) exists yet — nothing there to persist through', async () => {
-  const forbidden = [
-    'src/lib/pipeline/normalize',
-    'src/lib/pipeline/classify',
-    'src/lib/pipeline/present',
-    'src/lib/pipeline/audit',
-    'src/lib/offline/invariants',
-    'src/lib/offline/shadow',
-  ]
+test('no directory belonging to a sub-patch later than 2b (pipeline/capture; offline/invariants, offline/shadow) exists yet — nothing there to persist through', async () => {
+  const forbidden = ['src/lib/pipeline/capture', 'src/lib/offline/invariants', 'src/lib/offline/shadow']
   for (const dir of forbidden) {
     const files = await listFilesRecursive(path.join(ROOT, dir))
-    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2a`)
+    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2b`)
+  }
+})
+
+test('source scan: 2b\'s new files (pipeline/normalize/, classify/, present/, audit/) contain no filesystem, database, or web-storage reference, and no top-level mutable-collection binding capable of accumulating state across calls', async () => {
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    assert.ok(files.length > 0, `expected files under ${dir}`)
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      for (const forbidden of ["from 'node:fs", 'from "node:fs', 'writeFile', 'appendFile', 'localStorage', 'sessionStorage', 'indexedDB', 'console.log']) {
+        assert.ok(!source.includes(forbidden), `${path.relative(ROOT, file)} must not reference "${forbidden}"`)
+      }
+      const topLevelReassignableCollection = /^(export\s+)?let\s+(\w+)\s*(:[^=]+)?=\s*(\[|\{)/m
+      const reassignableMatch = source.match(topLevelReassignableCollection)
+      if (reassignableMatch) {
+        assert.fail(`${path.relative(ROOT, file)} has a top-level reassignable (let) collection binding: "${reassignableMatch[0]}"`)
+      }
+      const topLevelConstArray = /^(export\s+)?const\s+(\w+)\s*(:[^=]+)?=\s*\[/gm
+      let constArrayMatch: RegExpExecArray | null
+      while ((constArrayMatch = topLevelConstArray.exec(source))) {
+        const name = constArrayMatch[2]
+        const mutated = new RegExp(`\\b${name}\\.(push|unshift|splice|pop|shift|sort|reverse|fill|copyWithin)\\s*\\(`).test(source)
+        assert.ok(!mutated, `${path.relative(ROOT, file)}'s top-level const array/collection "${name}" is mutated in place elsewhere in the file — a de facto accumulator`)
+      }
+    }
   }
 })

@@ -106,3 +106,75 @@ test('none of 2a\'s new files import puppeteer-core or any not-yet-existing Capt
     }
   }
 })
+
+// ─── Sub-patch 2b: import-boundary and request-path-isolation tests for
+// pipeline/normalize, pipeline/classify, pipeline/present, pipeline/audit.
+
+test('none of 2b\'s new modules import puppeteer-core or any browser/Capture Service module', async () => {
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const imports = importLinesOf(source)
+      for (const forbidden of ['puppeteer-core', 'captureService', 'browserLifecycle', 'pageHardening', '/capture/']) {
+        assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
+      }
+    }
+  }
+})
+
+test('none of 2b\'s new modules import network, DNS, filesystem, child-process, database, telemetry, analytics, or offline modules', async () => {
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  const forbiddenModules = [
+    'node:http',
+    'node:https',
+    'node:net',
+    'node:dns',
+    "'http'",
+    "'https'",
+    "'net'",
+    "'dns'",
+    'node:fs',
+    "'fs'",
+    'node:child_process',
+    "'child_process'",
+    'node-fetch',
+    'lib/offline',
+  ]
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    assert.ok(files.length > 0, `expected files under ${dir}`)
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const imports = importLinesOf(source)
+      for (const forbidden of forbiddenModules) {
+        assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import ${forbidden}: ${JSON.stringify(imports)}`)
+      }
+    }
+  }
+})
+
+test('none of 2b\'s new modules call fetch(), launch a browser, touch the DOM, use environment-variable gates, import api/, or use timers as hidden nondeterminism', async () => {
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const imports = importLinesOf(source)
+      assert.ok(!/\bfetch\s*\(/.test(source), `${path.relative(ROOT, file)} must not call fetch()`)
+      assert.ok(!/document\.|window\./.test(source), `${path.relative(ROOT, file)} must not touch the DOM`)
+      assert.ok(!/process\.env/.test(source), `${path.relative(ROOT, file)} must not use an environment-variable gate`)
+      assert.ok(!/setTimeout|setInterval|Date\.now\(\)|new Date\(\)/.test(source), `${path.relative(ROOT, file)} must not use timers/wall-clock as hidden nondeterminism`)
+      assert.ok(imports.every((l) => !l.includes("from '../../../api") && !l.includes('from "../../../api')), `${path.relative(ROOT, file)} must not import from api/`)
+    }
+  }
+})
+
+test('public api/check-visual.ts cannot reach any 2b module (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+  const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
+  const imports = importLinesOf(source)
+  for (const forbidden of ['pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
+  }
+})

@@ -63,7 +63,16 @@ export type CheckRegistryShape<Reg> = { [K in keyof Reg]: CheckRegistryEntry }
 export interface EmptyCapturePayload {
   readonly __brand: 'EmptyCapturePayload'
 }
-export const EMPTY_CAPTURE_PAYLOAD: EmptyCapturePayload = { __brand: 'EmptyCapturePayload' }
+/**
+ * Corrected (foundational 2a-shape correction, discovered during 2b):
+ * TypeScript's `readonly` modifier on `__brand` is a compile-time-only
+ * guarantee — it does nothing at runtime. This constant is a SHARED
+ * singleton returned by every normalization call (evidenceNormalizer.ts);
+ * without `Object.freeze`, one caller mutating it (e.g. via an `as any`
+ * bypass) would corrupt every other result, past and future, that shares
+ * the same reference. Frozen so that can't happen.
+ */
+export const EMPTY_CAPTURE_PAYLOAD: EmptyCapturePayload = Object.freeze({ __brand: 'EmptyCapturePayload' })
 
 /** Milestone 2's only registered check. Not a real visual check — no
  *  scoring, no claim, nothing to migrate later. Exists purely to prove the
@@ -71,7 +80,9 @@ export const EMPTY_CAPTURE_PAYLOAD: EmptyCapturePayload = { __brand: 'EmptyCaptu
 export interface EmptyCheckEvidence {
   readonly __brand: 'EmptyCheckEvidence'
 }
-export const EMPTY_CHECK_EVIDENCE: EmptyCheckEvidence = { __brand: 'EmptyCheckEvidence' }
+/** Frozen for the same reason as `EMPTY_CAPTURE_PAYLOAD` above — shared
+ *  singleton, `readonly` alone does not stop runtime mutation. */
+export const EMPTY_CHECK_EVIDENCE: EmptyCheckEvidence = Object.freeze({ __brand: 'EmptyCheckEvidence' })
 
 /**
  * Milestone 2 registers exactly one entry — deliberately trivial, proving

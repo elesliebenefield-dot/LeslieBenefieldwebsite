@@ -21,6 +21,15 @@
 // resolves to `never` — no AuditFieldRef for 'empty' is constructible at
 // all, matching its genuinely-empty contract.
 //
+// Corrected design (foundational 2a-shape correction, discovered during
+// 2b's implementation, not a new scoring/product decision): a prior
+// revision of this type had a top-level `reasoning: string` field
+// alongside `classificationResult: ClassificationResultFor<Reg, K>` —
+// which itself already carries its own `reasoning`. That was two
+// authoritative copies of the same fact that could silently drift from
+// each other. There is now exactly one: `classificationResult.reasoning`.
+// No separate top-level `reasoning` field exists on `AuditRecord`.
+//
 // Sibling-independence rule: this file must NEVER import from findings.ts,
 // and findings.ts must never import from this file.
 
@@ -43,7 +52,6 @@ export type AuditRecordFor<Reg extends CheckRegistryShape<Reg>, K extends keyof 
       auditFieldRefs: AuditFieldRefFor<Reg, K>[]
       classificationResult: ClassificationResultFor<Reg, K>
       rulesApplied: string[]
-      reasoning: string
       requestId: string
     }
   : never
