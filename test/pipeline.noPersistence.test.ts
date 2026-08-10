@@ -87,11 +87,11 @@ test('source scan: 2a\'s new files (pipeline/types/, offline/oracle/) contain no
   }
 })
 
-test('no directory belonging to a sub-patch later than 2c (pipeline/capture; offline/shadow) exists yet — nothing there to persist through', async () => {
-  const forbidden = ['src/lib/pipeline/capture', 'src/lib/offline/shadow']
+test('no directory belonging to a sub-patch later than 2d (offline/shadow) exists yet — nothing there to persist through', async () => {
+  const forbidden = ['src/lib/offline/shadow']
   for (const dir of forbidden) {
     const files = await listFilesRecursive(path.join(ROOT, dir))
-    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2c`)
+    assert.deepEqual(files, [], `${dir} must not exist in sub-patch 2d`)
   }
 })
 
@@ -159,4 +159,58 @@ test('offline/invariants/ modules construct only fresh, request-scoped return va
   const b = runMetamorphicSuite([1], [{ id: 't', apply: (x: number[]) => x }], (x: number[]) => x.length, () => ({ holds: true }))
   assert.notEqual(a, b, 'each call must return a fresh result object')
   assert.deepEqual(a, b)
+})
+
+// ─── Sub-patch 2d (practical scope reset) — src/lib/pipeline/capture/.
+// This directory legitimately imports node:net/node:dns/puppeteer-core
+// (that's its whole job) and is exempt from the network-import bans
+// used elsewhere in this repo's persistence/isolation checks — none of
+// that is a persistence concern. What's actually checked: no
+// filesystem/database/web-storage reference, no module-level mutable
+// state that could leak between separate captures, and (functionally)
+// that each proxy/browser instance is independently scoped.
+
+test('source scan: 2d\'s new files (pipeline/capture/) contain no filesystem, database, or web-storage reference, and no top-level mutable-collection binding capable of accumulating state across calls', async () => {
+  const dirs = ['src/lib/pipeline/capture']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    assert.ok(files.length > 0, `expected files under ${dir}`)
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      for (const forbidden of ["from 'node:fs", 'from "node:fs', 'writeFile', 'appendFile', 'localStorage', 'sessionStorage', 'indexedDB', 'console.log']) {
+        assert.ok(!source.includes(forbidden), `${path.relative(ROOT, file)} must not reference "${forbidden}"`)
+      }
+      const topLevelReassignableCollection = /^(export\s+)?let\s+(\w+)\s*(:[^=]+)?=\s*(\[|\{)/m
+      const reassignableMatch = source.match(topLevelReassignableCollection)
+      if (reassignableMatch) {
+        assert.fail(`${path.relative(ROOT, file)} has a top-level reassignable (let) collection binding: "${reassignableMatch[0]}"`)
+      }
+      const topLevelConstArray = /^(export\s+)?const\s+(\w+)\s*(:[^=]+)?=\s*\[/gm
+      let constArrayMatch: RegExpExecArray | null
+      while ((constArrayMatch = topLevelConstArray.exec(source))) {
+        const name = constArrayMatch[2]
+        const mutated = new RegExp(`\\b${name}\\.(push|unshift|splice|pop|shift|sort|reverse|fill|copyWithin)\\s*\\(`).test(source)
+        assert.ok(!mutated, `${path.relative(ROOT, file)}'s top-level const array/collection "${name}" is mutated in place elsewhere in the file — a de facto accumulator`)
+      }
+    }
+  }
+})
+
+test('startConnectionBindingProxy() instances are independently scoped — no module-level counter/state shared across separate proxies', async () => {
+  const { startConnectionBindingProxy } = await import('../src/lib/pipeline/capture/connectionBindingProxy.ts')
+  const proxyA = await startConnectionBindingProxy({})
+  const proxyB = await startConnectionBindingProxy({})
+  try {
+    assert.notEqual(proxyA.port, proxyB.port, 'each proxy must bind its own independent port')
+    assert.equal(proxyA.totalConnections(), 0)
+    assert.equal(proxyB.totalConnections(), 0)
+  } finally {
+    await proxyA.close()
+    await proxyB.close()
+  }
+})
+
+test('launchCaptureBrowser() rejects an invalid executablePath rather than silently falling back to some other browser — no hidden global browser instance is reused across captures', async () => {
+  const { launchCaptureBrowser } = await import('../src/lib/pipeline/capture/browserLifecycle.ts')
+  await assert.rejects(() => launchCaptureBrowser({ executablePath: '/nonexistent/path/to/chrome-binary', proxyPort: 1 }))
 })

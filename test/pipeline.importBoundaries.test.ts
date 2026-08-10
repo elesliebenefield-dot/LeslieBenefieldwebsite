@@ -188,7 +188,7 @@ test('src/lib/offline/invariants/ only imports from src/lib/pipeline/types/, nev
   for (const file of files) {
     const source = await readFile(file, 'utf8')
     const imports = importLinesOf(source)
-    for (const forbidden of ['/normalize/', '/classify/', '/present/', '/audit/', 'pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit']) {
+    for (const forbidden of ['/capture/', '/normalize/', '/classify/', '/present/', '/audit/', 'pipeline/capture', 'pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit']) {
       assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
     }
   }
@@ -223,5 +223,67 @@ test('public api/check-visual.ts cannot reach any 2c module (still unchanged, st
   const imports = importLinesOf(source)
   for (const forbidden of ['offline/invariants', 'benchmarkFixture', 'metamorphicRunner', 'invariantAssertions']) {
     assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
+  }
+})
+
+// ─── Sub-patch 2d (practical scope reset): import-boundary and request-
+// path-isolation tests for src/lib/pipeline/capture/. Unlike every
+// earlier sub-patch's new modules, capture/ modules ARE expected to
+// import puppeteer-core and node:net/node:dns/node:http — that's the
+// whole point of a capture safety boundary. What must still hold: no
+// downstream pipeline stage (normalize/classify/present/audit) or
+// offline module reaches BACKWARD into capture/, capture/ itself
+// imports nothing from those downstream stages, and — as with every
+// sub-patch so far — the public API remains completely unreachable.
+
+test('public api/check-visual.ts cannot reach any 2d module (still unchanged, still imports only src/lib/visualCheck.ts)', async () => {
+  const source = await readFile(path.join(ROOT, 'api/check-visual.ts'), 'utf8')
+  const imports = importLinesOf(source)
+  for (const forbidden of ['pipeline/capture', '/capture/', 'networkSafety', 'connectionBindingProxy', 'browserLifecycle', 'pageHardening']) {
+    assert.ok(imports.every((l) => !l.includes(forbidden)), `api/check-visual.ts must not import "${forbidden}": ${JSON.stringify(imports)}`)
+  }
+})
+
+test('no file under api/ imports anything from src/lib/pipeline/capture/ specifically (in addition to the general pipeline/offline check above)', async () => {
+  const apiFiles = await listFilesRecursive(path.join(ROOT, 'api'))
+  for (const file of apiFiles) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    assert.ok(imports.every((l) => !l.includes('pipeline/capture')), `${path.relative(ROOT, file)} must not import pipeline/capture: ${JSON.stringify(imports)}`)
+  }
+})
+
+test('src/lib/pipeline/capture/ imports nothing from downstream pipeline stages (normalize/classify/present/audit) or from src/lib/offline/ — it is the top of the one-way pipeline chain, nothing is upstream of it to import', async () => {
+  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/pipeline/capture'))
+  assert.ok(files.length > 0, 'expected files under src/lib/pipeline/capture')
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    for (const forbidden of ['/normalize/', '/classify/', '/present/', '/audit/', 'pipeline/normalize', 'pipeline/classify', 'pipeline/present', 'pipeline/audit', 'lib/offline']) {
+      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
+    }
+  }
+})
+
+test('none of 2b\'s pipeline/normalize|classify|present|audit modules import backward from pipeline/capture (import direction stays one-way)', async () => {
+  const dirs = ['src/lib/pipeline/normalize', 'src/lib/pipeline/classify', 'src/lib/pipeline/present', 'src/lib/pipeline/audit']
+  for (const dir of dirs) {
+    const files = await listFilesRecursive(path.join(ROOT, dir))
+    for (const file of files) {
+      const source = await readFile(file, 'utf8')
+      const imports = importLinesOf(source)
+      assert.ok(imports.every((l) => !l.includes('/capture/') && !l.includes('pipeline/capture')), `${path.relative(ROOT, file)} must not import backward from pipeline/capture: ${JSON.stringify(imports)}`)
+    }
+  }
+})
+
+test('src/lib/pipeline/capture/ does not import any oracle/shadow/invariants offline module, or any test-only/synthetic module', async () => {
+  const files = await listFilesRecursive(path.join(ROOT, 'src/lib/pipeline/capture'))
+  for (const file of files) {
+    const source = await readFile(file, 'utf8')
+    const imports = importLinesOf(source)
+    for (const forbidden of ['/oracle/', '/shadow/', '/invariants/', 'benchmarkFixture', 'metamorphicRunner', 'invariantAssertions']) {
+      assert.ok(imports.every((l) => !l.includes(forbidden)), `${path.relative(ROOT, file)} must not import "${forbidden}": ${JSON.stringify(imports)}`)
+    }
   }
 })
