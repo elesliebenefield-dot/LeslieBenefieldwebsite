@@ -29,6 +29,14 @@ export interface CaptureBrowserOptions {
    *  of any single page's navigation timeout — if graceful close doesn't
    *  finish first, the process is force-killed when this elapses. */
   overallBudgetMs?: number
+  /** Puppeteer's `headless` launch mode. Defaults to `true` (the "new"
+   *  headless mode) — correct for a full desktop Chrome/Chromium binary
+   *  (local dev). @sparticuz/chromium's binary is `headless_shell`,
+   *  which per its own README does not support the new mode; callers
+   *  using that resolution path must pass `'shell'` here instead. See
+   *  resolveServerlessChromium below, which is the one place this
+   *  should come from — never guessed at in this function. */
+  headless?: boolean | 'shell'
 }
 
 export interface CaptureBrowserHandle {
@@ -60,11 +68,19 @@ export function resolveLocalChromePath(): string {
 /** Production-shaped resolution via @sparticuz/chromium, matching the
  *  pre-rebuild pattern exactly (same package, same call shape) — never
  *  invoked by 2d's own tests, which stay on local Chrome only; provided
- *  so a real captureService (a later sub-patch) has a ready adapter. */
-export async function resolveServerlessChromium(): Promise<{ executablePath: string; args: string[] }> {
+ *  so a real captureService (a later sub-patch) has a ready adapter.
+ *
+ *  `headless: 'shell'` is returned alongside the executable/args
+ *  deliberately, not left for the caller to guess: every one of
+ *  @sparticuz/chromium's own documented usage examples pairs its binary
+ *  with `headless: 'shell'`, and its README states plainly that the
+ *  `headless_shell` binary this package ships does not support
+ *  Puppeteer's "new" headless mode (`headless: true`'s default meaning
+ *  as of puppeteer-core v22+) — see the crash-diagnostics patch. */
+export async function resolveServerlessChromium(): Promise<{ executablePath: string; args: string[]; headless: 'shell' }> {
   const chromium = (await import('@sparticuz/chromium')).default
   const executablePath = await chromium.executablePath()
-  return { executablePath, args: chromium.args }
+  return { executablePath, args: chromium.args, headless: 'shell' }
 }
 
 /**
@@ -100,7 +116,7 @@ export async function launchCaptureBrowser(options: CaptureBrowserOptions): Prom
   const browser = await puppeteer.launch({
     executablePath: options.executablePath,
     args,
-    headless: true,
+    headless: options.headless ?? true,
     defaultViewport: null,
     // Diagnostic only (crash-diagnostics patch): pipes Chromium's own
     // stdout/stderr into this function's, so a crash's real reason

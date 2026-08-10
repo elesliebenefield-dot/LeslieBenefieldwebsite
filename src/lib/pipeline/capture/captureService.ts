@@ -39,6 +39,11 @@ export interface CaptureOptions {
   /** Passed through to launchCaptureBrowser — e.g. @sparticuz/chromium's
    *  own recommended flags in a serverless environment. Empty locally. */
   extraArgs?: string[]
+  /** Passed through to launchCaptureBrowser. Local Chrome (dev) wants
+   *  Puppeteer's default `true` (the "new" headless mode); resolveServerlessChromium's
+   *  binary needs `'shell'` — see browserLifecycle.ts's crash-diagnostics
+   *  patch for why this can't just be hardcoded here. */
+  headless?: boolean | 'shell'
   navigationTimeoutMs?: number
   overallBudgetMs?: number
   /** Test-only DNS/classification override, threaded to BOTH the
@@ -130,7 +135,13 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
   let handle: CaptureBrowserHandle
   try {
     const executablePath = options.executablePath ?? resolveLocalChromePath()
-    handle = await launchCaptureBrowser({ executablePath, extraArgs: options.extraArgs, proxyPort: proxy.port, overallBudgetMs: options.overallBudgetMs })
+    handle = await launchCaptureBrowser({
+      executablePath,
+      extraArgs: options.extraArgs,
+      headless: options.headless,
+      proxyPort: proxy.port,
+      overallBudgetMs: options.overallBudgetMs,
+    })
   } catch (e) {
     await proxy.close().catch(() => {})
     return { ok: false, error: { kind: 'browser-launch-failed', reason: describeThrown(e) } }

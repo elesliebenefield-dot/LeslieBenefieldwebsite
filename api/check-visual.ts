@@ -53,10 +53,10 @@ function friendlyErrorFor(error: CaptureFailure): string {
   }
 }
 
-async function resolveExecutable(): Promise<{ executablePath: string; extraArgs?: string[] }> {
+async function resolveExecutable(): Promise<{ executablePath: string; extraArgs?: string[]; headless?: boolean | 'shell' }> {
   if (process.env.VERCEL) {
     const resolved = await resolveServerlessChromium()
-    return { executablePath: resolved.executablePath, extraArgs: resolved.args }
+    return { executablePath: resolved.executablePath, extraArgs: resolved.args, headless: resolved.headless }
   }
   return { executablePath: resolveLocalChromePath() }
 }
@@ -96,11 +96,12 @@ export async function handleCheckVisual(req: VercelRequest, res: VercelResponse,
     return
   }
 
-  const { executablePath, extraArgs } = await resolveExecutable()
+  const { executablePath, extraArgs, headless } = await resolveExecutable()
 
   const result = await captureOverflowAndReadability(normalized.toString(), {
     executablePath,
     extraArgs,
+    headless,
     navigationTimeoutMs: NAV_TIMEOUT_MS,
     overallBudgetMs: OVERALL_BUDGET_MS,
     ...captureOverrides,
