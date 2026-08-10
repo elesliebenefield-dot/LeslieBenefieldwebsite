@@ -29,6 +29,9 @@ export interface CaptureOptions {
    *  never @sparticuz/chromium's Lambda-only binary (matches 2d/2e's own
    *  precedent for non-production-wired code). */
   executablePath?: string
+  /** Passed through to launchCaptureBrowser — e.g. @sparticuz/chromium's
+   *  own recommended flags in a serverless environment. Empty locally. */
+  extraArgs?: string[]
   navigationTimeoutMs?: number
   overallBudgetMs?: number
   /** Test-only DNS/classification override, threaded to BOTH the
@@ -113,7 +116,7 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
   let handle: CaptureBrowserHandle
   try {
     const executablePath = options.executablePath ?? resolveLocalChromePath()
-    handle = await launchCaptureBrowser({ executablePath, proxyPort: proxy.port, overallBudgetMs: options.overallBudgetMs })
+    handle = await launchCaptureBrowser({ executablePath, extraArgs: options.extraArgs, proxyPort: proxy.port, overallBudgetMs: options.overallBudgetMs })
   } catch (e) {
     await proxy.close().catch(() => {})
     return { ok: false, error: { kind: 'browser-launch-failed', reason: describeThrown(e) } }

@@ -1,26 +1,21 @@
-// Regression tests for patch v0.1.1-containment (see
-// cody-projects/checker-reliability-rebuild/build/v0.1.1-containment/patch.md):
-// the public V2 Visual & Usability Review is fail-closed and temporarily
-// withdrawn — no measurement is attempted for any input — while V1 and the
-// rest of the site remain completely unaffected. Proves:
-//   - the routed handler returns the fixed withdrawal response immediately
-//     after confirming POST, for missing/malformed/unsafe/private-network/
-//     arbitrary URL data alike, without reading the request body at all;
-//   - non-POST still gets 405;
-//   - the routed handler cannot produce status: 'complete' — both
-//     behaviorally (many different inputs) and structurally (its source
-//     imports none of the modules that could produce one);
-//   - the withdrawal response contains only ok/status/message;
-//   - /check renders the withdrawal placeholder with no score, while V1's
-//     section still renders real content — using a controlled, local V1
-//     fixture, not a live network call;
+// Structural/UI regression tests around api/check-visual.ts and /check.
+//
+// This file previously guarded patch v0.1.1-containment (the V2 Visual &
+// Usability Review being fail-closed and withdrawn for every input). The
+// first real-checker release (see captureService.ts, api/check-visual.ts)
+// deliberately ends that containment on this branch — protected-preview
+// only — so the withdrawal-specific assertions that used to live here no
+// longer apply and have been removed. Request/response-shape and
+// real-capture coverage for the routed handler now lives in
+// test/checkVisualHandler.requestFlow.test.ts. What remains here:
+//   - the public api/ tree still contains exactly one visual-check handler;
+//   - /check renders the new plain-English findings (via a controlled,
+//     local fixture response — not a live network call), while V1's
+//     section still renders its own real content, independently;
 //   - the homepage is unaffected.
 //
 // Fully offline and deterministic: no real network access, no DNS
-// resolution, no live site is contacted anywhere in this file. Confirming
-// V1's *actual* live behavior is a separate, real-network production
-// verification step after deployment (see patch.md) — not this suite's
-// job, and not a dependency of it.
+// resolution, no live site is contacted anywhere in this file.
 //
 // Run with: node --test test/checkPage.containment.test.ts
 
@@ -31,95 +26,10 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
-import checkVisualHandler from '../api/check-visual.ts'
-import type { VisualCheckResponse } from '../src/lib/visualCheck.ts'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const DIST = path.join(ROOT, 'dist')
-
-// ─── Part 1: direct handler tests — no browser, no network, no DNS ────────
-
-function mockRes() {
-  const state: { statusCode: number; body: VisualCheckResponse | null } = { statusCode: 0, body: null }
-  const res = {
-    status(code: number) {
-      state.statusCode = code
-      return res
-    },
-    json(b: VisualCheckResponse) {
-      state.body = b
-    },
-  }
-  return { res, state }
-}
-
-test('withdrawal: missing, malformed, unsafe, private-network, and arbitrary URL data all get the identical fixed withdrawal response — the body is never read at all', async () => {
-  const inputs: Array<Record<string, unknown>> = [
-    { method: 'POST' }, // no body field whatsoever
-    { method: 'POST', body: undefined },
-    { method: 'POST', body: null },
-    { method: 'POST', body: 'not even valid json {{{' },
-    { method: 'POST', body: JSON.stringify({}) }, // no url field
-    { method: 'POST', body: JSON.stringify({ url: '' }) },
-    { method: 'POST', body: JSON.stringify({ url: '169.254.169.254' }) }, // link-local/metadata SSRF target
-    { method: 'POST', body: JSON.stringify({ url: 'http://127.0.0.1:22' }) }, // loopback/private
-    { method: 'POST', body: JSON.stringify({ url: 'file:///etc/passwd' }) },
-    { method: 'POST', body: JSON.stringify({ url: 'example.com' }) }, // an otherwise-ordinary, valid-looking URL
-  ]
-  for (const input of inputs) {
-    const { res, state } = mockRes()
-    await checkVisualHandler(input as { method?: string }, res)
-    assert.equal(state.statusCode, 200, `input=${JSON.stringify(input)}`)
-    assert.ok(state.body?.ok, `input=${JSON.stringify(input)}`)
-    assert.equal((state.body as { status: string }).status, 'withdrawn', `input=${JSON.stringify(input)}`)
-  }
-})
-
-test('non-POST requests still receive 405, unchanged', async () => {
-  for (const method of ['GET', 'PUT', 'DELETE', 'PATCH', undefined]) {
-    const { res, state } = mockRes()
-    await checkVisualHandler({ method }, res)
-    assert.equal(state.statusCode, 405, `method=${method}`)
-    assert.equal(state.body?.ok, false, `method=${method}`)
-  }
-})
-
-test('withdrawal response shape: contains ONLY ok/status/message — no score, checksCompleted, checksTotal, or findings, even as zero/empty', async () => {
-  const { res, state } = mockRes()
-  await checkVisualHandler({ method: 'POST' }, res)
-  const keys = Object.keys(state.body as object).sort()
-  assert.deepEqual(keys, ['message', 'ok', 'status'], 'a future partial-rebuild change accidentally leaking extra fields through this endpoint would fail this test first')
-})
-
-test('the routed handler cannot produce status: "complete" while contained — behaviorally, across many inputs, and structurally, by import graph', async () => {
-  for (const input of [
-    { method: 'POST', body: JSON.stringify({ url: 'example.com' }) },
-    { method: 'POST', body: JSON.stringify({ url: 'https://sissyssweets-byem.com' }) },
-    { method: 'POST' },
-    { method: 'GET' },
-  ]) {
-    const { res, state } = mockRes()
-    await checkVisualHandler(input, res)
-    if (state.body?.ok) {
-      assert.notEqual((state.body as { status: string }).status, 'complete', `input=${JSON.stringify(input)}`)
-    }
-  }
-
-  // Structural guarantee, not just an observed behavior: the routed file's
-  // own IMPORT statements cannot reach real measurement code at all, so no
-  // future input could ever change this without also changing this file's
-  // imports.
-  const source = await readFile(path.join(ROOT, 'api', 'check-visual.ts'), 'utf8')
-  const importLines = source.split('\n').filter((line) => /^\s*import\b/.test(line))
-  for (const forbidden of ['puppeteer-core', 'urlSafety', 'visualAnalysis', 'visualScoring', 'scrollSettle', 'websiteCheck']) {
-    assert.ok(
-      importLines.every((line) => !line.includes(forbidden)),
-      `api/check-visual.ts must not IMPORT anything referencing "${forbidden}" — found it in: ${JSON.stringify(importLines)}`
-    )
-  }
-  assert.ok(!source.includes("'complete'"), 'the routed handler\'s own source must not contain the "complete" status literal at all')
-})
 
 async function listFilesRecursive(dir: string, baseDir: string = dir): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true })
@@ -184,6 +94,21 @@ const MOCK_V1_RESPONSE = {
   checksTotal: 1,
 }
 
+// Controlled local fixture for V2, mirroring the same pattern already used
+// for V1 above — no real handler, no browser capture, no network. This
+// file's job is to prove CheckPage.tsx renders whatever the API returns;
+// the real handler's own request/capture behavior is covered separately in
+// test/checkVisualHandler.requestFlow.test.ts.
+const MOCK_V2_RESPONSE = {
+  ok: true,
+  status: 'complete',
+  finalUrl: 'https://example.com/',
+  findings: [
+    { checkId: 'overflow', label: 'Likely opportunity', detail: 'CONTROLLED-V2-FIXTURE-OVERFLOW' },
+    { checkId: 'readability', label: 'No clear issue found', detail: 'CONTROLLED-V2-FIXTURE-READABILITY' },
+  ],
+}
+
 let browser: Browser
 let server: Server
 let baseUrl: string
@@ -193,19 +118,9 @@ before(async () => {
 
   server = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/check-visual') {
-      await checkVisualHandler(
-        { method: 'POST' },
-        {
-          status(code: number) {
-            res.statusCode = code
-            return this
-          },
-          json(body: unknown) {
-            res.setHeader('content-type', 'application/json')
-            res.end(JSON.stringify(body))
-          },
-        }
-      )
+      // Controlled local fixture — see the comment above MOCK_V2_RESPONSE.
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(MOCK_V2_RESPONSE))
       return
     }
     if (req.method === 'POST' && req.url === '/api/check-website') {
@@ -241,7 +156,7 @@ after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()))
 })
 
-test('/check: the V2 section shows the withdrawal placeholder and no score, while V1 (controlled local fixture) still renders real results', async () => {
+test('/check: the V2 section shows the new plain-English findings, while V1 (controlled local fixture) still renders its own independent results', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -254,14 +169,11 @@ test('/check: the V2 section shows the withdrawal placeholder and no score, whil
     await page.waitForFunction(() => !document.querySelector('.checkup-visual-section .checkup-loading'), { timeout: 15000 })
 
     const visualSectionText = await page.$eval('.checkup-visual-section', (el) => el.textContent || '')
-    assert.ok(visualSectionText.includes('Under independent review'), `expected withdrawal label, got: ${visualSectionText}`)
-    assert.ok(
-      visualSectionText.includes('temporarily paused while we rebuild and independently validate it'),
-      `expected withdrawal message, got: ${visualSectionText}`
-    )
-    assert.ok(!visualSectionText.includes('Score not available'), 'must not read as a render failure')
-    assert.ok(!visualSectionText.includes('Review could not be completed'), 'must not read as a render failure')
-    assert.ok(!/\/100/.test(visualSectionText), 'must not show any numeric score')
+    assert.ok(visualSectionText.includes('Likely opportunity'), `expected the overflow finding's label, got: ${visualSectionText}`)
+    assert.ok(visualSectionText.includes('No clear issue found'), `expected the readability finding's label, got: ${visualSectionText}`)
+    assert.ok(visualSectionText.includes('CONTROLLED-V2-FIXTURE-OVERFLOW'), `expected the overflow finding's detail, got: ${visualSectionText}`)
+    assert.ok(visualSectionText.includes('CONTROLLED-V2-FIXTURE-READABILITY'), `expected the readability finding's detail, got: ${visualSectionText}`)
+    assert.ok(!/\/100/.test(visualSectionText), 'must not show any numeric score — this release does not add one')
 
     const v1Text = await page.$eval('.checkup-results', (el) => el.textContent || '')
     assert.ok(/92\s*\/\s*100/.test(v1Text), `V1 (Technical Basics) must still render the controlled fixture's score, got: ${v1Text}`)
