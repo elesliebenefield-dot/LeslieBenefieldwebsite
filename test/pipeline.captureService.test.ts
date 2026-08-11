@@ -144,6 +144,43 @@ skippableTest('end-to-end: a fixture with no visible text produces "unverified" 
   assert.equal(readabilityClassification.outcome, 'unverified')
 })
 
+// ─── Reliability fix: a single sample taken too early (before JS-driven
+// content reveal finishes) must not be normalized into "no visible
+// text" — see captureService.ts's post-measurement recheck. ──────────
+
+skippableTest('end-to-end: content revealed shortly after load is still measured — a too-early sample does not normalize to "no visible text"', async () => {
+  const { readabilityClassification } = await captureAndClassify('delayed-reveal.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 16px content revealed 300ms after load must still be found, not treated as absent')
+})
+
+skippableTest('end-to-end: the rendered-HTML fallback capture does not clear or replace a readability measurement that needed the recheck', async () => {
+  const { server, port } = await startFixtureServer('delayed-reveal.html')
+  try {
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 8000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      captureRenderedHtml: true,
+    })
+    assert.equal(result.ok, true)
+    if (!result.ok) throw new Error('unreachable')
+    assert.ok(result.value.renderedHtml && result.value.renderedHtml.length > 0, 'the fallback HTML capture must still run')
+    const readabilityEvidence = normalizeReadabilityEvidence(result.value.readability)
+    const readabilityClassification = classifyReadability({ evidence: readabilityEvidence, contract: getReadabilityContract() })
+    assert.equal(readabilityClassification.outcome, 'good', 'requesting the fallback capture must not clear or replace the readability measurement')
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('end-to-end: repeated complete-pipeline runs against a delayed-reveal page produce stable readability results', async () => {
+  for (let i = 0; i < 5; i++) {
+    const { readabilityClassification } = await captureAndClassify('delayed-reveal.html')
+    assert.equal(readabilityClassification.outcome, 'good', `run ${i} must find the revealed content, not report it as absent`)
+  }
+})
+
 // ─── Safety boundary is genuinely wired in, not bypassed ────────────
 
 skippableTest('the capture service refuses a private-network target end-to-end — the real safety boundary, not merely mocked out', async () => {

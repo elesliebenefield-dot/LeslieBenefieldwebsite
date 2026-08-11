@@ -82,6 +82,13 @@ export interface CaptureOptions {
  *  same order of magnitude, not unbounded. */
 const MAX_RENDERED_HTML_CHARS = 2_000_000
 
+/** Bound for the single content-readiness recheck below — see its call
+ *  site for why this exists. Small relative to the navigation timeout:
+ *  this only ever runs on the rare zero-candidate sample, and self-
+ *  terminates the moment text appears rather than waiting the full
+ *  budget every time. */
+const TEXT_RECHECK_TIMEOUT_MS = 2000
+
 export interface CapturedEvidence {
   overflow: RawCapture<'overflow'>
   readability: RawCapture<'readability'>
@@ -286,6 +293,31 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
         measurements = await page.evaluate(extractRawMeasurements)
       } catch (e) {
         return { ok: false, error: { kind: 'measurement-failed', reason: describeThrown(e) } }
+      }
+
+      if (measurements.minVisibleFontSizePx === null && measurements.footerMinVisibleFontSizePx === null) {
+        // Zero text candidates found on the FIRST sample, in either
+        // bucket — not just "no meaningful text" (which a real footer-
+        // only page can legitimately produce), but no rendered text
+        // anywhere at all. `waitUntil: 'load'` guarantees referenced
+        // subresources finished; it does not guarantee that JS-driven
+        // content reveal (a common theme/plugin "hide until ready"
+        // pattern — see delayed-reveal.html) has already run by the time
+        // this single sample was taken. Recheck once, generically: wait
+        // briefly for ANY non-empty rendered text to exist, then
+        // re-measure on the SAME page. A genuinely textless page simply
+        // times out here and keeps its original (null) measurements —
+        // this never invents content that isn't there, only gives real
+        // content a bounded chance to finish appearing before concluding
+        // none exists.
+        try {
+          await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 0, { timeout: TEXT_RECHECK_TIMEOUT_MS })
+          measurements = await page.evaluate(extractRawMeasurements)
+        } catch {
+          // No evidence text ever appeared within the recheck window (or
+          // the recheck itself failed) — keep the original, honest
+          // measurements from the first sample.
+        }
       }
 
       let renderedHtml: string | undefined

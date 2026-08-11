@@ -301,6 +301,16 @@ export default function CheckPage() {
   const [visualResult, setVisualResult] = useState<RebuildCheckSuccess | null>(null)
   const [visualErrorMessage, setVisualErrorMessage] = useState<string | null>(null)
 
+  // The technical result resolves faster than the visual review (plus any
+  // contact/links fallback merge it may trigger). Showing the technical-only
+  // result the instant it arrives, then silently swapping in a higher score/
+  // check count once the visual review finishes, makes the checker look
+  // inconsistent — see the release-polish pass fixing that visible flash.
+  // "Finalizing" covers the whole window between the technical result
+  // arriving and the visual review reaching a terminal state (success or
+  // error) — the full results report only ever renders once, already merged.
+  const isFinalizing = status === 'success' && visualStatus !== 'success' && visualStatus !== 'error'
+
   const validationErrorRef = useRef<HTMLParagraphElement>(null)
   const apiErrorRef = useRef<HTMLDivElement>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -319,8 +329,10 @@ export default function CheckPage() {
 
   useEffect(() => {
     if (status === 'error') apiErrorRef.current?.focus()
-    if (status === 'success') resultsHeadingRef.current?.focus()
-  }, [status])
+    // Wait for the merged results report to actually be on the page — while
+    // still finalizing, resultsHeadingRef isn't attached to anything yet.
+    if (status === 'success' && !isFinalizing) resultsHeadingRef.current?.focus()
+  }, [status, isFinalizing])
 
   async function runVisualCheck(url: string, requestId: number, needsContactFallback: boolean, needsLinksFallback: boolean) {
     setVisualStatus('loading')
@@ -503,7 +515,14 @@ export default function CheckPage() {
               )}
             </div>
 
-            {status === 'success' && result && (
+            {status === 'success' && result && isFinalizing && (
+              <div className="checkup-loading checkup-finalizing" role="status">
+                <span className="checkup-spinner" aria-hidden="true" />
+                Finishing your check…
+              </div>
+            )}
+
+            {status === 'success' && result && !isFinalizing && (
               <ResultsReport
                 result={result}
                 headingRef={resultsHeadingRef}
