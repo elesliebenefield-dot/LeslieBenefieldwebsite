@@ -21,6 +21,7 @@ import { resolveLocalChromePath } from '../src/lib/pipeline/capture/browserLifec
 import { normalizeOverflowEvidence, normalizeReadabilityEvidence } from '../src/lib/pipeline/normalize/evidenceNormalizer.ts'
 import { classifyOverflow, classifyReadability } from '../src/lib/pipeline/classify/classificationEngine.ts'
 import { getOverflowContract, getReadabilityContract } from '../src/lib/pipeline/classify/contractRegistry.ts'
+import { extractLinks } from '../src/lib/contactLinksCheck.ts'
 
 const CHROME_PATH = resolveLocalChromePath()
 const chromeAvailable = existsSync(CHROME_PATH)
@@ -181,35 +182,64 @@ skippableTest('end-to-end: repeated complete-pipeline runs against a delayed-rev
   }
 })
 
-// ─── Evidenced production failure mode: content that takes LONGER than
-// the recheck bound to appear (unlike delayed-reveal.html's 300ms, well
-// inside it) — reproduced via live diagnosis against a real client-
-// rendered site whose reveal time is genuinely variable and sometimes
-// exceeds this bound entirely. The correct, honest behavior is NOT to
-// find the content (it hadn't rendered yet within the bound) — the
-// property this proves is that the capture still completes promptly,
-// readability reports unverified (not a crash or a fabricated pass),
-// and overflow — which depends only on document/viewport width, never
-// on text being present — still returns a real measurement regardless.
+// ─── Evidenced production behavior: content that takes up to the real,
+// observed real-world delay (~3.5s) to appear must still be found within
+// the shared readiness stage's 5000ms bound (CONTENT_READINESS_TIMEOUT_MS)
+// — both text (readability) AND navigable links (the contact/homepage-
+// links fallback) together, since live diagnosis showed the two succeed
+// or fail together, not independently. Content that takes LONGER than
+// the bound (unlike this fixture's 3.5s, comfortably inside it) must
+// still be honestly reported as unverified, never hang, crash, or
+// fabricate a pass — see the separate past-the-bound test below.
 
-skippableTest('end-to-end: content revealed AFTER the recheck bound elapses is honestly reported as unverified — not a hang, crash, or fabricated pass — while overflow still measures', async () => {
-  const { server, port } = await startFixtureServer('reveal-past-recheck-bound.html')
+skippableTest('end-to-end: content revealed at the evidenced real-world delay (3.5s) is found — both text and navigable links — within the readiness bound', async () => {
+  const { server, port } = await startFixtureServer('reveal-within-readiness-bound.html')
   try {
     const started = Date.now()
     const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
       executablePath: CHROME_PATH,
-      navigationTimeoutMs: 8000,
+      navigationTimeoutMs: 10000,
       deps: depsFor(port),
       allowedHttpPort: port,
+      captureRenderedHtml: true,
+    })
+    const elapsed = Date.now() - started
+    assert.equal(result.ok, true)
+    if (!result.ok) throw new Error('unreachable')
+    assert.ok(elapsed < 10000, `capture must complete within the bounded budget, not hang — took ${elapsed}ms`)
+
+    const readabilityEvidence = normalizeReadabilityEvidence(result.value.readability)
+    const readabilityClassification = classifyReadability({ evidence: readabilityEvidence, contract: getReadabilityContract() })
+    assert.equal(readabilityClassification.outcome, 'good', 'text revealed at the evidenced 3.5s real-world delay must be found within the 5s readiness bound')
+
+    assert.ok(result.value.renderedHtml, 'the rendered HTML must have been captured')
+    const links = extractLinks(result.value.renderedHtml!, `http://safe.invalid:${port}/`)
+    assert.ok(links.length >= 3, `navigable links revealed at the same 3.5s delay must also be found within the readiness bound, got ${links.length}`)
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('end-to-end: content revealed PAST the readiness bound (6s) is honestly reported as unverified — not a hang, crash, or fabricated pass — while overflow still measures', async () => {
+  const { server, port } = await startFixtureServer('reveal-past-readiness-bound.html')
+  try {
+    const started = Date.now()
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 10000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      captureRenderedHtml: true,
     })
     const elapsed = Date.now() - started
     assert.equal(result.ok, true, 'the capture itself must still succeed even though the content never rendered in time')
     if (!result.ok) throw new Error('unreachable')
 
-    // Bounded: nav (~fast, local fixture) + the 2000ms text recheck +
-    // negligible measurement overhead — comfortably under 8s even with
-    // this environment's own overhead, proving this did not hang.
-    assert.ok(elapsed < 8000, `capture must complete promptly, not hang waiting for content that will never arrive in time — took ${elapsed}ms`)
+    // Bounded: nav (~fast, local fixture) + the 5000ms readiness stage +
+    // negligible measurement/truncation overhead — comfortably under
+    // 10s even with this environment's own overhead, proving this did
+    // not hang waiting for content that arrives past the bound.
+    assert.ok(elapsed < 10000, `capture must complete promptly, not hang waiting for content that will never arrive in time — took ${elapsed}ms`)
 
     const readabilityEvidence = normalizeReadabilityEvidence(result.value.readability)
     const readabilityClassification = classifyReadability({ evidence: readabilityEvidence, contract: getReadabilityContract() })
@@ -218,6 +248,9 @@ skippableTest('end-to-end: content revealed AFTER the recheck bound elapses is h
     const overflowEvidence = normalizeOverflowEvidence(result.value.overflow)
     const overflowClassification = classifyOverflow({ evidence: overflowEvidence, contract: getOverflowContract() })
     assert.equal(overflowClassification.outcome, 'good', 'overflow depends only on document/viewport width, never on text presence, so it must still return a real measurement even when readability could not')
+
+    const links = result.value.renderedHtml ? extractLinks(result.value.renderedHtml, `http://safe.invalid:${port}/`) : []
+    assert.equal(links.length, 0, 'links revealed only past the bound must not have been found either — the honest absence must be consistent across both signals')
   } finally {
     server.close()
   }

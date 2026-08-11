@@ -95,19 +95,16 @@ export interface CaptureOptions {
  *  unbounded/guessed increase. */
 const MAX_RENDERED_HTML_CHARS = 6_000_000
 
-/** Bound for the single content-readiness recheck below — see its call
- *  site for why this exists. Small relative to the navigation timeout:
- *  this only ever runs on the rare zero-candidate sample, and self-
- *  terminates the moment text appears rather than waiting the full
- *  budget every time. */
-const TEXT_RECHECK_TIMEOUT_MS = 2000
-
-/** Bound for the network-idle wait below — see its call site. Same
- *  order of magnitude as TEXT_RECHECK_TIMEOUT_MS, well inside the
- *  overall navigation/capture budget; self-terminates as soon as the
- *  page's own in-flight requests settle rather than waiting the full
- *  budget every time. */
-const RENDERED_HTML_SETTLE_TIMEOUT_MS = 3000
+/** Bound for the single, shared content-readiness stage below — see its
+ *  call site for why this exists. Evidence-based, not a blind guess:
+ *  reproduced live against a real client-rendered site whose text and
+ *  navigable links both appeared together, but sometimes took up to
+ *  ~3.5 seconds past 'load' to do so (client-side hydration timing that
+ *  varies run to run) — 5 seconds gives bounded headroom above that
+ *  observed delay, not an arbitrarily larger number. Still bounded, not
+ *  unbounded: a page that remains blank/blocked/incomplete past this
+ *  point is honestly reported as such, never waited on indefinitely. */
+const CONTENT_READINESS_TIMEOUT_MS = 5000
 
 export interface CapturedEvidence {
   overflow: RawCapture<'overflow'>
@@ -144,6 +141,23 @@ interface RawMeasurements {
    *  `null` if none was found. Carried as context only; never changes
    *  the readability outcome on its own. */
   footerMinVisibleFontSizePx: number | null
+  /** Readiness signal only — NOT the final link extraction/validation
+   *  (that still happens server-side via extractLinks/evaluateHomepageLinks
+   *  against the captured HTML). A cheap, generic check for whether ANY
+   *  navigable (non-mailto/tel/javascript/fragment) anchor currently
+   *  exists in the DOM, used solely to decide whether the shared
+   *  readiness stage below needs to wait for links specifically. */
+  hasEligibleLinks: boolean
+  /** Present only when this call was asked to include it (see
+   *  extractRawMeasurements's captureHtml parameter) — reading it in
+   *  the SAME evaluate() call as the measurements above, rather than as
+   *  a separate later round-trip, guarantees both reflect the exact
+   *  same DOM snapshot. Two separate calls — even back-to-back — proved
+   *  observably unsafe: reproduced a real, repeatable case where a
+   *  second, later evaluate() call captured content that a
+   *  microseconds-earlier call in the same sequence had just measured
+   *  as absent. */
+  renderedHtml?: string
 }
 
 /**
@@ -183,7 +197,7 @@ interface RawMeasurements {
  * kind of thing this check exists to catch, and must keep being
  * measured as meaningful content.
  */
-function extractRawMeasurements(): RawMeasurements {
+function extractRawMeasurements(captureHtml: boolean, maxHtmlChars: number): RawMeasurements {
   const viewportWidthPx = window.innerWidth
   const documentScrollWidthPx = document.documentElement.scrollWidth
 
@@ -251,7 +265,23 @@ function extractRawMeasurements(): RawMeasurements {
     }
   }
 
-  return { viewportWidthPx, documentScrollWidthPx, minVisibleFontSizePx, footerMinVisibleFontSizePx }
+  // Readiness-only signal — see RawMeasurements.hasEligibleLinks. Kept
+  // deliberately simple (any real http(s)-eligible anchor anywhere in
+  // the DOM) rather than replicating extractLinks' full same-origin/
+  // sampling logic here: this only decides whether to WAIT, never what
+  // ends up sampled or checked.
+  const isEligibleHref = (href: string): boolean => {
+    const trimmed = href.trim()
+    if (!trimmed || trimmed.startsWith('#')) return false
+    return !/^(mailto|tel|javascript):/i.test(trimmed)
+  }
+  const hasEligibleLinks = Array.from(document.querySelectorAll('a[href]')).some((a) => isEligibleHref(a.getAttribute('href') ?? ''))
+
+  // Read in this SAME pass, not a later separate call — see
+  // RawMeasurements.renderedHtml for why that matters.
+  const renderedHtml = captureHtml ? document.documentElement.outerHTML.slice(0, maxHtmlChars) : undefined
+
+  return { viewportWidthPx, documentScrollWidthPx, minVisibleFontSizePx, footerMinVisibleFontSizePx, hasEligibleLinks, renderedHtml }
 }
 
 export async function captureOverflowAndReadability(rawUrl: string, options: CaptureOptions = {}): Promise<CaptureResult> {
@@ -308,87 +338,98 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
         return { ok: false, error: { kind: 'navigation-failed', reason: describeThrown(e) } }
       }
 
+      // First sample never captures HTML — at this point we don't yet
+      // know whether a readiness wait will run, and capturing/serializing
+      // outerHTML here would be wasted work on the (common) already-ready
+      // path where it's about to be re-read anyway. See below.
       let measurements: RawMeasurements
       try {
-        measurements = await page.evaluate(extractRawMeasurements)
+        measurements = await page.evaluate(extractRawMeasurements, false, MAX_RENDERED_HTML_CHARS)
       } catch (e) {
         return { ok: false, error: { kind: 'measurement-failed', reason: describeThrown(e) } }
       }
 
-      if (measurements.minVisibleFontSizePx === null && measurements.footerMinVisibleFontSizePx === null) {
-        // Zero text candidates found on the FIRST sample, in either
-        // bucket — not just "no meaningful text" (which a real footer-
-        // only page can legitimately produce), but no rendered text
-        // anywhere at all. `waitUntil: 'load'` guarantees referenced
-        // subresources finished; it does not guarantee that JS-driven
-        // content reveal (a common theme/plugin "hide until ready"
-        // pattern — see delayed-reveal.html) has already run by the time
-        // this single sample was taken. Recheck once, generically: wait
-        // briefly for ANY non-empty rendered text to exist, then
-        // re-measure on the SAME page. A genuinely textless page simply
-        // times out here and keeps its original (null) measurements —
-        // this never invents content that isn't there, only gives real
-        // content a bounded chance to finish appearing before concluding
-        // none exists.
+      // Shared, conditional, bounded content-readiness stage — one wait,
+      // not two independently-bounded ones. Engages ONLY when the FIRST
+      // sample is actually missing evidence this request needs: text
+      // (for readability — "zero candidates in either bucket," not just
+      // "no meaningful text," which a real footer-only page can
+      // legitimately produce), or, only when a rendered-HTML capture was
+      // requested, eligible navigable links (for the contact/homepage-
+      // links fallback). An already-ready page (both present, or the
+      // only evidence this request needs is present) incurs zero added
+      // wait — this check runs before anything else does.
+      //
+      // Deliberately NOT network-idle: reproduced live that client-
+      // rendered applications can maintain persistent background network
+      // activity (polling, analytics, websockets) that never goes idle,
+      // which would make an idle-based wait time out on every single
+      // request regardless of whether the actual evidence needed was
+      // already present or never coming — a signal that doesn't track
+      // what this capture actually needs. Waiting on the SAME DOM
+      // evidence criteria used to decide readiness in the first place
+      // (visible text presence, eligible link presence) is what actually
+      // tracks it, and doesn't depend on network quiescence at all.
+      const needsTextEvidence = measurements.minVisibleFontSizePx === null && measurements.footerMinVisibleFontSizePx === null
+      const needsLinksEvidence = !!options.captureRenderedHtml && !measurements.hasEligibleLinks
+
+      if (needsTextEvidence || needsLinksEvidence) {
         try {
-          await page.waitForFunction(() => (document.body?.innerText ?? '').trim().length > 0, { timeout: TEXT_RECHECK_TIMEOUT_MS })
-          measurements = await page.evaluate(extractRawMeasurements)
+          await page.waitForFunction(
+            (waitForText: boolean, waitForLinks: boolean) => {
+              const textReady = !waitForText || (document.body?.innerText ?? '').trim().length > 0
+              const linksReady =
+                !waitForLinks ||
+                Array.from(document.querySelectorAll('a[href]')).some((a) => {
+                  const href = (a.getAttribute('href') ?? '').trim()
+                  if (!href || href.startsWith('#')) return false
+                  return !/^(mailto|tel|javascript):/i.test(href)
+                })
+              return textReady && linksReady
+            },
+            { timeout: CONTENT_READINESS_TIMEOUT_MS },
+            needsTextEvidence,
+            needsLinksEvidence
+          )
         } catch {
-          // No evidence text ever appeared within the recheck window (or
-          // the recheck itself failed) — keep the original, honest
-          // measurements from the first sample.
+          // Timed out without every needed piece of evidence appearing —
+          // fall through to the final read below anyway (not skipped):
+          // partial progress (e.g. text arrived but links never did, or
+          // vice versa) must still be captured, not discarded just
+          // because the OTHER piece of evidence never showed up. A
+          // genuinely blank/blocked/incomplete page still ends up with
+          // its original, honest (null/absent) measurements here — this
+          // never invents content that isn't there.
         }
       }
 
+      // ONE final, atomic read — whenever a wait happened above (so the
+      // page may have changed since the first sample), OR the rendered
+      // HTML was requested at all (even if no wait was needed) — combines
+      // the measurements AND the HTML capture into the SAME page.evaluate()
+      // call. This is not just tidiness: two separate calls back-to-back
+      // (the original design) proved observably unsafe — reproduced a
+      // real, repeatable case where a later, separate outerHTML capture
+      // reflected content that a microseconds-earlier separate
+      // measurement call had just correctly measured as not yet present.
+      // Reading both from ONE in-page execution makes that class of
+      // inconsistency structurally impossible: readability, overflow, and
+      // the rendered HTML/links all come from literally the same
+      // synchronous snapshot. An already-ready page that needs no HTML
+      // capture (no fallback requested) takes neither branch and pays for
+      // none of this — its original first sample stands unchanged.
       let renderedHtml: string | undefined
-      if (options.captureRenderedHtml) {
-        // Evidenced reliability fix: the text-readiness recheck above
-        // guarantees readability's OWN measurement isn't taken before any
-        // text is visible, but it says nothing about content the
-        // contact/homepage-links fallback specifically needs — real
-        // navigable links. On JS-rendered pages, navigation/product links
-        // are commonly populated by a separate async operation (e.g. a
-        // client-side data fetch) that can still be in flight even after
-        // ordinary page text is already visible and readability's own
-        // measurement has already succeeded — reproduced directly against
-        // a real client-rendered site, where readability text appeared
-        // within ~300ms but the rendered HTML captured at that same
-        // moment still had zero navigable links, only for both to be
-        // present a few hundred milliseconds later. A bounded, generic
-        // network-idle wait — not a text-visibility check, since the
-        // missing content here isn't text-shaped — gives that in-flight
-        // work a chance to finish before the ONE HTML snapshot the
-        // fallback ever gets is taken. This never touches readability's
-        // own measurement (already computed above) or its recheck, and
-        // only ever runs on this fallback-only path — the default
-        // (no-fallback-needed) capture does zero extra work, same as
-        // before. If the page never goes idle, this simply times out and
-        // capture proceeds with whatever HTML exists then — the same
-        // honest "Unable to verify" outcome as if this wait didn't exist,
-        // never a fabricated result.
+      if (needsTextEvidence || needsLinksEvidence || options.captureRenderedHtml) {
         try {
-          await page.waitForNetworkIdle({ idleTime: 500, timeout: RENDERED_HTML_SETTLE_TIMEOUT_MS })
+          const finalSnapshot = await page.evaluate(extractRawMeasurements, !!options.captureRenderedHtml, MAX_RENDERED_HTML_CHARS)
+          measurements = finalSnapshot
+          renderedHtml = finalSnapshot.renderedHtml
         } catch {
-          // Timed out without settling — proceed with whatever has
-          // rendered so far; see the comment above.
-        }
-        try {
-          // Safety review: truncate INSIDE the page, not after retrieval —
-          // slicing only after `page.evaluate` returns would still require
-          // the full (potentially far larger than 6,000,000-char) string to
-          // cross the CDP/IPC boundary and land in this process's memory
-          // first. Passing the bound in and slicing before it ever leaves
-          // the page means only the already-bounded result is ever
-          // serialized/transferred, regardless of how large the real page
-          // is — the memory/time cost of an oversized page is capped at
-          // the source, not just at the point of use.
-          renderedHtml = await page.evaluate((max) => document.documentElement.outerHTML.slice(0, max), MAX_RENDERED_HTML_CHARS)
-        } catch {
-          // Best-effort only: the overflow/readability capture above
-          // already succeeded, so this failing must not fail the whole
-          // capture — the caller (api/check-visual.ts) simply has no
-          // fallback evidence to work with, same as if it were never
-          // requested. See requirement 5's "preserve Unable to verify."
+          // Best-effort only: keep whatever the first sample already
+          // established rather than treating this as a fatal error — the
+          // overflow/readability capture from the first pass already
+          // succeeded, so a failure here must not fail the whole capture.
+          // See requirement 5's "preserve Unable to verify."
         }
       }
 

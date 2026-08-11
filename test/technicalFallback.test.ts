@@ -192,6 +192,34 @@ skippableTest('JavaScript-injected safe same-origin links are verified through t
   }
 })
 
+skippableTest('a page whose text and links are both already present on the first sample incurs no added readiness wait', async () => {
+  const { server, port } = await startFixtureServer()
+  try {
+    const { res, state } = mockRes()
+    const started = Date.now()
+    await handleCheckVisual(
+      { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsContactFallback: true, needsLinksFallback: true }) },
+      res,
+      { executablePath: CHROME_PATH, navigationTimeoutMs: 8000, deps: captureDepsFor(port), allowedHttpPort: port },
+      contactLinksDepsFor(port)
+    )
+    const elapsed = Date.now() - started
+    // This fixture's text and links are injected synchronously, before
+    // 'load' fires — already ready on the very first sample. A real
+    // capture (browser launch + navigation + measurement + evaluation)
+    // normally completes in well under 2s locally; if the 5000ms
+    // readiness bound were being incurred unconditionally, this would
+    // take 5s+ instead.
+    assert.ok(elapsed < 3000, `an already-ready page must not incur the readiness wait — took ${elapsed}ms`)
+    assert.equal(state.statusCode, 200)
+    if (!state.body?.ok) throw new Error('unreachable')
+    assert.ok(state.body.linksFallback, 'links must still be found')
+    assert.ok(state.body.contactFallback, 'contact must still be found')
+  } finally {
+    server.close()
+  }
+})
+
 skippableTest('unsupported/unsafe rendered links (mailto:, tel:, javascript:, fragment) never reach the link sample — only the 3 real http(s) candidates are counted', async () => {
   const { server, port } = await startFixtureServer()
   try {
@@ -257,13 +285,14 @@ skippableTest('no second browser process is launched even when both fallbacks ar
 
 // ─── Hotfix: rendered links populated by a separate, later async
 // operation than the page's own text (reproduced live against a real
-// client-rendered site — see captureService.ts's network-idle wait
-// before the fallback HTML capture). The page below injects real text
-// immediately (so readability's own measurement/recheck is unaffected
-// and succeeds right away), but its navigation links only arrive several
-// hundred milliseconds later, via an actual pending fetch() to this same
-// fixture server — not a bare setTimeout — since that's the real
-// mechanism a network-idle wait detects. ─────────────────────────────
+// client-rendered site — see captureService.ts's shared content-
+// readiness stage before the fallback HTML capture). The page below
+// injects real text immediately (so readability's own measurement is
+// unaffected and succeeds right away), but its navigation links only
+// arrive several hundred milliseconds later, via an actual pending
+// fetch() to this same fixture server — proving the readiness stage's
+// DOM-evidence check (eligible link presence), not just its text check,
+// is what gives this in-flight work a chance to finish. ─────────────
 
 const delayedLinksHomePageHtml = (port: number) => `<!DOCTYPE html>
 <html lang="en">
@@ -350,19 +379,26 @@ skippableTest('rendered links populated by a separate, later async operation tha
   }
 })
 
-skippableTest('a page whose links never finish loading (network never goes idle) still returns the honest "Unable to verify" result, not a fabricated pass', async () => {
-  // The links data endpoint never responds within the bounded settle
-  // window (well beyond RENDERED_HTML_SETTLE_TIMEOUT_MS) — a genuinely
-  // blocked/stuck async operation, not a slow-but-eventually-resolving one.
+skippableTest('a page whose links never satisfy the readiness bound still returns the honest "Unable to verify" result, not a fabricated pass, and does not hang', async () => {
+  // The links data endpoint never responds within the bounded readiness
+  // window (well beyond CONTENT_READINESS_TIMEOUT_MS) — a genuinely
+  // blocked/stuck async operation, not a slow-but-eventually-resolving
+  // one. Proves the DOM-evidence-based readiness wait (not network-idle)
+  // still resolves this case correctly: it isn't waiting for the
+  // network to go quiet, it's waiting for a specific piece of DOM
+  // evidence that, here, never actually appears.
   const { server, port } = await startDelayedLinksFixtureServer(10000)
   try {
     const { res, state } = mockRes()
+    const started = Date.now()
     await handleCheckVisual(
       { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsLinksFallback: true }) },
       res,
       { executablePath: CHROME_PATH, navigationTimeoutMs: 8000, deps: captureDepsFor(port), allowedHttpPort: port },
       contactLinksDepsFor(port)
     )
+    const elapsed = Date.now() - started
+    assert.ok(elapsed < 10000, `must not hang waiting for evidence that never arrives — took ${elapsed}ms, well short of the fixture's own 10s never-responding endpoint`)
     assert.equal(state.statusCode, 200)
     if (!state.body?.ok) throw new Error('unreachable')
     assert.ok(!state.body.linksFallback, 'no fallback result must be fabricated when the rendered page never actually gained real links within the bounded wait')
