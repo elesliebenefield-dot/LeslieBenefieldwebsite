@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Reveal within the readiness bound</title></head>
+<body>
+  <!-- Evidences the real-world delay directly observed against a live
+       client-rendered site (a Vue-based storefront): text and
+       navigation links both became available together, but sometimes
+       took up to ~3.5 seconds past 'load' to do so. This fixture
+       reveals BOTH text and a real navigable link at that exact
+       evidenced delay — inside the 5000ms CONTENT_READINESS_TIMEOUT_MS
+       bound (see captureService.ts) — proving the shared readiness
+       stage gives comparable real-world pages a genuine chance to
+       finish rendering before either signal is measured.
+
+       Links are built via DOM APIs (createElement/setAttribute), not an
+       innerHTML string literal — an anchor-tag-shaped source substring
+       anywhere in this document (including inside a comment or the
+       script's own source text) would otherwise be matched by
+       extractLinks' regex directly against the captured HTML, producing
+       a false "link found" independent of whether the real DOM ever
+       actually revealed it. Deliberately no example of that shape
+       appears anywhere in this file, including in this comment. -->
+  <main id="content" style="display: none; max-width: 380px;">
+    <h1 style="font-size: 24px;">Welcome</h1>
+    <p style="font-size: 16px;">This content is revealed at the evidenced real-world delay.</p>
+  </main>
+  <nav id="nav" style="display: none;"></nav>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        document.getElementById('content').style.display = 'block'
+        var nav = document.getElementById('nav')
+        nav.style.display = 'block'
+        ;['about', 'services', 'pricing'].forEach(function (slug) {
+          var a = document.createElement('a')
+          a.setAttribute('href', '/' + slug)
+          a.textContent = slug
+          nav.appendChild(a)
+        })
+      }, 3500)
+    })
+  </script>
+</body>
+</html>

@@ -192,6 +192,34 @@ skippableTest('JavaScript-injected safe same-origin links are verified through t
   }
 })
 
+skippableTest('a page whose text and links are both already present on the first sample incurs no added readiness wait', async () => {
+  const { server, port } = await startFixtureServer()
+  try {
+    const { res, state } = mockRes()
+    const started = Date.now()
+    await handleCheckVisual(
+      { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsContactFallback: true, needsLinksFallback: true }) },
+      res,
+      { executablePath: CHROME_PATH, navigationTimeoutMs: 8000, deps: captureDepsFor(port), allowedHttpPort: port },
+      contactLinksDepsFor(port)
+    )
+    const elapsed = Date.now() - started
+    // This fixture's text and links are injected synchronously, before
+    // 'load' fires — already ready on the very first sample. A real
+    // capture (browser launch + navigation + measurement + evaluation)
+    // normally completes in well under 2s locally; if the 5000ms
+    // readiness bound were being incurred unconditionally, this would
+    // take 5s+ instead.
+    assert.ok(elapsed < 3000, `an already-ready page must not incur the readiness wait — took ${elapsed}ms`)
+    assert.equal(state.statusCode, 200)
+    if (!state.body?.ok) throw new Error('unreachable')
+    assert.ok(state.body.linksFallback, 'links must still be found')
+    assert.ok(state.body.contactFallback, 'contact must still be found')
+  } finally {
+    server.close()
+  }
+})
+
 skippableTest('unsupported/unsafe rendered links (mailto:, tel:, javascript:, fragment) never reach the link sample — only the 3 real http(s) candidates are counted', async () => {
   const { server, port } = await startFixtureServer()
   try {
@@ -250,6 +278,207 @@ skippableTest('no second browser process is launched even when both fallbacks ar
     )
     assert.equal(state.body?.ok, true)
     assert.equal(launchCount, 1, 'exactly one browser process must have launched for a request needing both fallbacks')
+  } finally {
+    server.close()
+  }
+})
+
+// ─── Hotfix: rendered links populated by a separate, later async
+// operation than the page's own text (reproduced live against a real
+// client-rendered site — see captureService.ts's shared content-
+// readiness stage before the fallback HTML capture). The page below
+// injects real text immediately (so readability's own measurement is
+// unaffected and succeeds right away), but its navigation links only
+// arrive several hundred milliseconds later, via an actual pending
+// fetch() to this same fixture server — proving the readiness stage's
+// DOM-evidence check (eligible link presence), not just its text check,
+// is what gives this in-flight work a chance to finish. ─────────────
+
+const delayedLinksHomePageHtml = (port: number) => `<!DOCTYPE html>
+<html lang="en">
+<head><title>Delayed links</title></head>
+<body>
+<div id="app"></div>
+<script>
+  var origin = 'http://127.0.0.1:${port}';
+  // Real content, injected immediately — well past the thin-content
+  // threshold, and enough for readability's own measurement to succeed
+  // without ever needing its own recheck.
+  document.getElementById('app').innerHTML =
+    '<main><h1>Welcome</h1><p>This is the real content of the page, injected immediately on load, ' +
+    'well past the length threshold this automated check uses to decide whether a rendered fallback ' +
+    'is worth attempting instead of just reading the raw HTML that was actually delivered.</p></main>';
+  // Navigation links arrive later, once a real pending network request
+  // resolves — matching the reproduced real-world pattern of a client-
+  // rendered site whose navigation is populated by its own data fetch,
+  // independently of when the page's own text becomes visible. Same-
+  // origin relative path (not the absolute "origin" above) — the page
+  // itself is loaded as safe.invalid:port, so an absolute 127.0.0.1
+  // fetch would be cross-origin and blocked by CORS, which has nothing
+  // to do with what this test is actually proving.
+  fetch('/delayed-links-data')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var nav = document.createElement('nav');
+      nav.innerHTML = data.links.map(function (href) { return '<a href="' + href + '">link</a>'; }).join(' ');
+      document.body.appendChild(nav);
+    });
+</script>
+</body>
+</html>`
+
+async function startDelayedLinksFixtureServer(delayMs: number): Promise<{ server: http.Server; port: number }> {
+  let port = 0
+  const server = http.createServer((req, res) => {
+    if (req.url === '/' || req.url === undefined) {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(delayedLinksHomePageHtml(port))
+      return
+    }
+    if (req.url === '/delayed-links-data') {
+      setTimeout(() => {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ links: [`http://127.0.0.1:${port}/about`, `http://127.0.0.1:${port}/services`, `http://127.0.0.1:${port}/pricing`] }))
+      }, delayMs)
+      return
+    }
+    if (req.url === '/about' || req.url === '/services' || req.url === '/pricing') {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(SIMPLE_PAGE(req.url))
+      return
+    }
+    res.writeHead(404)
+    res.end('not found')
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('failed to bind fixture server')
+  port = address.port
+  return { server, port }
+}
+
+skippableTest('rendered links populated by a separate, later async operation than the page\'s own text are still sampled from the final page state', async () => {
+  const { server, port } = await startDelayedLinksFixtureServer(600)
+  try {
+    const { res, state } = mockRes()
+    await handleCheckVisual(
+      { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsLinksFallback: true }) },
+      res,
+      { executablePath: CHROME_PATH, navigationTimeoutMs: 8000, deps: captureDepsFor(port), allowedHttpPort: port },
+      contactLinksDepsFor(port)
+    )
+    assert.equal(state.statusCode, 200)
+    if (!state.body?.ok) throw new Error('unreachable')
+    const readability = state.body.findings.find((f) => f.checkId === 'readability')
+    assert.ok(readability && !readability.detail.toLowerCase().includes('no visible text'), 'readability must find the immediately-injected text, unaffected by this fix')
+    assert.ok(state.body.linksFallback, 'the links fallback must be present — the delayed links must have been captured, not an empty pre-fetch snapshot')
+    assert.equal(state.body.linksFallback?.finding.bucket, 'good')
+    assert.match(state.body.linksFallback!.finding.detail, /sample of 3 links?/, 'all 3 delayed links must have been sampled once they arrived')
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('a page whose links never satisfy the readiness bound still returns the honest "Unable to verify" result, not a fabricated pass, and does not hang', async () => {
+  // The links data endpoint never responds within the bounded readiness
+  // window (well beyond CONTENT_READINESS_TIMEOUT_MS) — a genuinely
+  // blocked/stuck async operation, not a slow-but-eventually-resolving
+  // one. Proves the DOM-evidence-based readiness wait (not network-idle)
+  // still resolves this case correctly: it isn't waiting for the
+  // network to go quiet, it's waiting for a specific piece of DOM
+  // evidence that, here, never actually appears.
+  const { server, port } = await startDelayedLinksFixtureServer(10000)
+  try {
+    const { res, state } = mockRes()
+    const started = Date.now()
+    await handleCheckVisual(
+      { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsLinksFallback: true }) },
+      res,
+      { executablePath: CHROME_PATH, navigationTimeoutMs: 8000, deps: captureDepsFor(port), allowedHttpPort: port },
+      contactLinksDepsFor(port)
+    )
+    const elapsed = Date.now() - started
+    assert.ok(elapsed < 10000, `must not hang waiting for evidence that never arrives — took ${elapsed}ms, well short of the fixture's own 10s never-responding endpoint`)
+    assert.equal(state.statusCode, 200)
+    if (!state.body?.ok) throw new Error('unreachable')
+    assert.ok(!state.body.linksFallback, 'no fallback result must be fabricated when the rendered page never actually gained real links within the bounded wait')
+  } finally {
+    server.close()
+  }
+})
+
+// ─── Hotfix: real navigation links positioned late in a large rendered
+// page must not be silently discarded by the rendered-HTML capture's
+// truncation cap — reproduced live against a real client-rendered site
+// whose rendered page was ~2.9M characters, with its real links past the
+// OLD 2,000,000-char cap (see captureService.ts's MAX_RENDERED_HTML_CHARS).
+// This fixture reproduces that shape deterministically: real text
+// immediately, then ~2.2M characters of harmless padding, THEN the real
+// navigation links — past the old cutoff, comfortably under the new one. ──
+
+const largePageWithLateLinksHtml = (port: number) => `<!DOCTYPE html>
+<html lang="en">
+<head><title>Large page with late links</title></head>
+<body>
+<div id="app"></div>
+<script>
+  var origin = 'http://127.0.0.1:${port}';
+  document.getElementById('app').innerHTML =
+    '<main><h1>Welcome</h1><p>Real content, injected immediately, well past the thin-content threshold.</p></main>';
+  // ~2.2M characters of harmless padding BEFORE the real links — pushes
+  // them past the OLD 2,000,000-char truncation cap once serialized.
+  var padding = document.createElement('div');
+  padding.style.display = 'none';
+  padding.textContent = 'x'.repeat(2200000);
+  document.body.appendChild(padding);
+  var nav = document.createElement('nav');
+  nav.innerHTML =
+    '<a href="' + origin + '/about">About</a> ' +
+    '<a href="' + origin + '/services">Services</a> ' +
+    '<a href="' + origin + '/pricing">Pricing</a>';
+  document.body.appendChild(nav);
+</script>
+</body>
+</html>`
+
+async function startLargePageFixtureServer(): Promise<{ server: http.Server; port: number }> {
+  let port = 0
+  const server = http.createServer((req, res) => {
+    if (req.url === '/' || req.url === undefined) {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(largePageWithLateLinksHtml(port))
+      return
+    }
+    if (req.url === '/about' || req.url === '/services' || req.url === '/pricing') {
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(SIMPLE_PAGE(req.url))
+      return
+    }
+    res.writeHead(404)
+    res.end('not found')
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('failed to bind fixture server')
+  port = address.port
+  return { server, port }
+}
+
+skippableTest('real navigation links positioned past the old truncation cutoff in a large rendered page are still found', async () => {
+  const { server, port } = await startLargePageFixtureServer()
+  try {
+    const { res, state } = mockRes()
+    await handleCheckVisual(
+      { method: 'POST', body: JSON.stringify({ url: `http://safe.invalid:${port}/`, needsLinksFallback: true }) },
+      res,
+      { executablePath: CHROME_PATH, navigationTimeoutMs: 15000, deps: captureDepsFor(port), allowedHttpPort: port },
+      contactLinksDepsFor(port)
+    )
+    assert.equal(state.statusCode, 200)
+    if (!state.body?.ok) throw new Error('unreachable')
+    assert.ok(state.body.linksFallback, 'the links fallback must find real links even when they are positioned past the old 2,000,000-char cutoff')
+    assert.equal(state.body.linksFallback?.finding.bucket, 'good')
+    assert.match(state.body.linksFallback!.finding.detail, /sample of 3 links?/)
   } finally {
     server.close()
   }

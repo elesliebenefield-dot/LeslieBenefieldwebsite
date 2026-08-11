@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'rea
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
-import { normalizeWebsiteUrl } from '../lib/websiteCheck'
-import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
+import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, scoreBandFor, checkStatusLabel } from '../lib/websiteCheck'
+import type { CheckResponse, CheckSuccess, CheckScored, Finding, FindingBucket } from '../lib/websiteCheck'
 import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
 import { buildMailtoHref } from '../lib/emailBody'
@@ -51,11 +51,88 @@ const SCOPE_NOTICE =
 // ../lib/emailBody.ts, extracted so it's directly testable without a
 // browser/JSX environment — see test/emailBody.test.ts.
 
+// Score-explanation release: reads the same score-band thresholds
+// websiteCheck.ts's scoreBandFor uses, instead of its own separately-
+// hardcoded ones.
 function scoreLabel(score: number): string {
-  if (score >= 85) return 'Looking strong'
-  if (score >= 65) return 'Solid, with room to improve'
-  if (score >= 40) return 'A few things to address'
-  return 'Needs attention'
+  return scoreBandFor(score).label
+}
+
+/**
+ * Accessible "How this score is calculated" disclosure — a native
+ * <details>/<summary> (keyboard- and screen-reader-operable with no
+ * extra JS). Renders entirely from `result`: CHECK_WEIGHTS/CHECK_LABELS/
+ * CHECK_ORDER (the single scoring source of truth, shared with
+ * api/check-website.ts) plus whatever `result.findings` actually is
+ * right now — never a second, hand-reconstructed calculation. This is
+ * why it stays correct after a contact/links fallback merge updates
+ * `result`: the same props, already updated, are all this reads.
+ *
+ * Simplification release: the weights, thresholds, score bands, point
+ * states, denominator rules, and detection logic behind this table are
+ * all UNCHANGED — only the surrounding explanatory text was cut down.
+ * The equation and the score-ranges table were dropped as redundant
+ * with what the table and the score row already show; see git history
+ * for the fuller version this replaced.
+ */
+function ScoreExplanation({ result }: { result: CheckScored }) {
+  const responseTimeFinding = result.findings.find((f) => f.id === 'response-time')
+
+  return (
+    <div className="checkup-score-explanation">
+      <p className="checkup-score-calc">
+        You earned {result.rawScore} of {result.possiblePoints} possible points across the checks we could verify, giving a
+        score of {result.score}/100.
+        {result.checksCompleted < result.checksTotal &&
+          ' Checks that couldn’t be verified are left out of that possible-points total entirely — they’re not counted as failures.'}
+        {responseTimeFinding && ' Response time is measured and shown for context, but it isn’t scored.'}
+      </p>
+
+      <details className="checkup-score-disclosure">
+        <summary>How this score is calculated</summary>
+
+        <p className="checkup-score-rationale">
+          This score is based on seven automated technical checks, weighted by their importance within this limited
+          checkup. Checks that can’t be verified are left out rather than counted as failures.
+        </p>
+
+        <table className="checkup-score-table">
+          <caption className="sr-only">Each counted technical check, its point weight, result, and points earned</caption>
+          <thead>
+            <tr>
+              <th scope="col">Check</th>
+              <th scope="col">Weight</th>
+              <th scope="col">Result</th>
+              <th scope="col">Points earned</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CHECK_ORDER.map((checkId) => {
+              const finding = result.findings.find((f) => f.id === checkId)
+              if (!finding) return null
+              return (
+                <tr key={checkId}>
+                  <th scope="row">{CHECK_LABELS[checkId]}</th>
+                  <td>{CHECK_WEIGHTS[checkId]}</td>
+                  <td>{checkStatusLabel(finding)}</td>
+                  <td>
+                    {finding.points} / {CHECK_WEIGHTS[checkId]}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        <p className="checkup-score-thresholds-note">
+          Title and meta-description checks use basic length thresholds. Meeting a threshold does not guarantee
+          quality.
+        </p>
+
+        <p className="checkup-score-visual-note">The separate Visual &amp; Usability Review is not included in this score.</p>
+      </details>
+    </div>
+  )
 }
 
 const CheckIcon = () => (
@@ -196,24 +273,43 @@ function ResultsReport({
       </h2>
 
       <p className="checkup-score-eyebrow">Technical Basics Score</p>
-      <div className="checkup-score-row">
-        <div className="checkup-score">
-          <span className="checkup-score-number">{result.score}</span>
-          <span className="checkup-score-max">/100</span>
-        </div>
-        <div>
-          <p className="checkup-score-label">{scoreLabel(result.score)}</p>
-          <p className="checkup-summary">{result.summary}</p>
-          <p className="checkup-checks-count">
-            {result.checksCompleted} of {result.checksTotal} checks completed
-            {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+      {result.status === 'scored' ? (
+        <>
+          <div className="checkup-score-row">
+            <div className="checkup-score">
+              <span className="checkup-score-number">{result.score}</span>
+              <span className="checkup-score-max">/100</span>
+            </div>
+            <div>
+              <p className="checkup-score-label">{scoreLabel(result.score)}</p>
+              <p className="checkup-summary">{result.summary}</p>
+              <p className="checkup-checks-count">
+                {result.checksCompleted} of {result.checksTotal} checks completed
+                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+              </p>
+            </div>
+          </div>
+          <p className="checkup-score-scope-note">
+            This score reflects only the automated technical checks completed below. It does not evaluate the
+            website’s complete visual design, mobile experience, wording, forms, or every page.
           </p>
+
+          <ScoreExplanation result={result} />
+        </>
+      ) : (
+        // Homepage availability wasn't confirmed good — too little was
+        // checked (at most 2 of 7) to show a meaningful number, and in the
+        // no-response case, nothing here is even confirmed evidence about
+        // the website. No score, no band — the completed-check count takes
+        // the score's usual prominent position instead. See CheckUnscored
+        // in websiteCheck.ts.
+        <div className="checkup-unscored-notice" role="note">
+          <p className="checkup-checks-count checkup-checks-count--prominent">
+            {result.checksCompleted} of {result.checksTotal} checks completed
+          </p>
+          <p className="checkup-summary">{result.summary}</p>
         </div>
-      </div>
-      <p className="checkup-score-scope-note">
-        This score reflects only the automated technical checks completed below. It does not evaluate the
-        website’s complete visual design, mobile experience, wording, forms, or every page.
-      </p>
+      )}
 
       {ecommerceFinding && (
         <div className="checkup-scope-callout" role="note">

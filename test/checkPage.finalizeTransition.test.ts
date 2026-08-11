@@ -41,12 +41,13 @@ interface TechnicalOpts {
 function technicalResponse(finalUrl: string, marker: string, opts: TechnicalOpts = {}) {
   const needsFallback = !!opts.needsFallback
   const findings = [
-    { id: 'response-time', label: 'Response time', bucket: 'good', detail: `TECHNICAL-DETAIL-${marker}` },
-    { id: 'contact', label: 'Contact info', bucket: needsFallback ? 'unverified' : 'good', detail: `CONTACT-${marker}` },
-    { id: 'links', label: 'Homepage links', bucket: needsFallback ? 'unverified' : 'good', detail: `LINKS-${marker}` },
+    { id: 'response-time', label: 'Response time', bucket: 'good', detail: `TECHNICAL-DETAIL-${marker}`, points: 0 },
+    { id: 'contact', label: 'Contact info', bucket: needsFallback ? 'unverified' : 'good', detail: `CONTACT-${marker}`, points: needsFallback ? 0 : 5 },
+    { id: 'links', label: 'Homepage links', bucket: needsFallback ? 'unverified' : 'good', detail: `LINKS-${marker}`, points: needsFallback ? 0 : 5 },
   ]
   return {
     ok: true,
+    status: 'scored',
     input: finalUrl,
     finalUrl,
     score: 100,

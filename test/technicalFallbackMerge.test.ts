@@ -15,6 +15,7 @@ import { buildCombinedEmailBody } from '../src/lib/emailBody.ts'
 function baseResult(): CheckSuccess {
   return {
     ok: true,
+    status: 'scored',
     input: 'example.com',
     finalUrl: 'https://example.com/',
     score: 79, // round((66/83)*100) — availability+https+mobile+title+meta = 30+25+15+10+5-ish, both contact/links unverified
@@ -50,6 +51,7 @@ function perfectPartialResult(): CheckSuccess {
   ]
   return {
     ok: true,
+    status: 'scored',
     input: 'websitesbyleslie.com',
     finalUrl: 'https://websitesbyleslie.com/',
     score: 100,

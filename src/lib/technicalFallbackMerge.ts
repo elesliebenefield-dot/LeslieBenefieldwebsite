@@ -35,6 +35,17 @@ import type { TechnicalFallbackResult } from './visualCheck.js'
 export function mergeFallbackIntoResult(result: CheckSuccess, contactFallback?: TechnicalFallbackResult, linksFallback?: TechnicalFallbackResult): CheckSuccess {
   if (!contactFallback && !linksFallback) return result
 
+  // Rubric-audit release: a fallback can only ever apply to a scored
+  // result — 'contact'/'links' findings, and the rawScore/possiblePoints
+  // this merge renormalizes, only exist when homepage availability was
+  // confirmed good (see CheckScored/CheckUnscored in websiteCheck.ts). An
+  // unscored result was never asked for a fallback in the first place
+  // (CheckPage.tsx derives needsContactFallback/needsLinksFallback from
+  // findings that don't exist on it), so this is a defensive guard, not
+  // a real branch in practice — but it's what makes this function total
+  // over the CheckSuccess union instead of only safe by convention.
+  if (result.status !== 'scored') return result
+
   // The SAME "was this check actually still unverified" condition gates
   // both the finding replacement AND every derived field below — a
   // fallback object being present is not enough on its own (a stale/

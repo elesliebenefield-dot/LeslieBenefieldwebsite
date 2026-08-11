@@ -10,6 +10,7 @@
 
 import { lookup } from 'node:dns/promises'
 import type { Finding } from './websiteCheck.js'
+import { CHECK_WEIGHTS } from './websiteCheck.js'
 
 export class UnsafeUrlError extends Error {}
 
@@ -253,8 +254,12 @@ export async function checkLink(startUrl: URL, deps: ContactLinksDeps = {}): Pro
 // and from api/check-visual.ts's fallback for the rendered case — one
 // implementation, two evidence sources. ──────────────────────────────
 
-export const CONTACT_POINTS = 5
-export const LINKS_POINTS = 5
+// Re-exported under their existing names (api/check-visual.ts's fallback
+// imports these) but no longer independently defined — CHECK_WEIGHTS in
+// websiteCheck.ts is the one place a check's point weight is ever
+// written down. Values are unchanged (both were already 5).
+export const CONTACT_POINTS = CHECK_WEIGHTS.contact
+export const LINKS_POINTS = CHECK_WEIGHTS.links
 
 export interface ContactEvaluation {
   found: boolean
@@ -272,6 +277,7 @@ export function evaluateContactSignal(html: string): ContactEvaluation {
         label: 'Contact information',
         bucket: 'good',
         detail: 'We found what appears to be contact information (a phone number, email address, or contact link) on your homepage.',
+        points: CONTACT_POINTS,
       },
     }
   }
@@ -283,6 +289,7 @@ export function evaluateContactSignal(html: string): ContactEvaluation {
       label: 'Contact information',
       bucket: 'improve',
       detail: 'We couldn’t clearly find contact information on your homepage. Visible contact details help build trust with visitors.',
+      points: 0,
     },
   }
 }
@@ -319,12 +326,14 @@ export async function evaluateHomepageLinks(html: string, finalUrl: string, deps
           label: 'Homepage links',
           bucket: 'good',
           detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage and all of them loaded fine. This is a sample, not a full site crawl.`,
+          points,
         }
       : {
           id: 'links',
           label: 'Homepage links',
           bucket: 'improve',
           detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage, and ${brokenLinks} may be broken or slow to respond. This is a sample, not a full site crawl.`,
+          points,
         }
 
   return { linksChecked, brokenLinks, finding, points }

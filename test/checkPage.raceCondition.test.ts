@@ -49,11 +49,14 @@ const MIME: Record<string, string> = {
 function technicalResponse(finalUrl: string, marker: string) {
   return {
     ok: true,
+    status: 'scored',
     input: finalUrl,
     finalUrl,
     score: 90,
+    rawScore: 90,
+    possiblePoints: 100,
     summary: `TECHNICAL-${marker}`,
-    findings: [{ id: 'response-time', label: 'Response time', bucket: 'good', detail: `TECHNICAL-DETAIL-${marker}` }],
+    findings: [{ id: 'response-time', label: 'Response time', bucket: 'good', detail: `TECHNICAL-DETAIL-${marker}`, points: 0 }],
     checksCompleted: 1,
     checksTotal: 1,
   }

@@ -85,11 +85,14 @@ const MIME: Record<string, string> = {
 
 const MOCK_V1_RESPONSE = {
   ok: true,
+  status: 'scored',
   input: 'example.com',
   finalUrl: 'https://example.com/',
   score: 92,
+  rawScore: 92,
+  possiblePoints: 100,
   summary: 'CONTROLLED-V1-FIXTURE',
-  findings: [{ id: 'response-time', label: 'Response time', bucket: 'good', detail: 'Fast enough.' }],
+  findings: [{ id: 'response-time', label: 'Response time', bucket: 'good', detail: 'Fast enough.', points: 0 }],
   checksCompleted: 1,
   checksTotal: 1,
 }

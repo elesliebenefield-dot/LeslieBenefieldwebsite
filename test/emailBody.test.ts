@@ -13,11 +13,14 @@ import type { RebuildCheckSuccess } from '../src/lib/visualCheck.ts'
 function technical(): CheckSuccess {
   return {
     ok: true,
+    status: 'scored',
     input: 'example.com',
     finalUrl: 'https://example.com/',
     score: 90,
+    rawScore: 90,
+    possiblePoints: 100,
     summary: 'The technical basics checked look great, with just a few small things worth a look.',
-    findings: [{ id: 'https', label: 'Secure connection', bucket: 'good', detail: 'Uses HTTPS.' }],
+    findings: [{ id: 'https', label: 'Secure connection', bucket: 'good', detail: 'Uses HTTPS.', points: 25 }],
     checksCompleted: 7,
     checksTotal: 7,
   }
@@ -37,6 +40,7 @@ test('a successful visual review: the email says it completed and lists the actu
   }
   const body = buildCombinedEmailBody(technical(), visual, DEFAULT_TIER)
 
+  assert.ok(body.includes('Technical Basics Score: 90/100 (7 of 7 checks completed)'), 'a scored result must show its real score in the email')
   assert.ok(!body.includes('did not complete'), 'must not claim the visual review did not complete when it succeeded')
   assert.ok(body.includes('Visual & Usability Review: completed'))
   assert.ok(body.includes('Visual & Usability Review:'), 'must include a dedicated section header for the findings')
