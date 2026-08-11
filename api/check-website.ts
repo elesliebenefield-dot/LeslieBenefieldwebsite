@@ -3,7 +3,7 @@
 // Nothing submitted here is stored — the result is computed and returned
 // in a single request/response cycle.
 
-import { normalizeWebsiteUrl, summaryFor } from '../src/lib/websiteCheck.js'
+import { normalizeWebsiteUrl, summaryFor, CHECK_WEIGHTS } from '../src/lib/websiteCheck.js'
 import type { Finding, CheckResponse } from '../src/lib/websiteCheck.js'
 import {
   assertSafeUrl,
@@ -213,10 +213,10 @@ function hasEcommerceSignal(html: string, finalUrl: string): boolean {
 }
 
 // ─── Scoring ─────────────────────────────────────────────────────
-interface ScoredFinding extends Finding {
-  points: number
-}
-
+// Per-check point weights now live in ../src/lib/websiteCheck.js's
+// CHECK_WEIGHTS — the single source of truth also read by CheckPage.tsx's
+// score explanation disclosure. Values below are unchanged from before
+// that extraction; this only stops inlining them as magic numbers.
 const SCORED_CHECK_COUNT = 7 // availability, https, mobile, title, meta-description, contact, links
 
 interface ReportResult {
@@ -230,7 +230,7 @@ interface ReportResult {
 
 function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null): ReportResult {
   const { html, elapsedMs, usedHttps, status } = fetchResult
-  const findings: ScoredFinding[] = []
+  const findings: Finding[] = []
   let score = 0
   let possiblePoints = 100
   let checksCompleted = SCORED_CHECK_COUNT
@@ -238,13 +238,13 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
   // Availability (30 pts) — essential
   const available = status >= 200 && status < 400
   if (available) {
-    score += 30
+    score += CHECK_WEIGHTS.availability
     findings.push({
       id: 'availability',
       label: 'Homepage availability',
       bucket: 'good',
       detail: 'Your homepage loaded successfully.',
-      points: 30,
+      points: CHECK_WEIGHTS.availability,
     })
   } else {
     findings.push({
@@ -280,7 +280,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
 
   // HTTPS (25 pts) — essential
   if (usedHttps) {
-    score += 25
+    score += CHECK_WEIGHTS.https
     findings.push({
       id: 'https',
       label: 'HTTPS / secure connection',
@@ -288,7 +288,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       detail: fetchResult.redirected
         ? 'Your website redirects visitors to a secure (HTTPS) connection.'
         : 'Your website loads over a secure (HTTPS) connection.',
-      points: 25,
+      points: CHECK_WEIGHTS.https,
     })
   } else {
     findings.push({
@@ -304,13 +304,13 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     // Mobile viewport (15 pts) — essential
     const hasViewport = /<meta\s+[^>]*name\s*=\s*["']viewport["']/i.test(html)
     if (hasViewport) {
-      score += 15
+      score += CHECK_WEIGHTS.mobile
       findings.push({
         id: 'mobile',
         label: 'Mobile setup',
         bucket: 'good',
         detail: 'Your site includes the basic setup needed to display properly on phones and tablets.',
-        points: 15,
+        points: CHECK_WEIGHTS.mobile,
       })
     } else {
       findings.push({
@@ -325,13 +325,13 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     // Page title (10 pts)
     const title = extractTitle(html)
     if (title && title.length >= 10) {
-      score += 10
+      score += CHECK_WEIGHTS.title
       findings.push({
         id: 'title',
         label: 'Page title',
         bucket: 'good',
         detail: 'Your homepage has a descriptive page title.',
-        points: 10,
+        points: CHECK_WEIGHTS.title,
       })
     } else if (title) {
       score += 5
@@ -355,13 +355,13 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     // Meta description (10 pts)
     const description = findMetaContent(html, 'description')
     if (description && description.length >= 50) {
-      score += 10
+      score += CHECK_WEIGHTS['meta-description']
       findings.push({
         id: 'meta-description',
         label: 'Meta description',
         bucket: 'good',
         detail: 'Your homepage has a useful meta description.',
-        points: 10,
+        points: CHECK_WEIGHTS['meta-description'],
       })
     } else if (description) {
       score += 5
@@ -391,7 +391,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     const contactEval = evaluateContactSignal(html)
     if (!contactEval.found && thinContent) {
       checksCompleted -= 1
-      possiblePoints -= 5
+      possiblePoints -= CHECK_WEIGHTS.contact
       findings.push({
         id: 'contact',
         label: 'Contact information',
@@ -409,7 +409,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     // scripts we don't execute, so this is left unverified rather than assumed clean.
     if (linksEval === null) {
       checksCompleted -= 1
-      possiblePoints -= 5
+      possiblePoints -= CHECK_WEIGHTS.links
       findings.push({
         id: 'links',
         label: 'Homepage links',
@@ -526,6 +526,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           label: 'Homepage availability',
           bucket: 'specialist',
           detail: `We couldn’t reach your website: ${reason}. This may be a hosting, DNS, or domain issue.`,
+          points: 0,
         },
       ],
       checksCompleted: 0,
@@ -549,7 +550,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     rawScore,
     possiblePoints,
     summary: summaryFor(score, findings.some((f) => f.bucket === 'improve'), checksCompleted, checksTotal),
-    findings: findings.map(({ id, label, bucket, detail }): Finding => ({ id, label, bucket, detail })),
+    findings: findings.map(({ id, label, bucket, detail, points }): Finding => ({ id, label, bucket, detail, points })),
     checksCompleted,
     checksTotal,
   }

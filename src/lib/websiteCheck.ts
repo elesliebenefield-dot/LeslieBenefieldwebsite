@@ -11,6 +11,15 @@ export interface Finding {
   label: string
   bucket: FindingBucket
   detail: string
+  /** Points actually earned for this finding — 0 for an unscored/
+   *  informational finding (response-time, ecommerce) or an 'unverified'
+   *  check (which is excluded from possiblePoints entirely, not scored
+   *  as a failure — see CHECK_WEIGHTS/buildReport). The single source
+   *  the score explanation disclosure reads from — never re-derived or
+   *  guessed from `bucket` alone, since a partial-credit result (e.g.
+   *  page title) can legitimately earn some but not all of a check's
+   *  weight. */
+  points: number
 }
 
 export interface CheckSuccess {
@@ -40,6 +49,64 @@ export interface CheckFailure {
 }
 
 export type CheckResponse = CheckSuccess | CheckFailure
+
+// ─── Technical Basics Score: single source of truth ─────────────────
+// Score-explanation release: the per-check point weights and score-band
+// thresholds/labels used to live only as inline magic numbers in
+// api/check-website.ts's buildReport (weights) and CheckPage.tsx's
+// scoreLabel (band thresholds) — two independent places that happened
+// to agree, with nothing enforcing that they would keep agreeing. Both
+// now read from here instead, and so does the "How this score is
+// calculated" disclosure (CheckPage.tsx) — one definition, every
+// consumer, never a duplicated/hand-reconstructed number. Values are
+// UNCHANGED from what buildReport already computed; this only names
+// them once.
+
+/** Max points for each of the 7 counted Technical Basics checks — sums
+ *  to 100. `response-time`, `ecommerce`, and `content-checks` are
+ *  deliberately absent: they're informational/scope findings, never
+ *  counted checks (see SCORED_CHECK_COUNT in api/check-website.ts). */
+export const CHECK_WEIGHTS: Record<string, number> = {
+  availability: 30,
+  https: 25,
+  mobile: 15,
+  title: 10,
+  'meta-description': 10,
+  contact: 5,
+  links: 5,
+}
+
+/** Canonical display order for the score explanation disclosure — matches
+ *  the order buildReport computes them in. */
+export const CHECK_ORDER: string[] = ['availability', 'https', 'mobile', 'title', 'meta-description', 'contact', 'links']
+
+export const CHECK_LABELS: Record<string, string> = {
+  availability: 'Homepage availability',
+  https: 'HTTPS / secure connection',
+  mobile: 'Mobile setup',
+  title: 'Page title',
+  'meta-description': 'Meta description',
+  contact: 'Contact information',
+  links: 'Homepage links',
+}
+
+/** Ordered highest-threshold-first. The first band whose minScore the
+ *  score meets or exceeds is the one that applies — see scoreBandFor. */
+export interface ScoreBand {
+  minScore: number
+  label: string
+}
+
+export const SCORE_BANDS: ScoreBand[] = [
+  { minScore: 85, label: 'Looking strong' },
+  { minScore: 65, label: 'Solid, with room to improve' },
+  { minScore: 40, label: 'A few things to address' },
+  { minScore: 0, label: 'Needs attention' },
+]
+
+export function scoreBandFor(score: number): ScoreBand {
+  return SCORE_BANDS.find((band) => score >= band.minScore) ?? SCORE_BANDS[SCORE_BANDS.length - 1]
+}
 
 /**
  * Turns ordinary user input ("example.com", "www.example.com", "https://example.com")
@@ -94,15 +161,16 @@ export function normalizeWebsiteUrl(raw: string): URL | null {
 // the same final findings.
 export function summaryFor(score: number, hasImproveFindings: boolean, checksCompleted: number, checksTotal: number): string {
   const incompleteNote = checksCompleted < checksTotal ? ' Not every check could be completed, so this reflects only what was verified.' : ''
+  const band = scoreBandFor(score)
 
-  if (score >= 85) {
+  if (band.minScore >= 85) {
     const base = hasImproveFindings ? 'The technical basics checked look great, with just a few small things worth a look.' : 'The technical basics checked look great.'
     return `${base}${incompleteNote}`
   }
-  if (score >= 65) {
+  if (band.minScore >= 65) {
     const base = hasImproveFindings ? 'The technical basics checked look solid, with some room to improve.' : 'The technical basics checked look solid.'
     return `${base}${incompleteNote}`
   }
-  if (score >= 40) return `The technical basics checked are working, but a few common issues could be affecting visitors.${incompleteNote}`
+  if (band.minScore >= 40) return `The technical basics checked are working, but a few common issues could be affecting visitors.${incompleteNote}`
   return `The technical basics checked ran into some notable issues. A closer look would likely help.${incompleteNote}`
 }

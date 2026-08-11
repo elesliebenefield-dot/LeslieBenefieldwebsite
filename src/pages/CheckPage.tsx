@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'rea
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
-import { normalizeWebsiteUrl } from '../lib/websiteCheck'
+import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, SCORE_BANDS, scoreBandFor } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
 import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
@@ -51,11 +51,117 @@ const SCOPE_NOTICE =
 // ../lib/emailBody.ts, extracted so it's directly testable without a
 // browser/JSX environment — see test/emailBody.test.ts.
 
+// Score-explanation release: reads the same SCORE_BANDS the disclosure
+// below renders, instead of its own separately-hardcoded thresholds —
+// see ../lib/websiteCheck.ts.
 function scoreLabel(score: number): string {
-  if (score >= 85) return 'Looking strong'
-  if (score >= 65) return 'Solid, with room to improve'
-  if (score >= 40) return 'A few things to address'
-  return 'Needs attention'
+  return scoreBandFor(score).label
+}
+
+const CHECK_STATUS_LABEL: Record<FindingBucket, string> = {
+  good: 'Passed',
+  improve: 'Needs improvement',
+  unverified: 'Unable to verify',
+  specialist: 'Outside scope',
+}
+
+/** Upper bound (inclusive) of each score band, derived from the NEXT
+ *  (lower) band's threshold — never a separately hand-typed number.
+ *  SCORE_BANDS is ordered highest-threshold-first. */
+function scoreBandRangeLabel(index: number): string {
+  const band = SCORE_BANDS[index]
+  const upperBound = index === 0 ? null : SCORE_BANDS[index - 1].minScore - 1
+  return upperBound === null ? `${band.minScore}–100` : `${band.minScore}–${upperBound}`
+}
+
+/**
+ * Accessible "How this score is calculated" disclosure — a native
+ * <details>/<summary> (keyboard- and screen-reader-operable with no
+ * extra JS). Renders entirely from `result`: CHECK_WEIGHTS/CHECK_LABELS/
+ * CHECK_ORDER/SCORE_BANDS (the single scoring source of truth, shared
+ * with api/check-website.ts) plus whatever `result.findings`/
+ * `result.rawScore`/`result.possiblePoints`/`result.score` actually
+ * are right now — never a second, hand-reconstructed calculation. This
+ * is why it stays correct after a contact/links fallback merge updates
+ * `result`: the same props, already updated, are all this reads.
+ */
+function ScoreExplanation({ result }: { result: CheckSuccess }) {
+  const currentBandIndex = SCORE_BANDS.findIndex((band) => result.score >= band.minScore)
+  const responseTimeFinding = result.findings.find((f) => f.id === 'response-time')
+
+  return (
+    <div className="checkup-score-explanation">
+      <p className="checkup-score-calc">
+        You earned {result.rawScore} of {result.possiblePoints} possible points across the checks we could verify, giving a
+        score of {result.score}/100.
+        {result.checksCompleted < result.checksTotal &&
+          ' Checks that couldn’t be verified are left out of that possible-points total entirely — they’re not counted as failures.'}
+        {responseTimeFinding && ' Response time is measured and shown for context, but it isn’t scored.'}
+      </p>
+
+      <details className="checkup-score-disclosure">
+        <summary>How this score is calculated</summary>
+
+        <table className="checkup-score-table">
+          <caption className="sr-only">Each counted technical check, its point weight, result, and points earned</caption>
+          <thead>
+            <tr>
+              <th scope="col">Check</th>
+              <th scope="col">Weight</th>
+              <th scope="col">Result</th>
+              <th scope="col">Points earned</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CHECK_ORDER.map((checkId) => {
+              const finding = result.findings.find((f) => f.id === checkId)
+              if (!finding) return null
+              return (
+                <tr key={checkId}>
+                  <th scope="row">{CHECK_LABELS[checkId]}</th>
+                  <td>{CHECK_WEIGHTS[checkId]}</td>
+                  <td>{CHECK_STATUS_LABEL[finding.bucket]}</td>
+                  <td>
+                    {finding.points} / {CHECK_WEIGHTS[checkId]}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        <p className="checkup-score-formula">
+          Score = round((points earned ÷ possible points) × 100) = round(({result.rawScore} ÷ {result.possiblePoints}) × 100) ={' '}
+          {result.score}.
+        </p>
+
+        <table className="checkup-score-bands">
+          <caption>Score ranges</caption>
+          <thead>
+            <tr>
+              <th scope="col">Range</th>
+              <th scope="col">Label</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SCORE_BANDS.map((band, index) => (
+              <tr key={band.label} aria-current={index === currentBandIndex ? 'true' : undefined}>
+                <th scope="row">{scoreBandRangeLabel(index)}</th>
+                <td>
+                  {band.label}
+                  {index === currentBandIndex ? ' (this result)' : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <p className="checkup-score-visual-note">
+          The separate Visual &amp; Usability Review below is not included in this score.
+        </p>
+      </details>
+    </div>
+  )
 }
 
 const CheckIcon = () => (
@@ -214,6 +320,8 @@ function ResultsReport({
         This score reflects only the automated technical checks completed below. It does not evaluate the
         website’s complete visual design, mobile experience, wording, forms, or every page.
       </p>
+
+      <ScoreExplanation result={result} />
 
       {ecommerceFinding && (
         <div className="checkup-scope-callout" role="note">

@@ -77,10 +77,23 @@ export interface CaptureOptions {
   captureRenderedHtml?: boolean
 }
 
-/** Defensive cap, matching api/check-website.ts's own MAX_RESPONSE_BYTES
- *  for its static fetch — the rendered fallback should be bound by the
- *  same order of magnitude, not unbounded. */
-const MAX_RENDERED_HTML_CHARS = 2_000_000
+/** Defensive cap — still bounded, not unbounded, but no longer sized to
+ *  match api/check-website.ts's own MAX_RESPONSE_BYTES (2,000,000) for
+ *  its STATIC fetch. That assumption doesn't hold for a RENDERED,
+ *  hydrated page: reproduced directly against a real client-rendered
+ *  site (a Vue-based storefront) whose rendered outerHTML was
+ *  consistently ~2.9-3.0M characters — comfortably larger than a static
+ *  HTML response because of inlined framework/hydration state and
+ *  component markup, categorically different content than what
+ *  MAX_RESPONSE_BYTES was calibrated for. At the old 2,000,000-char cap,
+ *  that page's real navigation links (positioned later in the
+ *  serialized DOM, past a large amount of preceding markup) were
+ *  silently discarded before evaluateHomepageLinks ever saw them — the
+ *  links fallback found zero candidates not because none existed or
+ *  hadn't rendered yet, but because they were truncated away. Raised
+ *  with real headroom above the observed real-world size, not an
+ *  unbounded/guessed increase. */
+const MAX_RENDERED_HTML_CHARS = 6_000_000
 
 /** Bound for the single content-readiness recheck below — see its call
  *  site for why this exists. Small relative to the navigation timeout:
@@ -88,6 +101,13 @@ const MAX_RENDERED_HTML_CHARS = 2_000_000
  *  terminates the moment text appears rather than waiting the full
  *  budget every time. */
 const TEXT_RECHECK_TIMEOUT_MS = 2000
+
+/** Bound for the network-idle wait below — see its call site. Same
+ *  order of magnitude as TEXT_RECHECK_TIMEOUT_MS, well inside the
+ *  overall navigation/capture budget; self-terminates as soon as the
+ *  page's own in-flight requests settle rather than waiting the full
+ *  budget every time. */
+const RENDERED_HTML_SETTLE_TIMEOUT_MS = 3000
 
 export interface CapturedEvidence {
   overflow: RawCapture<'overflow'>
@@ -322,6 +342,36 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
 
       let renderedHtml: string | undefined
       if (options.captureRenderedHtml) {
+        // Evidenced reliability fix: the text-readiness recheck above
+        // guarantees readability's OWN measurement isn't taken before any
+        // text is visible, but it says nothing about content the
+        // contact/homepage-links fallback specifically needs — real
+        // navigable links. On JS-rendered pages, navigation/product links
+        // are commonly populated by a separate async operation (e.g. a
+        // client-side data fetch) that can still be in flight even after
+        // ordinary page text is already visible and readability's own
+        // measurement has already succeeded — reproduced directly against
+        // a real client-rendered site, where readability text appeared
+        // within ~300ms but the rendered HTML captured at that same
+        // moment still had zero navigable links, only for both to be
+        // present a few hundred milliseconds later. A bounded, generic
+        // network-idle wait — not a text-visibility check, since the
+        // missing content here isn't text-shaped — gives that in-flight
+        // work a chance to finish before the ONE HTML snapshot the
+        // fallback ever gets is taken. This never touches readability's
+        // own measurement (already computed above) or its recheck, and
+        // only ever runs on this fallback-only path — the default
+        // (no-fallback-needed) capture does zero extra work, same as
+        // before. If the page never goes idle, this simply times out and
+        // capture proceeds with whatever HTML exists then — the same
+        // honest "Unable to verify" outcome as if this wait didn't exist,
+        // never a fabricated result.
+        try {
+          await page.waitForNetworkIdle({ idleTime: 500, timeout: RENDERED_HTML_SETTLE_TIMEOUT_MS })
+        } catch {
+          // Timed out without settling — proceed with whatever has
+          // rendered so far; see the comment above.
+        }
         try {
           const html = await page.evaluate(() => document.documentElement.outerHTML)
           renderedHtml = html.length > MAX_RENDERED_HTML_CHARS ? html.slice(0, MAX_RENDERED_HTML_CHARS) : html
