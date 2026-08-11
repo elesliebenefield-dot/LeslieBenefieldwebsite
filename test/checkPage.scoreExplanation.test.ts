@@ -36,6 +36,7 @@ function finding(id: string, label: string, bucket: string, detail: string, poin
 // Scenario A: fully completed, 100/100, no fallback needed.
 const FULLY_COMPLETED = {
   ok: true,
+  status: 'scored',
   input: 'https://marker-full.example/',
   finalUrl: 'https://marker-full.example/',
   score: 100,
@@ -60,6 +61,7 @@ const FULLY_COMPLETED = {
 // mobile flagged 'improve' with 0 points, everything else good.
 const PARTIAL_UNVERIFIED = {
   ok: true,
+  status: 'scored',
   input: 'https://marker-partial.example/',
   finalUrl: 'https://marker-partial.example/',
   score: 84,
@@ -228,6 +230,13 @@ test('partially completed result: an unverified check is excluded from the possi
     assert.ok(contactRow, 'contact must still appear as a row even though it is unverified')
     assert.equal(contactRow?.[2], 'Unable to verify')
     assert.equal(contactRow?.[3]?.trim(), '0 / 5')
+
+    // The exact bug this release fixes: a zero-credit 'improve' result
+    // (mobile, 0/15 here) must read "Not met," not the same ambiguous
+    // label a partial-credit 'improve' result would show.
+    const mobileRow = rows.find((r) => r[0] === 'Mobile setup')
+    assert.equal(mobileRow?.[2], 'Not met')
+    assert.equal(mobileRow?.[3]?.trim(), '0 / 15')
   } finally {
     await page.close()
   }

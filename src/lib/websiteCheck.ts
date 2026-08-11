@@ -22,8 +22,30 @@ export interface Finding {
   points: number
 }
 
-export interface CheckSuccess {
+/**
+ * Rubric-audit release: a numeric score/band is only meaningful once
+ * Homepage availability is CONFIRMED good — that's the structural
+ * precondition every content check (mobile/title/meta/contact/links) is
+ * gated behind, so it's the one evidence-based gate for "is there enough
+ * here to show an aggregate number." Two failure shapes both fall short
+ * of that bar, for different reasons:
+ *  - a confirmed non-2xx/3xx response IS real evidence (we know the
+ *    status), but only 2 of 7 checks (availability, https) could ever
+ *    run from it — too little to represent "the technical basics";
+ *  - DNS/timeout/connection/redirect-chain/browser/internal-checker
+ *    failures are NOT confirmed evidence about the website at all —
+ *    only that this attempt didn't succeed, which may be temporary or a
+ *    limitation of this checker.
+ * Rather than pick a "less misleading" formula for either case (e.g.
+ * renormalizing 25/55 into a headline "45/100" that looks far more
+ * comprehensive than 2-of-7 actually is), CheckUnscored omits the score
+ * fields entirely — structurally, not just as a zero — so no consumer
+ * (the results page, the disclosure, the email) can accidentally render
+ * a stale or misleading number. See CheckScored/CheckUnscored below.
+ */
+export interface CheckScored {
   ok: true
+  status: 'scored'
   input: string
   finalUrl: string
   score: number
@@ -42,6 +64,26 @@ export interface CheckSuccess {
   rawScore: number
   possiblePoints: number
 }
+
+/** Homepage availability was not confirmed good — see the rubric-audit
+ *  comment above CheckScored for why no score/band is shown here. Every
+ *  consumer of `CheckSuccess` must handle this branch explicitly (no
+ *  `score` field exists to accidentally read). `findings` still carries
+ *  whatever WAS genuinely established (e.g. the actual HTTP status, or
+ *  HTTPS if a response was received at all) — this is "no aggregate
+ *  number," never "no information." */
+export interface CheckUnscored {
+  ok: true
+  status: 'unscored'
+  input: string
+  finalUrl: string
+  summary: string
+  findings: Finding[]
+  checksCompleted: number
+  checksTotal: number
+}
+
+export type CheckSuccess = CheckScored | CheckUnscored
 
 export interface CheckFailure {
   ok: false
@@ -65,7 +107,20 @@ export type CheckResponse = CheckSuccess | CheckFailure
 /** Max points for each of the 7 counted Technical Basics checks — sums
  *  to 100. `response-time`, `ecommerce`, and `content-checks` are
  *  deliberately absent: they're informational/scope findings, never
- *  counted checks (see SCORED_CHECK_COUNT in api/check-website.ts). */
+ *  counted checks (see SCORED_CHECK_COUNT in api/check-website.ts).
+ *
+ *  Rubric-audit release: these numbers are this checkup's OWN
+ *  prioritization — not an industry standard, not a benchmark validated
+ *  against real outcomes, and not the only reasonable way to weight
+ *  these seven items. They reflect two judgments made when this tool
+ *  was built: how essential each item is to a basic, working, secure
+ *  site, and how confidently this specific automated check can actually
+ *  establish it (a deterministic fact like an HTTP status or a protocol
+ *  is weighted differently than a heuristic signal like regex-based
+ *  contact-info detection or a sampled link crawl). A different tool
+ *  could reasonably weight these differently — this is disclosed to
+ *  users verbatim in CheckPage.tsx's score-explanation panel, not just
+ *  asserted here. */
 export const CHECK_WEIGHTS: Record<string, number> = {
   availability: 30,
   https: 25,
@@ -75,6 +130,15 @@ export const CHECK_WEIGHTS: Record<string, number> = {
   contact: 5,
   links: 5,
 }
+
+/** This tool's own coarse length cutoffs for "probably long enough to
+ *  be useful" — not a search-engine requirement, not a guarantee that
+ *  crossing them means genuine quality, and not a claim that falling
+ *  short means the title/description is actually bad. Single source of
+ *  truth for both api/check-website.ts's detection logic and the
+ *  disclosure text that explains it to users. */
+export const TITLE_MIN_LENGTH = 10
+export const META_DESCRIPTION_MIN_LENGTH = 50
 
 /** Canonical display order for the score explanation disclosure — matches
  *  the order buildReport computes them in. */
@@ -173,4 +237,37 @@ export function summaryFor(score: number, hasImproveFindings: boolean, checksCom
   }
   if (band.minScore >= 40) return `The technical basics checked are working, but a few common issues could be affecting visitors.${incompleteNote}`
   return `The technical basics checked ran into some notable issues. A closer look would likely help.${incompleteNote}`
+}
+
+/** The summary for a CheckUnscored result — see the rubric-audit
+ *  comment above CheckScored for why no score exists to summarize
+ *  instead. `checksCompleted`/`checksTotal` are always echoed in the
+ *  message text as well as shown separately in the UI, so the
+ *  "prominent completed-check count" requirement holds even if a
+ *  consumer only reads one of the two. */
+export function unscoredSummaryFor(reason: 'confirmed-error-response' | 'checker-unavailable', checksCompleted: number, checksTotal: number): string {
+  if (reason === 'confirmed-error-response') {
+    return `Only ${checksCompleted} of ${checksTotal} technical basics could be checked, because your homepage didn’t return a normal response. See the details below.`
+  }
+  return `We weren’t able to complete this check for your website (${checksCompleted} of ${checksTotal} checks completed). This may be temporary, a limitation of this automated checker, or an issue reaching your site — it doesn’t necessarily mean your website has a problem. Please try again in a few minutes.`
+}
+
+/**
+ * The exact user-facing status for one finding, precise enough to
+ * distinguish partial credit from zero credit — the gap the rubric
+ * audit found (a 5/10 short title and a 0/10 missing title both showed
+ * "Needs improvement"). Reads directly off `points`, never re-derives
+ * or guesses a state from `bucket` alone.
+ */
+export function checkStatusLabel(finding: Finding): string {
+  switch (finding.bucket) {
+    case 'unverified':
+      return 'Unable to verify'
+    case 'specialist':
+      return 'Outside scope'
+    case 'good':
+      return 'Passed'
+    case 'improve':
+      return finding.points > 0 ? 'Partially met' : 'Not met'
+  }
 }

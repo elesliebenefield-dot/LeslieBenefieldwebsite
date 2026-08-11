@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'rea
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
-import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, SCORE_BANDS, scoreBandFor } from '../lib/websiteCheck'
-import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
+import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, SCORE_BANDS, scoreBandFor, checkStatusLabel, TITLE_MIN_LENGTH, META_DESCRIPTION_MIN_LENGTH } from '../lib/websiteCheck'
+import type { CheckResponse, CheckSuccess, CheckScored, Finding, FindingBucket } from '../lib/websiteCheck'
 import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
 import { buildMailtoHref } from '../lib/emailBody'
@@ -58,13 +58,6 @@ function scoreLabel(score: number): string {
   return scoreBandFor(score).label
 }
 
-const CHECK_STATUS_LABEL: Record<FindingBucket, string> = {
-  good: 'Passed',
-  improve: 'Needs improvement',
-  unverified: 'Unable to verify',
-  specialist: 'Outside scope',
-}
-
 /** Upper bound (inclusive) of each score band, derived from the NEXT
  *  (lower) band's threshold — never a separately hand-typed number.
  *  SCORE_BANDS is ordered highest-threshold-first. */
@@ -85,7 +78,7 @@ function scoreBandRangeLabel(index: number): string {
  * is why it stays correct after a contact/links fallback merge updates
  * `result`: the same props, already updated, are all this reads.
  */
-function ScoreExplanation({ result }: { result: CheckSuccess }) {
+function ScoreExplanation({ result }: { result: CheckScored }) {
   const currentBandIndex = SCORE_BANDS.findIndex((band) => result.score >= band.minScore)
   const responseTimeFinding = result.findings.find((f) => f.id === 'response-time')
 
@@ -101,6 +94,15 @@ function ScoreExplanation({ result }: { result: CheckSuccess }) {
 
       <details className="checkup-score-disclosure">
         <summary>How this score is calculated</summary>
+
+        <p className="checkup-score-rationale">
+          These weights are this checkup’s own prioritization — not an industry standard or a benchmark validated
+          against real outcomes. They reflect how essential each item is to a basic, working, secure site, and how
+          confidently this automated check can actually establish it. The {TITLE_MIN_LENGTH}-character (title) and{' '}
+          {META_DESCRIPTION_MIN_LENGTH}-character (meta description) cutoffs below are this tool’s own coarse
+          thresholds for “probably long enough to be useful,” not universal requirements or a guarantee of quality —
+          a page can clear the threshold and still read poorly, or fall short and still be fine.
+        </p>
 
         <table className="checkup-score-table">
           <caption className="sr-only">Each counted technical check, its point weight, result, and points earned</caption>
@@ -120,7 +122,7 @@ function ScoreExplanation({ result }: { result: CheckSuccess }) {
                 <tr key={checkId}>
                   <th scope="row">{CHECK_LABELS[checkId]}</th>
                   <td>{CHECK_WEIGHTS[checkId]}</td>
-                  <td>{CHECK_STATUS_LABEL[finding.bucket]}</td>
+                  <td>{checkStatusLabel(finding)}</td>
                   <td>
                     {finding.points} / {CHECK_WEIGHTS[checkId]}
                   </td>
@@ -302,26 +304,43 @@ function ResultsReport({
       </h2>
 
       <p className="checkup-score-eyebrow">Technical Basics Score</p>
-      <div className="checkup-score-row">
-        <div className="checkup-score">
-          <span className="checkup-score-number">{result.score}</span>
-          <span className="checkup-score-max">/100</span>
-        </div>
-        <div>
-          <p className="checkup-score-label">{scoreLabel(result.score)}</p>
-          <p className="checkup-summary">{result.summary}</p>
-          <p className="checkup-checks-count">
-            {result.checksCompleted} of {result.checksTotal} checks completed
-            {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+      {result.status === 'scored' ? (
+        <>
+          <div className="checkup-score-row">
+            <div className="checkup-score">
+              <span className="checkup-score-number">{result.score}</span>
+              <span className="checkup-score-max">/100</span>
+            </div>
+            <div>
+              <p className="checkup-score-label">{scoreLabel(result.score)}</p>
+              <p className="checkup-summary">{result.summary}</p>
+              <p className="checkup-checks-count">
+                {result.checksCompleted} of {result.checksTotal} checks completed
+                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+              </p>
+            </div>
+          </div>
+          <p className="checkup-score-scope-note">
+            This score reflects only the automated technical checks completed below. It does not evaluate the
+            website’s complete visual design, mobile experience, wording, forms, or every page.
           </p>
-        </div>
-      </div>
-      <p className="checkup-score-scope-note">
-        This score reflects only the automated technical checks completed below. It does not evaluate the
-        website’s complete visual design, mobile experience, wording, forms, or every page.
-      </p>
 
-      <ScoreExplanation result={result} />
+          <ScoreExplanation result={result} />
+        </>
+      ) : (
+        // Homepage availability wasn't confirmed good — too little was
+        // checked (at most 2 of 7) to show a meaningful number, and in the
+        // no-response case, nothing here is even confirmed evidence about
+        // the website. No score, no band — the completed-check count takes
+        // the score's usual prominent position instead. See CheckUnscored
+        // in websiteCheck.ts.
+        <div className="checkup-unscored-notice" role="note">
+          <p className="checkup-checks-count checkup-checks-count--prominent">
+            {result.checksCompleted} of {result.checksTotal} checks completed
+          </p>
+          <p className="checkup-summary">{result.summary}</p>
+        </div>
+      )}
 
       {ecommerceFinding && (
         <div className="checkup-scope-callout" role="note">

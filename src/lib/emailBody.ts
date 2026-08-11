@@ -60,7 +60,15 @@ export interface EmailTierOptions {
 export function buildCombinedEmailBody(technical: CheckSuccess, visual: RebuildCheckSuccess | null, opts: EmailTierOptions): string {
   const lines: string[] = []
   lines.push(`Website checked: ${technical.finalUrl}`)
-  lines.push(`Technical Basics Score: ${technical.score}/100 (${technical.checksCompleted} of ${technical.checksTotal} checks completed)`)
+  // Homepage availability wasn't confirmed good — see CheckUnscored in
+  // websiteCheck.ts for why no score exists here at all, not just a
+  // zeroed one. The email must be as honest as the results page: no
+  // "0/100" or any other number standing in for "not enough was checked."
+  lines.push(
+    technical.status === 'scored'
+      ? `Technical Basics Score: ${technical.score}/100 (${technical.checksCompleted} of ${technical.checksTotal} checks completed)`
+      : `Technical Basics: Unable to complete this check (${technical.checksCompleted} of ${technical.checksTotal} checks completed) — see details below.`
+  )
   lines.push(visual ? 'Visual & Usability Review: completed' : 'Visual & Usability Review: not available (the visual review did not complete)')
   lines.push('')
 

@@ -1870,6 +1870,11 @@ section[id] {
   outline-offset: 2px;
 }
 
+.checkup-score-rationale {
+  margin-top: 0.75rem;
+  line-height: 1.6;
+}
+
 .checkup-score-table,
 .checkup-score-bands {
   width: 100%;
@@ -1946,6 +1951,24 @@ section[id] {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   opacity: 0.85;
+}
+
+.checkup-unscored-notice {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--color-bg-alt);
+  border-left: 4px solid var(--color-pop);
+  border-radius: var(--radius-sm);
+}
+
+.checkup-checks-count--prominent {
+  margin-top: 0;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  opacity: 1;
 }
 
 .checkup-score-unavailable {

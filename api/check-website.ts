@@ -3,7 +3,7 @@
 // Nothing submitted here is stored — the result is computed and returned
 // in a single request/response cycle.
 
-import { normalizeWebsiteUrl, summaryFor, CHECK_WEIGHTS } from '../src/lib/websiteCheck.js'
+import { normalizeWebsiteUrl, summaryFor, unscoredSummaryFor, CHECK_WEIGHTS, TITLE_MIN_LENGTH, META_DESCRIPTION_MIN_LENGTH } from '../src/lib/websiteCheck.js'
 import type { Finding, CheckResponse } from '../src/lib/websiteCheck.js'
 import {
   assertSafeUrl,
@@ -11,6 +11,7 @@ import {
   evaluateContactSignal,
   evaluateHomepageLinks,
   type LinksEvaluation,
+  type ContactLinksDeps,
 } from '../src/lib/contactLinksCheck.js'
 
 // ─── Safety limits ──────────────────────────────────────────────
@@ -34,17 +35,23 @@ interface FetchResult {
   redirected: boolean
 }
 
-/** Follows redirects manually so every hop can be safety-checked before being followed. */
-async function safeFetchHtml(startUrl: URL): Promise<FetchResult> {
+/** Follows redirects manually so every hop can be safety-checked before being followed.
+ *  `deps`/`timeoutMs` are test-only (see ContactLinksDeps) — production
+ *  never supplies them; the real safety boundary and the real 8s timeout
+ *  apply. Letting tests inject BOTH is what makes it possible to exercise
+ *  a genuine timeout/connection-failure/DNS-failure end-to-end against a
+ *  real local fixture server, in real bounded time, rather than mocking
+ *  the failure or waiting out the real production timeout. */
+async function safeFetchHtml(startUrl: URL, deps: ContactLinksDeps = {}, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<FetchResult> {
   let current = startUrl
   let redirected = false
   const started = Date.now()
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    await assertSafeUrl(current)
+    await assertSafeUrl(current, deps)
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
     let res: Response
     try {
       res = await fetch(current.toString(), {
@@ -219,236 +226,243 @@ function hasEcommerceSignal(html: string, finalUrl: string): boolean {
 // that extraction; this only stops inlining them as magic numbers.
 const SCORED_CHECK_COUNT = 7 // availability, https, mobile, title, meta-description, contact, links
 
-interface ReportResult {
-  score: number
-  rawScore: number
-  possiblePoints: number
-  findings: Finding[]
-  checksCompleted: number
-  checksTotal: number
+type BuildReportResult =
+  | { status: 'scored'; score: number; rawScore: number; possiblePoints: number; findings: Finding[]; checksCompleted: number; checksTotal: number }
+  // Rubric-audit release: availability wasn't confirmed good — see the
+  // CheckScored/CheckUnscored comment in websiteCheck.ts for why no
+  // score is computed at all here, rather than a renormalized or
+  // unrenormalized number that would overstate how much was checked.
+  | { status: 'unscored'; findings: Finding[]; checksCompleted: number; checksTotal: number }
+
+function httpsFinding(usedHttps: boolean, redirected: boolean): Finding {
+  if (usedHttps) {
+    return {
+      id: 'https',
+      label: 'HTTPS / secure connection',
+      bucket: 'good',
+      detail: redirected
+        ? 'Your website redirects visitors to a secure (HTTPS) connection.'
+        : 'Your website loads over a secure (HTTPS) connection.',
+      points: CHECK_WEIGHTS.https,
+    }
+  }
+  return {
+    id: 'https',
+    label: 'HTTPS / secure connection',
+    bucket: 'improve',
+    detail: 'Your website doesn’t appear to use a secure (HTTPS) connection. Most hosting providers offer free SSL certificates to enable this.',
+    points: 0,
+  }
 }
 
-function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null): ReportResult {
+function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null): BuildReportResult {
   const { html, elapsedMs, usedHttps, status } = fetchResult
+  const available = status >= 200 && status < 400
+
+  if (!available) {
+    // A real HTTP response came back — genuine evidence about THIS
+    // request — but it wasn't a success status, so every content check
+    // (mobile/title/meta/contact/links) is skipped: there's no usable
+    // homepage to inspect. Only 2 of 7 checks were ever attempted, which
+    // is below this tool's bar for showing an aggregate score (see the
+    // CheckScored/CheckUnscored comment in websiteCheck.ts) — the real
+    // status and whatever HTTPS evidence exists are still reported
+    // individually, honestly, just without a misleading single number.
+    const findings: Finding[] = [
+      {
+        id: 'availability',
+        label: 'Homepage availability',
+        bucket: 'specialist',
+        detail: `Your homepage responded with a status of ${status} instead of a normal success status. This usually means the page couldn’t be found or the server encountered an error — worth checking with your host, or confirming the address is correct.`,
+        points: 0,
+      },
+      httpsFinding(usedHttps, fetchResult.redirected),
+    ]
+    return { status: 'unscored', findings, checksCompleted: 2, checksTotal: SCORED_CHECK_COUNT }
+  }
+
   const findings: Finding[] = []
   let score = 0
   let possiblePoints = 100
   let checksCompleted = SCORED_CHECK_COUNT
 
-  // Availability (30 pts) — essential
-  const available = status >= 200 && status < 400
-  if (available) {
-    score += CHECK_WEIGHTS.availability
-    findings.push({
-      id: 'availability',
-      label: 'Homepage availability',
-      bucket: 'good',
-      detail: 'Your homepage loaded successfully.',
-      points: CHECK_WEIGHTS.availability,
-    })
-  } else {
-    findings.push({
-      id: 'availability',
-      label: 'Homepage availability',
-      bucket: 'specialist',
-      detail: `Your homepage responded with a server status of ${status}, which usually points to a hosting or server-side issue.`,
-      points: 0,
-    })
-  }
+  // Availability (30 pts) — confirmed good, since we only reach here when available.
+  score += CHECK_WEIGHTS.availability
+  findings.push({
+    id: 'availability',
+    label: 'Homepage availability',
+    bucket: 'good',
+    detail: 'Your homepage loaded successfully.',
+    points: CHECK_WEIGHTS.availability,
+  })
 
   // Response time — informational only, not scored
   const seconds = (elapsedMs / 1000).toFixed(1)
-  if (available) {
-    if (elapsedMs < 2500) {
-      findings.push({
-        id: 'response-time',
-        label: 'Response time',
-        bucket: 'good',
-        detail: `Your homepage responded in about ${seconds} seconds, which is a reasonable speed for visitors.`,
-        points: 0,
-      })
-    } else {
-      findings.push({
-        id: 'response-time',
-        label: 'Response time',
-        bucket: 'improve',
-        detail: `Your homepage took about ${seconds} seconds to respond. This is a rough measurement, not a full performance audit, but a faster response can help keep visitors from leaving early.`,
-        points: 0,
-      })
-    }
-  }
-
-  // HTTPS (25 pts) — essential
-  if (usedHttps) {
-    score += CHECK_WEIGHTS.https
+  if (elapsedMs < 2500) {
     findings.push({
-      id: 'https',
-      label: 'HTTPS / secure connection',
+      id: 'response-time',
+      label: 'Response time',
       bucket: 'good',
-      detail: fetchResult.redirected
-        ? 'Your website redirects visitors to a secure (HTTPS) connection.'
-        : 'Your website loads over a secure (HTTPS) connection.',
-      points: CHECK_WEIGHTS.https,
+      detail: `Your homepage responded in about ${seconds} seconds, which is a reasonable speed for visitors.`,
+      points: 0,
     })
   } else {
     findings.push({
-      id: 'https',
-      label: 'HTTPS / secure connection',
+      id: 'response-time',
+      label: 'Response time',
       bucket: 'improve',
-      detail: 'Your website doesn’t appear to use a secure (HTTPS) connection. Most hosting providers offer free SSL certificates to enable this.',
+      detail: `Your homepage took about ${seconds} seconds to respond. This is a rough measurement, not a full performance audit, but a faster response can help keep visitors from leaving early.`,
       points: 0,
     })
   }
 
-  if (available) {
-    // Mobile viewport (15 pts) — essential
-    const hasViewport = /<meta\s+[^>]*name\s*=\s*["']viewport["']/i.test(html)
-    if (hasViewport) {
-      score += CHECK_WEIGHTS.mobile
-      findings.push({
-        id: 'mobile',
-        label: 'Mobile setup',
-        bucket: 'good',
-        detail: 'Your site includes the basic setup needed to display properly on phones and tablets.',
-        points: CHECK_WEIGHTS.mobile,
-      })
-    } else {
-      findings.push({
-        id: 'mobile',
-        label: 'Mobile setup',
-        bucket: 'improve',
-        detail: 'No mobile viewport setting was found. Without it, your site may look zoomed-out or hard to use on phones.',
-        points: 0,
-      })
-    }
+  // HTTPS (25 pts)
+  const https = httpsFinding(usedHttps, fetchResult.redirected)
+  if (usedHttps) score += CHECK_WEIGHTS.https
+  findings.push(https)
 
-    // Page title (10 pts)
-    const title = extractTitle(html)
-    if (title && title.length >= 10) {
-      score += CHECK_WEIGHTS.title
-      findings.push({
-        id: 'title',
-        label: 'Page title',
-        bucket: 'good',
-        detail: 'Your homepage has a descriptive page title.',
-        points: CHECK_WEIGHTS.title,
-      })
-    } else if (title) {
-      score += 5
-      findings.push({
-        id: 'title',
-        label: 'Page title',
-        bucket: 'improve',
-        detail: 'Your homepage has a page title, but it’s quite short. A clearer, more descriptive title can help visitors and search engines.',
-        points: 5,
-      })
-    } else {
-      findings.push({
-        id: 'title',
-        label: 'Page title',
-        bucket: 'improve',
-        detail: 'No page title was found. Titles help visitors and search engines understand what your page is about.',
-        points: 0,
-      })
-    }
-
-    // Meta description (10 pts)
-    const description = findMetaContent(html, 'description')
-    if (description && description.length >= 50) {
-      score += CHECK_WEIGHTS['meta-description']
-      findings.push({
-        id: 'meta-description',
-        label: 'Meta description',
-        bucket: 'good',
-        detail: 'Your homepage has a useful meta description.',
-        points: CHECK_WEIGHTS['meta-description'],
-      })
-    } else if (description) {
-      score += 5
-      findings.push({
-        id: 'meta-description',
-        label: 'Meta description',
-        bucket: 'improve',
-        detail: 'Your homepage has a meta description, but it’s quite short. A fuller description can help your listing stand out in search results.',
-        points: 5,
-      })
-    } else {
-      findings.push({
-        id: 'meta-description',
-        label: 'Meta description',
-        bucket: 'improve',
-        detail: 'No meta description was found. This is the summary text often shown in search results.',
-        points: 0,
-      })
-    }
-
-    const thinContent = isThinContent(html)
-
-    // Contact info (5 pts) — a positive match is always trustworthy; an absence is only
-    // trustworthy when the page actually has enough rendered content to search through.
-    // Detection/scoring itself lives in contactLinksCheck.ts, shared with
-    // api/check-visual.ts's rendered-DOM fallback for thin-content pages.
-    const contactEval = evaluateContactSignal(html)
-    if (!contactEval.found && thinContent) {
-      checksCompleted -= 1
-      possiblePoints -= CHECK_WEIGHTS.contact
-      findings.push({
-        id: 'contact',
-        label: 'Contact information',
-        bucket: 'unverified',
-        detail: 'This website loads some content through browser scripts, so this automated check could not verify contact information. That does not necessarily mean anything is wrong.',
-        points: 0,
-      })
-    } else {
-      score += contactEval.points
-      findings.push({ ...contactEval.finding, points: contactEval.points })
-    }
-
-    // Broken links sample (5 pts) — if we found no usable links to sample, we genuinely
-    // don't know whether that's because there are none or because they're rendered by
-    // scripts we don't execute, so this is left unverified rather than assumed clean.
-    if (linksEval === null) {
-      checksCompleted -= 1
-      possiblePoints -= CHECK_WEIGHTS.links
-      findings.push({
-        id: 'links',
-        label: 'Homepage links',
-        bucket: 'unverified',
-        detail: thinContent
-          ? 'This website loads some content through browser scripts, so this automated check could not find enough links to sample. That does not necessarily mean anything is wrong.'
-          : 'We didn’t find enough links on your homepage to sample.',
-        points: 0,
-      })
-    } else {
-      score += linksEval.points
-      findings.push({ ...linksEval.finding, points: linksEval.points })
-    }
-
-    // Ecommerce / marketplace scope signal — informational only, never scored
-    if (hasEcommerceSignal(html, fetchResult.finalUrl)) {
-      findings.push({
-        id: 'ecommerce',
-        label: 'Ecommerce / marketplace',
-        bucket: 'specialist',
-        detail:
-          'This appears to be an ecommerce or marketplace website. The checkup can review some general website basics, but it is not designed to evaluate product catalogs, checkout systems, marketplace listings, inventory, shipping, payments, or platform-specific integrations. These areas may require support from your platform provider or an ecommerce specialist.',
-        points: 0,
-      })
-    }
-  } else {
-    // Mobile, title, meta description, contact, and links are all skipped together here.
-    checksCompleted -= 5
+  // Mobile viewport (15 pts) — the tag's presence only. Wording claims
+  // exactly that, not a verified good visual display on real devices
+  // (that's what the separate Visual & Usability Review actually measures).
+  const hasViewport = /<meta\s+[^>]*name\s*=\s*["']viewport["']/i.test(html)
+  if (hasViewport) {
+    score += CHECK_WEIGHTS.mobile
     findings.push({
-      id: 'content-checks',
-      label: 'Page content checks',
+      id: 'mobile',
+      label: 'Mobile setup',
+      bucket: 'good',
+      detail: 'Your site includes a mobile viewport tag — the basic technical setup for displaying properly on phones and tablets.',
+      points: CHECK_WEIGHTS.mobile,
+    })
+  } else {
+    findings.push({
+      id: 'mobile',
+      label: 'Mobile setup',
+      bucket: 'improve',
+      detail: 'No mobile viewport tag was found. Without it, your site may look zoomed-out or hard to use on phones.',
+      points: 0,
+    })
+  }
+
+  // Page title (10 pts) — TITLE_MIN_LENGTH is this tool's own coarse
+  // cutoff, not a guarantee of quality; wording says only what the
+  // check actually measured (length), not "descriptive."
+  const title = extractTitle(html)
+  if (title && title.length >= TITLE_MIN_LENGTH) {
+    score += CHECK_WEIGHTS.title
+    findings.push({
+      id: 'title',
+      label: 'Page title',
+      bucket: 'good',
+      detail: 'Your homepage has a page title that meets this check’s basic length threshold.',
+      points: CHECK_WEIGHTS.title,
+    })
+  } else if (title) {
+    score += 5
+    findings.push({
+      id: 'title',
+      label: 'Page title',
+      bucket: 'improve',
+      detail: 'Your homepage has a page title, but it’s quite short. A clearer, more descriptive title can help visitors and search engines.',
+      points: 5,
+    })
+  } else {
+    findings.push({
+      id: 'title',
+      label: 'Page title',
+      bucket: 'improve',
+      detail: 'No page title was found. Titles help visitors and search engines understand what your page is about.',
+      points: 0,
+    })
+  }
+
+  // Meta description (10 pts) — same threshold-is-not-quality framing as title.
+  const description = findMetaContent(html, 'description')
+  if (description && description.length >= META_DESCRIPTION_MIN_LENGTH) {
+    score += CHECK_WEIGHTS['meta-description']
+    findings.push({
+      id: 'meta-description',
+      label: 'Meta description',
+      bucket: 'good',
+      detail: 'Your homepage has a meta description that meets this check’s basic length threshold.',
+      points: CHECK_WEIGHTS['meta-description'],
+    })
+  } else if (description) {
+    score += 5
+    findings.push({
+      id: 'meta-description',
+      label: 'Meta description',
+      bucket: 'improve',
+      detail: 'Your homepage has a meta description, but it’s quite short. A fuller description can help your listing stand out in search results.',
+      points: 5,
+    })
+  } else {
+    findings.push({
+      id: 'meta-description',
+      label: 'Meta description',
+      bucket: 'improve',
+      detail: 'No meta description was found. This is the summary text often shown in search results.',
+      points: 0,
+    })
+  }
+
+  const thinContent = isThinContent(html)
+
+  // Contact info (5 pts) — a positive match is always trustworthy; an absence is only
+  // trustworthy when the page actually has enough rendered content to search through.
+  // Detection/scoring itself lives in contactLinksCheck.ts, shared with
+  // api/check-visual.ts's rendered-DOM fallback for thin-content pages.
+  const contactEval = evaluateContactSignal(html)
+  if (!contactEval.found && thinContent) {
+    checksCompleted -= 1
+    possiblePoints -= CHECK_WEIGHTS.contact
+    findings.push({
+      id: 'contact',
+      label: 'Contact information',
+      bucket: 'unverified',
+      detail: 'This website loads some content through browser scripts, so this automated check could not verify contact information. That does not necessarily mean anything is wrong.',
+      points: 0,
+    })
+  } else {
+    score += contactEval.points
+    findings.push({ ...contactEval.finding, points: contactEval.points })
+  }
+
+  // Broken links sample (5 pts) — if we found no usable links to sample, we genuinely
+  // don't know whether that's because there are none or because they're rendered by
+  // scripts we don't execute, so this is left unverified rather than assumed clean.
+  if (linksEval === null) {
+    checksCompleted -= 1
+    possiblePoints -= CHECK_WEIGHTS.links
+    findings.push({
+      id: 'links',
+      label: 'Homepage links',
+      bucket: 'unverified',
+      detail: thinContent
+        ? 'This website loads some content through browser scripts, so this automated check could not find enough links to sample. That does not necessarily mean anything is wrong.'
+        : 'We didn’t find enough links on your homepage to sample.',
+      points: 0,
+    })
+  } else {
+    score += linksEval.points
+    findings.push({ ...linksEval.finding, points: linksEval.points })
+  }
+
+  // Ecommerce / marketplace scope signal — informational only, never scored
+  if (hasEcommerceSignal(html, fetchResult.finalUrl)) {
+    findings.push({
+      id: 'ecommerce',
+      label: 'Ecommerce / marketplace',
       bucket: 'specialist',
-      detail: 'We couldn’t evaluate your page title, meta description, mobile setup, contact information, or links because the homepage didn’t load successfully.',
+      detail:
+        'This appears to be an ecommerce or marketplace website. The checkup can review some general website basics, but it is not designed to evaluate product catalogs, checkout systems, marketplace listings, inventory, shipping, payments, or platform-specific integrations. These areas may require support from your platform provider or an ecommerce specialist.',
       points: 0,
     })
   }
 
   const finalScore = possiblePoints > 0 ? Math.round((score / possiblePoints) * 100) : 0
   return {
+    status: 'scored',
     score: Math.max(0, Math.min(100, finalScore)),
     rawScore: score,
     possiblePoints,
@@ -458,10 +472,41 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
   }
 }
 
-// summaryFor now lives in ../src/lib/websiteCheck.js — shared with the
-// client-side rendered-fallback merge (technicalFallbackMerge.ts), so
-// there is exactly one summary calculation, not two that could disagree
-// about the same final findings.
+// summaryFor/unscoredSummaryFor now live in ../src/lib/websiteCheck.js —
+// shared with the client-side rendered-fallback merge
+// (technicalFallbackMerge.ts), so there is exactly one summary
+// calculation per state, not two that could disagree about the same
+// final findings.
+
+/** Shared shape for BOTH ways this checker can fail to complete at all:
+ *  a pre-fetch exception (DNS/timeout/connection/redirect-chain — see
+ *  safeFetchHtml) and a post-fetch exception (an unexpected failure in
+ *  evaluateHomepageLinks/buildReport themselves). Neither is confirmed
+ *  evidence the website doesn't work — only that this attempt didn't
+ *  succeed — so this is always 'unverified'/0-of-7/no-score, never a
+ *  fabricated failure. `reason` must already be safe to show verbatim
+ *  (never a raw caught error's own message for the post-fetch case —
+ *  see its call site). */
+export function checkerUnavailableResponse(input: string, finalUrl: string, reason: string): CheckResponse {
+  return {
+    ok: true,
+    status: 'unscored',
+    input,
+    finalUrl,
+    summary: unscoredSummaryFor('checker-unavailable', 0, SCORED_CHECK_COUNT),
+    findings: [
+      {
+        id: 'availability',
+        label: 'Homepage availability',
+        bucket: 'unverified',
+        detail: `We weren’t able to complete this check for your website: ${reason} This may be temporary, a limitation of this automated checker, or an issue on our end — it doesn’t necessarily mean your website is down. Please try again in a few minutes.`,
+        points: 0,
+      },
+    ],
+    checksCompleted: 0,
+    checksTotal: SCORED_CHECK_COUNT,
+  }
+}
 
 // ─── Handler ─────────────────────────────────────────────────────
 interface VercelRequest {
@@ -473,7 +518,17 @@ interface VercelResponse {
   json(body: CheckResponse): void
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * The routed handler's real logic. Takes optional `deps`/`timeoutMs` —
+ * unused in production (the default export below never supplies them)
+ * — so tests can point the exact same request/response path at a real
+ * local fixture server (via contactLinksCheck.ts's own ContactLinksDeps
+ * DNS/classification/allowedPorts injection, the same pattern
+ * api/check-visual.ts's handleCheckVisual already uses) and a fast,
+ * real, bounded timeout, instead of mocking failures or waiting out the
+ * real production timeout. Mirrors api/check-visual.ts exactly.
+ */
+export async function handleCheckWebsite(req: VercelRequest, res: VercelResponse, deps: ContactLinksDeps = {}, timeoutMs: number = REQUEST_TIMEOUT_MS): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method not allowed.' })
     return
@@ -500,59 +555,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await assertSafeUrl(normalized)
+    await assertSafeUrl(normalized, deps)
   } catch (err) {
     const message = err instanceof UnsafeUrlError ? err.message : 'That website address isn’t supported.'
     res.status(400).json({ ok: false, error: message })
     return
   }
 
+  // Pre-fetch failure (DNS/timeout/connection/redirect-chain — see
+  // safeFetchHtml): we never received a response at all, so this is
+  // never confirmed evidence the website is broken — only that this
+  // attempt didn't succeed. safeFetchHtml's own thrown messages are
+  // already safe to show verbatim (no internals/stack traces).
   let fetchResult: FetchResult
   try {
-    fetchResult = await safeFetchHtml(normalized)
+    fetchResult = await safeFetchHtml(normalized, deps, timeoutMs)
   } catch (err) {
-    const reason = ((err as Error).message || 'an unknown error occurred').replace(/\.+$/, '')
-    res.status(200).json({
-      ok: true,
-      input: normalized.toString(),
-      finalUrl: normalized.toString(),
-      score: 0,
-      rawScore: 0,
-      possiblePoints: 100,
-      summary: 'We couldn’t reach that website.',
-      findings: [
-        {
-          id: 'availability',
-          label: 'Homepage availability',
-          bucket: 'specialist',
-          detail: `We couldn’t reach your website: ${reason}. This may be a hosting, DNS, or domain issue.`,
-          points: 0,
-        },
-      ],
-      checksCompleted: 0,
-      checksTotal: SCORED_CHECK_COUNT,
-    })
+    const reason = ((err as Error).message || 'An unknown error occurred.').replace(/\.*$/, '.')
+    res.status(200).json(checkerUnavailableResponse(normalized.toString(), normalized.toString(), reason))
     return
   }
 
-  let linksEval: LinksEvaluation | null = null
-  if (fetchResult.status >= 200 && fetchResult.status < 400) {
-    linksEval = await evaluateHomepageLinks(fetchResult.html, fetchResult.finalUrl)
-  }
+  // Post-fetch failure: an unexpected exception in evaluateHomepageLinks
+  // or buildReport itself (not a normal, already-handled outcome — those
+  // never throw). This must not surface as a raw 500 (which the client
+  // can only show as a generic connection error) nor silently produce a
+  // misleading result — it gets the SAME honest "unable to complete,
+  // 0 of 7, no score" shape as a pre-fetch failure. The reason shown is
+  // deliberately generic, never the caught error's own message, so no
+  // internal detail is ever exposed.
+  try {
+    let linksEval: LinksEvaluation | null = null
+    if (fetchResult.status >= 200 && fetchResult.status < 400) {
+      linksEval = await evaluateHomepageLinks(fetchResult.html, fetchResult.finalUrl, deps)
+    }
 
-  const { score, rawScore, possiblePoints, findings, checksCompleted, checksTotal } = buildReport(fetchResult, linksEval)
+    const report = buildReport(fetchResult, linksEval)
 
-  const response: CheckResponse = {
-    ok: true,
-    input: normalized.toString(),
-    finalUrl: fetchResult.finalUrl,
-    score,
-    rawScore,
-    possiblePoints,
-    summary: summaryFor(score, findings.some((f) => f.bucket === 'improve'), checksCompleted, checksTotal),
-    findings: findings.map(({ id, label, bucket, detail, points }): Finding => ({ id, label, bucket, detail, points })),
-    checksCompleted,
-    checksTotal,
+    const response: CheckResponse =
+      report.status === 'scored'
+        ? {
+            ok: true,
+            status: 'scored',
+            input: normalized.toString(),
+            finalUrl: fetchResult.finalUrl,
+            score: report.score,
+            rawScore: report.rawScore,
+            possiblePoints: report.possiblePoints,
+            summary: summaryFor(report.score, report.findings.some((f) => f.bucket === 'improve'), report.checksCompleted, report.checksTotal),
+            findings: report.findings.map(({ id, label, bucket, detail, points }): Finding => ({ id, label, bucket, detail, points })),
+            checksCompleted: report.checksCompleted,
+            checksTotal: report.checksTotal,
+          }
+        : {
+            ok: true,
+            status: 'unscored',
+            input: normalized.toString(),
+            finalUrl: fetchResult.finalUrl,
+            summary: unscoredSummaryFor('confirmed-error-response', report.checksCompleted, report.checksTotal),
+            findings: report.findings.map(({ id, label, bucket, detail, points }): Finding => ({ id, label, bucket, detail, points })),
+            checksCompleted: report.checksCompleted,
+            checksTotal: report.checksTotal,
+          }
+
+    res.status(200).json(response)
+  } catch {
+    res.status(200).json(checkerUnavailableResponse(normalized.toString(), fetchResult.finalUrl, 'An unexpected error occurred while finishing this check.'))
   }
-  res.status(200).json(response)
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  return handleCheckWebsite(req, res)
 }
