@@ -64,11 +64,10 @@ function visualResponse(marker: string) {
     ok: true,
     status: 'complete',
     finalUrl: `https://${marker.toLowerCase()}.example`,
-    score: 77,
-    summary: `VISUAL-${marker}`,
-    findings: [{ id: 'headings', label: 'Heading structure', bucket: 'improve', viewport: 'both', detail: `VISUAL-DETAIL-${marker}`, measurable: true }],
-    checksCompleted: 1,
-    checksTotal: 1,
+    findings: [
+      { checkId: 'overflow', label: 'Likely opportunity', detail: `VISUAL-DETAIL-${marker}` },
+      { checkId: 'readability', label: 'No clear issue found', detail: `VISUAL-READABILITY-${marker}` },
+    ],
   }
 }
 
@@ -156,12 +155,14 @@ test('a stale, slow visual response from an earlier submission does not overwrit
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
 
-    // Submit A.
+    // Submit A. Its fast technical result resolves, but the full results
+    // report stays hidden (release-polish: no partial-result flash) until
+    // its slow visual response also resolves — the earliest observable
+    // signal that A's technical fetch landed is the neutral "finalizing"
+    // state, not the results report itself.
     await page.type('#website-url', 'site-a.example')
     await page.click('.checkup-submit')
-    // Wait for A's technical result (fast) to appear, re-enabling the form.
-    await page.waitForSelector('.checkup-summary')
-    await assertContainsText(page, '.checkup-summary', 'TECHNICAL-A')
+    await page.waitForSelector('.checkup-finalizing')
 
     // Before A's slow visual response resolves, submit B for a different URL.
     await page.evaluate(() => {
@@ -181,11 +182,11 @@ test('a stale, slow visual response from an earlier submission does not overwrit
     const pageText = await page.evaluate(() => document.body.textContent || '')
 
     assert.ok(
-      visualSummaries.some((t) => t?.includes('VISUAL-B')),
+      visualSummaries.some((t) => t?.includes('VISUAL-DETAIL-B')),
       `expected the visual section to show submission B's fresh result, got: ${JSON.stringify(visualSummaries)}`
     )
     assert.ok(
-      !pageText.includes('VISUAL-A') && !pageText.includes('VISUAL-DETAIL-A'),
+      !pageText.includes('VISUAL-DETAIL-A') && !pageText.includes('VISUAL-READABILITY-A'),
       'submission A\'s stale, late-arriving visual response must not appear anywhere in the UI once B has been submitted'
     )
   } finally {
