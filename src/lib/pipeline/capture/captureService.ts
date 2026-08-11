@@ -66,11 +66,33 @@ export interface CaptureOptions {
    *  mapping, without a fragile, version-specific way to make Chromium
    *  itself crash on cue. Production never supplies this. */
   onHandleReady?: (handle: CaptureBrowserHandle) => Promise<void> | void
+  /** Release-polish pass: when true, also captures the rendered page's
+   *  outerHTML from the SAME already-open page used for overflow/
+   *  readability — no extra navigation, no second browser. Used by
+   *  api/check-visual.ts's contact-information/homepage-link fallback
+   *  for pages the static check (api/check-website.ts) couldn't verify
+   *  because they appear to require JavaScript rendering. Off by
+   *  default: the default (no-fallback-needed) capture path is
+   *  completely unaffected. */
+  captureRenderedHtml?: boolean
 }
+
+/** Defensive cap, matching api/check-website.ts's own MAX_RESPONSE_BYTES
+ *  for its static fetch — the rendered fallback should be bound by the
+ *  same order of magnitude, not unbounded. */
+const MAX_RENDERED_HTML_CHARS = 2_000_000
 
 export interface CapturedEvidence {
   overflow: RawCapture<'overflow'>
   readability: RawCapture<'readability'>
+  /** Present only when options.captureRenderedHtml was set AND
+   *  extraction succeeded. Never sent to a client — consumed entirely
+   *  server-side by api/check-visual.ts's fallback (see
+   *  evaluateContactSignal/evaluateHomepageLinks in
+   *  src/lib/contactLinksCheck.ts) and discarded after. If extraction
+   *  fails, this is simply absent — the capture as a whole still
+   *  succeeds; see the try/catch around it below. */
+  renderedHtml?: string
 }
 
 export type CaptureResult = { ok: true; value: CapturedEvidence } | { ok: false; error: CaptureFailure }
@@ -266,6 +288,20 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
         return { ok: false, error: { kind: 'measurement-failed', reason: describeThrown(e) } }
       }
 
+      let renderedHtml: string | undefined
+      if (options.captureRenderedHtml) {
+        try {
+          const html = await page.evaluate(() => document.documentElement.outerHTML)
+          renderedHtml = html.length > MAX_RENDERED_HTML_CHARS ? html.slice(0, MAX_RENDERED_HTML_CHARS) : html
+        } catch {
+          // Best-effort only: the overflow/readability capture above
+          // already succeeded, so this failing must not fail the whole
+          // capture — the caller (api/check-visual.ts) simply has no
+          // fallback evidence to work with, same as if it were never
+          // requested. See requirement 5's "preserve Unable to verify."
+        }
+      }
+
       const capturedAt = new Date().toISOString()
       const provenance: CaptureProvenance = { capturedAt, viewport: { name: MOBILE_VIEWPORT.name, width: MOBILE_VIEWPORT.width, height: MOBILE_VIEWPORT.height }, finalUrl }
 
@@ -290,7 +326,7 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
         incompleteCoverage: {},
       }
 
-      return { ok: true, value: { overflow, readability } }
+      return { ok: true, value: { overflow, readability, renderedHtml } }
     } finally {
       // No context.close() here: `context` is now the browser's default
       // context (see browserLifecycle.ts's crash-diagnostics patch) —

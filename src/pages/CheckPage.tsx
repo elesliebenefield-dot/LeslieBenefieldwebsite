@@ -7,6 +7,7 @@ import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib
 import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
 import { buildMailtoHref } from '../lib/emailBody'
+import { mergeFallbackIntoResult } from '../lib/technicalFallbackMerge'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 
@@ -321,7 +322,7 @@ export default function CheckPage() {
     if (status === 'success') resultsHeadingRef.current?.focus()
   }, [status])
 
-  async function runVisualCheck(url: string, requestId: number) {
+  async function runVisualCheck(url: string, requestId: number, needsContactFallback: boolean, needsLinksFallback: boolean) {
     setVisualStatus('loading')
     setVisualResult(null)
     setVisualErrorMessage(null)
@@ -329,7 +330,7 @@ export default function CheckPage() {
       const res = await fetch('/api/check-visual', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, needsContactFallback, needsLinksFallback }),
       })
       if (requestId !== requestIdRef.current) return // superseded by a newer submission
 
@@ -349,6 +350,15 @@ export default function CheckPage() {
       }
       setVisualResult(data)
       setVisualStatus('success')
+      // A resolved contact/links fallback replaces the corresponding
+      // "Unable to verify" Technical Basics finding and renormalizes the
+      // score — see mergeFallbackIntoResult above. Absent on every
+      // request that didn't need one, wasn't requested, or couldn't be
+      // resolved (extraction failure, or genuinely too few rendered
+      // links) — the technical result is untouched in those cases.
+      if (data.contactFallback || data.linksFallback) {
+        setResult((prev) => (prev ? mergeFallbackIntoResult(prev, data.contactFallback, data.linksFallback) : prev))
+      }
     } catch {
       if (requestId !== requestIdRef.current) return
       setVisualStatus('error')
@@ -394,7 +404,14 @@ export default function CheckPage() {
       setStatus('success')
       // The visual review runs after the technical check completes, and independently
       // of it — a slow or failed visual review never blocks or hides technical results.
-      void runVisualCheck(data.finalUrl, requestId)
+      // If contact-info and/or homepage-links came back "unable to verify" specifically
+      // because the page appears to need JavaScript rendering, ask the visual review's
+      // already-open browser page to also gather that evidence — no second browser launch.
+      const contactFinding = data.findings.find((f) => f.id === 'contact')
+      const linksFinding = data.findings.find((f) => f.id === 'links')
+      const needsContactFallback = contactFinding?.bucket === 'unverified'
+      const needsLinksFallback = linksFinding?.bucket === 'unverified'
+      void runVisualCheck(data.finalUrl, requestId, needsContactFallback, needsLinksFallback)
     } catch {
       if (requestId !== requestIdRef.current) return
       setApiError('Something went wrong on our end. Please check your connection and try again.')

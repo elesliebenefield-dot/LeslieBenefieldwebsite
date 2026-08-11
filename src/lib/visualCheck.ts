@@ -1,5 +1,7 @@
 // Shared between the browser (CheckPage) and the serverless function (api/check-visual).
 
+import type { Finding } from './websiteCheck.js'
+
 export type VisualFindingBucket = 'good' | 'improve' | 'unverified' | 'specialist'
 // 'tablet' is currently only ever produced by the overflow check (the only
 // one that also measures an intermediate/tablet-width viewport); every other
@@ -121,11 +123,38 @@ export interface RebuildFinding {
   detail: string
 }
 
+/** Release-polish pass: a resolved Technical Basics 'contact'/'links'
+ *  check, from the rendered-DOM fallback below — not a new audit
+ *  category. `finding`/`points` match exactly what
+ *  api/check-website.ts's own scoring would have produced had the
+ *  static HTML contained this evidence; CheckPage.tsx splices this
+ *  into the already-displayed technical result. See
+ *  src/lib/contactLinksCheck.ts. */
+export interface TechnicalFallbackResult {
+  finding: Finding
+  points: number
+  /** How much of that check's originally-withheld possiblePoints to
+   *  restore when renormalizing the displayed score (see
+   *  src/lib/contactLinksCheck.ts's CONTACT_POINTS/LINKS_POINTS —
+   *  threaded through here so the client never hardcodes this number
+   *  itself). */
+  possiblePointsRestored: number
+}
+
 export interface RebuildCheckSuccess {
   ok: true
   status: 'complete'
   finalUrl: string
   findings: RebuildFinding[]
+  /** Present only when the client asked for it (the corresponding
+   *  Technical Basics check was 'unverified' specifically because the
+   *  page appeared to require JavaScript rendering) AND this capture's
+   *  already-open browser page could supply enough rendered evidence.
+   *  Absent — never a fabricated pass — if the fallback wasn't
+   *  requested, or extraction failed, or the rendered page genuinely
+   *  had too few link candidates (see evaluateHomepageLinks). */
+  contactFallback?: TechnicalFallbackResult
+  linksFallback?: TechnicalFallbackResult
 }
 
 export type RebuildCheckResponse = RebuildCheckSuccess | VisualCheckFailure

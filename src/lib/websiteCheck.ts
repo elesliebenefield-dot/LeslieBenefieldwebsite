@@ -22,6 +22,16 @@ export interface CheckSuccess {
   findings: Finding[]
   checksCompleted: number
   checksTotal: number
+  /** Pre-rounding numerator/denominator behind `score`
+   *  (`score = round((rawScore / possiblePoints) * 100)`), exposed so a
+   *  later contact/homepage-links fallback resolution (see
+   *  api/check-visual.ts, CheckPage.tsx) can correctly renormalize the
+   *  displayed score after replacing an 'unverified' finding — using
+   *  the exact same formula server-side scoring already applies,
+   *  without re-implementing any check's detection/threshold logic on
+   *  the client. */
+  rawScore: number
+  possiblePoints: number
 }
 
 export interface CheckFailure {

@@ -3,120 +3,27 @@
 // Nothing submitted here is stored — the result is computed and returned
 // in a single request/response cycle.
 
-import { lookup } from 'node:dns/promises'
 import { normalizeWebsiteUrl } from '../src/lib/websiteCheck.js'
 import type { Finding, CheckResponse } from '../src/lib/websiteCheck.js'
+import {
+  assertSafeUrl,
+  UnsafeUrlError,
+  evaluateContactSignal,
+  evaluateHomepageLinks,
+  type LinksEvaluation,
+} from '../src/lib/contactLinksCheck.js'
 
 // ─── Safety limits ──────────────────────────────────────────────
 const REQUEST_TIMEOUT_MS = 8000
-const LINK_TIMEOUT_MS = 3500
 const MAX_RESPONSE_BYTES = 2_000_000 // 2 MB of HTML is far more than we need
 const MAX_REDIRECTS = 5
-const MAX_LINKS_CHECKED = 6
 const USER_AGENT = 'WebsitesByLeslie-Checkup/1.0 (+https://websitesbyleslie.com)'
 
-class UnsafeUrlError extends Error {}
-
-// ─── SSRF-safe URL validation ───────────────────────────────────
-function ipv4ToInt(ip: string): number | null {
-  const parts = ip.split('.').map(Number)
-  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return null
-  return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3]
-}
-
-function inRange(int: number, base: string, bits: number): boolean {
-  const baseInt = ipv4ToInt(base)
-  if (baseInt === null) return false
-  const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0
-  return (int & mask) === (baseInt & mask)
-}
-
-function isPrivateIPv4(ip: string): boolean {
-  const int = ipv4ToInt(ip)
-  if (int === null) return true // unparsable — treat as unsafe
-  const blocked: Array<[string, number]> = [
-    ['0.0.0.0', 8],
-    ['10.0.0.0', 8],
-    ['100.64.0.0', 10],
-    ['127.0.0.0', 8],
-    ['169.254.0.0', 16],
-    ['172.16.0.0', 12],
-    ['192.0.0.0', 24],
-    ['192.0.2.0', 24],
-    ['192.168.0.0', 16],
-    ['198.18.0.0', 15],
-    ['198.51.100.0', 24],
-    ['203.0.113.0', 24],
-    ['224.0.0.0', 4],
-    ['240.0.0.0', 4],
-  ]
-  return blocked.some(([base, bits]) => inRange(int, base, bits))
-}
-
-function isPrivateIPv6(ip: string): boolean {
-  // Node's URL.hostname keeps brackets around IPv6 literals (e.g. "[::1]") — strip them before comparing.
-  const normalized = ip.toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
-  if (normalized === '::1' || normalized === '::') return true
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true // fc00::/7 ULA
-  if (normalized.startsWith('fe8') || normalized.startsWith('fe9') || normalized.startsWith('fea') || normalized.startsWith('feb')) {
-    return true // fe80::/10 link-local
-  }
-  // IPv4-mapped IPv6, dotted form (::ffff:a.b.c.d) — check the embedded IPv4 address
-  const mappedDotted = normalized.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
-  if (mappedDotted) return isPrivateIPv4(mappedDotted[1])
-
-  // IPv4-mapped IPv6, canonical hex-group form (::ffff:7f00:1) — Node's URL parser
-  // normalizes ::ffff:127.0.0.1 to this form, so it must be checked too.
-  const mappedHex = normalized.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
-  if (mappedHex) {
-    const hi = parseInt(mappedHex[1], 16)
-    const lo = parseInt(mappedHex[2], 16)
-    const ipv4 = `${(hi >> 8) & 0xff}.${hi & 0xff}.${(lo >> 8) & 0xff}.${lo & 0xff}`
-    return isPrivateIPv4(ipv4)
-  }
-
-  return false
-}
-
-function isPrivateIp(ip: string): boolean {
-  return ip.includes(':') ? isPrivateIPv6(ip) : isPrivateIPv4(ip)
-}
-
-/** Validates protocol/port/hostname and resolves DNS, rejecting anything private or internal. */
-async function assertSafeUrl(url: URL): Promise<void> {
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new UnsafeUrlError('Only public http:// and https:// addresses are supported.')
-  }
-
-  const hostname = url.hostname.toLowerCase()
-  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
-    throw new UnsafeUrlError('Local or internal addresses can’t be checked.')
-  }
-
-  if (url.port && url.port !== '80' && url.port !== '443') {
-    throw new UnsafeUrlError('Only standard web ports (80/443) are supported.')
-  }
-
-  const literalIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
-  if (literalIpv4) {
-    if (isPrivateIPv4(hostname)) throw new UnsafeUrlError('That address points to a private or internal network.')
-    return
-  }
-  if (hostname.includes(':')) {
-    if (isPrivateIPv6(hostname)) throw new UnsafeUrlError('That address points to a private or internal network.')
-    return
-  }
-
-  let addresses: { address: string }[]
-  try {
-    addresses = await lookup(hostname, { all: true })
-  } catch {
-    throw new UnsafeUrlError('That website address couldn’t be found.')
-  }
-  if (addresses.length === 0 || addresses.some((a) => isPrivateIp(a.address))) {
-    throw new UnsafeUrlError('That address points to a private or internal network.')
-  }
-}
+// assertSafeUrl/UnsafeUrlError (SSRF-safe URL validation) and the
+// contact/links detection + safety-boundary functions now live in
+// ../src/lib/contactLinksCheck.js — shared with api/check-visual.ts's
+// rendered-DOM fallback for pages this static check can't verify. See
+// that module for the moved implementation (unchanged).
 
 interface FetchResult {
   finalUrl: string
@@ -256,20 +163,6 @@ function findMetaContent(html: string, name: string): string | null {
   return null
 }
 
-function hasContactSignal(html: string): boolean {
-  const text = html.replace(/<[^>]+>/g, ' ')
-  const phonePattern = /(\+?\d{1,2}[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/
-  const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
-  const mailtoPattern = /href\s*=\s*["']mailto:/i
-  const contactLinkPattern = /<a\s+[^>]*(?:href=["'][^"']*contact[^"']*["']|>[^<]*contact[^<]*<)/i
-  return (
-    phonePattern.test(text) ||
-    emailPattern.test(text) ||
-    mailtoPattern.test(html) ||
-    contactLinkPattern.test(html)
-  )
-}
-
 /**
  * Looks for signs the site is an ecommerce / marketplace site (platform fingerprints,
  * or a combination of cart/checkout links with product/collection links). This is a scope
@@ -319,91 +212,6 @@ function hasEcommerceSignal(html: string, finalUrl: string): boolean {
   return (hasAddToCart && (hasCartOrCheckoutLink || hasCatalogLink)) || (hasCartOrCheckoutLink && hasCatalogLink)
 }
 
-function extractLinks(html: string, baseUrl: string): URL[] {
-  const hrefs = Array.from(html.matchAll(/<a\s+[^>]*href\s*=\s*["']([^"'#][^"']*)["']/gi)).map((m) => m[1])
-  const seen = new Set<string>()
-  const links: URL[] = []
-  for (const href of hrefs) {
-    if (/^(mailto|tel|javascript):/i.test(href)) continue
-    try {
-      const resolved = new URL(href, baseUrl)
-      if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') continue
-      const key = resolved.toString()
-      if (seen.has(key)) continue
-      seen.add(key)
-      links.push(resolved)
-    } catch {
-      // ignore malformed hrefs
-    }
-  }
-  return links
-}
-
-function stripWww(hostname: string): string {
-  return hostname.replace(/^www\./, '')
-}
-
-function sampleLinks(links: URL[], baseHostname: string): URL[] {
-  const base = stripWww(baseHostname)
-  const sameSite = links.filter((l) => stripWww(l.hostname) === base)
-  const crossSite = links.filter((l) => stripWww(l.hostname) !== base)
-  const sample = sameSite.slice(0, MAX_LINKS_CHECKED)
-  if (sample.length < 3) {
-    for (const link of crossSite) {
-      if (sample.length >= MAX_LINKS_CHECKED) break
-      sample.push(link)
-    }
-  }
-  return sample.slice(0, MAX_LINKS_CHECKED)
-}
-
-const MAX_LINK_REDIRECTS = 3
-
-/** Same manual, per-hop-validated redirect handling as safeFetchHtml, but status-only. */
-async function checkLink(startUrl: URL): Promise<boolean> {
-  let current = startUrl
-
-  for (let hop = 0; hop <= MAX_LINK_REDIRECTS; hop++) {
-    try {
-      await assertSafeUrl(current)
-    } catch {
-      return false
-    }
-
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), LINK_TIMEOUT_MS)
-    let res: Response
-    try {
-      res = await fetch(current.toString(), {
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: { 'user-agent': USER_AGENT },
-      })
-    } catch {
-      return false
-    } finally {
-      clearTimeout(timer)
-    }
-
-    res.body?.cancel().catch(() => {})
-
-    if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get('location')
-      if (!location) return false
-      try {
-        current = new URL(location, current)
-      } catch {
-        return false
-      }
-      continue
-    }
-
-    return res.status < 400
-  }
-
-  return false
-}
-
 // ─── Scoring ─────────────────────────────────────────────────────
 interface ScoredFinding extends Finding {
   points: number
@@ -413,12 +221,14 @@ const SCORED_CHECK_COUNT = 7 // availability, https, mobile, title, meta-descrip
 
 interface ReportResult {
   score: number
+  rawScore: number
+  possiblePoints: number
   findings: Finding[]
   checksCompleted: number
   checksTotal: number
 }
 
-function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked: number): ReportResult {
+function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null): ReportResult {
   const { html, elapsedMs, usedHttps, status } = fetchResult
   const findings: ScoredFinding[] = []
   let score = 0
@@ -576,16 +386,10 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
 
     // Contact info (5 pts) — a positive match is always trustworthy; an absence is only
     // trustworthy when the page actually has enough rendered content to search through.
-    if (hasContactSignal(html)) {
-      score += 5
-      findings.push({
-        id: 'contact',
-        label: 'Contact information',
-        bucket: 'good',
-        detail: 'We found what appears to be contact information (a phone number, email address, or contact link) on your homepage.',
-        points: 5,
-      })
-    } else if (thinContent) {
+    // Detection/scoring itself lives in contactLinksCheck.ts, shared with
+    // api/check-visual.ts's rendered-DOM fallback for thin-content pages.
+    const contactEval = evaluateContactSignal(html)
+    if (!contactEval.found && thinContent) {
       checksCompleted -= 1
       possiblePoints -= 5
       findings.push({
@@ -596,19 +400,14 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
         points: 0,
       })
     } else {
-      findings.push({
-        id: 'contact',
-        label: 'Contact information',
-        bucket: 'improve',
-        detail: 'We couldn’t clearly find contact information on your homepage. Visible contact details help build trust with visitors.',
-        points: 0,
-      })
+      score += contactEval.points
+      findings.push({ ...contactEval.finding, points: contactEval.points })
     }
 
     // Broken links sample (5 pts) — if we found no usable links to sample, we genuinely
     // don't know whether that's because there are none or because they're rendered by
     // scripts we don't execute, so this is left unverified rather than assumed clean.
-    if (linksChecked === 0) {
+    if (linksEval === null) {
       checksCompleted -= 1
       possiblePoints -= 5
       findings.push({
@@ -621,26 +420,8 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
         points: 0,
       })
     } else {
-      const working = linksChecked - brokenLinks
-      const points = Math.round(5 * (working / linksChecked))
-      score += points
-      if (brokenLinks === 0) {
-        findings.push({
-          id: 'links',
-          label: 'Homepage links',
-          bucket: 'good',
-          detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage and all of them loaded fine. This is a sample, not a full site crawl.`,
-          points,
-        })
-      } else {
-        findings.push({
-          id: 'links',
-          label: 'Homepage links',
-          bucket: 'improve',
-          detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage, and ${brokenLinks} may be broken or slow to respond. This is a sample, not a full site crawl.`,
-          points,
-        })
-      }
+      score += linksEval.points
+      findings.push({ ...linksEval.finding, points: linksEval.points })
     }
 
     // Ecommerce / marketplace scope signal — informational only, never scored
@@ -669,6 +450,8 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
   const finalScore = possiblePoints > 0 ? Math.round((score / possiblePoints) * 100) : 0
   return {
     score: Math.max(0, Math.min(100, finalScore)),
+    rawScore: score,
+    possiblePoints,
     findings,
     checksCompleted,
     checksTotal: SCORED_CHECK_COUNT,
@@ -753,6 +536,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       input: normalized.toString(),
       finalUrl: normalized.toString(),
       score: 0,
+      rawScore: 0,
+      possiblePoints: 100,
       summary: 'We couldn’t reach that website.',
       findings: [
         {
@@ -768,26 +553,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  let brokenLinks = 0
-  let linksChecked = 0
+  let linksEval: LinksEvaluation | null = null
   if (fetchResult.status >= 200 && fetchResult.status < 400) {
-    const links = extractLinks(fetchResult.html, fetchResult.finalUrl)
-    const finalHostname = new URL(fetchResult.finalUrl).hostname
-    const sample = sampleLinks(links, finalHostname)
-    linksChecked = sample.length
-    if (linksChecked > 0) {
-      const results = await Promise.all(sample.map((l) => checkLink(l)))
-      brokenLinks = results.filter((ok) => !ok).length
-    }
+    linksEval = await evaluateHomepageLinks(fetchResult.html, fetchResult.finalUrl)
   }
 
-  const { score, findings, checksCompleted, checksTotal } = buildReport(fetchResult, brokenLinks, linksChecked)
+  const { score, rawScore, possiblePoints, findings, checksCompleted, checksTotal } = buildReport(fetchResult, linksEval)
 
   const response: CheckResponse = {
     ok: true,
     input: normalized.toString(),
     finalUrl: fetchResult.finalUrl,
     score,
+    rawScore,
+    possiblePoints,
     summary: summaryFor(score, findings.some((f) => f.bucket === 'improve'), checksCompleted, checksTotal),
     findings: findings.map(({ id, label, bucket, detail }): Finding => ({ id, label, bucket, detail })),
     checksCompleted,
