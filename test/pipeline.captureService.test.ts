@@ -181,7 +181,87 @@ skippableTest('end-to-end: repeated complete-pipeline runs against a delayed-rev
   }
 })
 
+// ─── Evidenced production failure mode: content that takes LONGER than
+// the recheck bound to appear (unlike delayed-reveal.html's 300ms, well
+// inside it) — reproduced via live diagnosis against a real client-
+// rendered site whose reveal time is genuinely variable and sometimes
+// exceeds this bound entirely. The correct, honest behavior is NOT to
+// find the content (it hadn't rendered yet within the bound) — the
+// property this proves is that the capture still completes promptly,
+// readability reports unverified (not a crash or a fabricated pass),
+// and overflow — which depends only on document/viewport width, never
+// on text being present — still returns a real measurement regardless.
+
+skippableTest('end-to-end: content revealed AFTER the recheck bound elapses is honestly reported as unverified — not a hang, crash, or fabricated pass — while overflow still measures', async () => {
+  const { server, port } = await startFixtureServer('reveal-past-recheck-bound.html')
+  try {
+    const started = Date.now()
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 8000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+    })
+    const elapsed = Date.now() - started
+    assert.equal(result.ok, true, 'the capture itself must still succeed even though the content never rendered in time')
+    if (!result.ok) throw new Error('unreachable')
+
+    // Bounded: nav (~fast, local fixture) + the 2000ms text recheck +
+    // negligible measurement overhead — comfortably under 8s even with
+    // this environment's own overhead, proving this did not hang.
+    assert.ok(elapsed < 8000, `capture must complete promptly, not hang waiting for content that will never arrive in time — took ${elapsed}ms`)
+
+    const readabilityEvidence = normalizeReadabilityEvidence(result.value.readability)
+    const readabilityClassification = classifyReadability({ evidence: readabilityEvidence, contract: getReadabilityContract() })
+    assert.equal(readabilityClassification.outcome, 'unverified', 'content that had not rendered within the bound must be honestly reported as unverified, not silently treated as absent-forever or as a false pass')
+
+    const overflowEvidence = normalizeOverflowEvidence(result.value.overflow)
+    const overflowClassification = classifyOverflow({ evidence: overflowEvidence, contract: getOverflowContract() })
+    assert.equal(overflowClassification.outcome, 'good', 'overflow depends only on document/viewport width, never on text presence, so it must still return a real measurement even when readability could not')
+  } finally {
+    server.close()
+  }
+})
+
 // ─── Safety boundary is genuinely wired in, not bypassed ────────────
+
+skippableTest('the rendered-HTML fallback capture is still safely truncated at MAX_RENDERED_HTML_CHARS for a genuinely oversized page — the memory-safety cap itself, not just content past the old cap', async () => {
+  // Dynamically inflates the rendered page to ~6.8M characters — larger
+  // than the 6,000,000-char cap — via a JS-injected string, so no large
+  // file needs to be committed as a fixture.
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' })
+    res.end(
+      '<!DOCTYPE html><html><head><title>Oversized</title></head><body>' +
+        '<div id="app"></div>' +
+        '<script>' +
+        "document.getElementById('app').innerHTML = '<main><h1>Welcome</h1><p>Real content.</p></main>';" +
+        "var pad = document.createElement('div'); pad.style.display = 'none'; pad.textContent = 'x'.repeat(6800000);" +
+        'document.body.appendChild(pad);' +
+        '</script>' +
+        '</body></html>'
+    )
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const address = server.address()
+  if (address === null || typeof address === 'string') throw new Error('failed to bind fixture server')
+  const port = address.port
+  try {
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 8000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      captureRenderedHtml: true,
+    })
+    assert.equal(result.ok, true)
+    if (!result.ok) throw new Error('unreachable')
+    assert.ok(result.value.renderedHtml, 'a truncated capture must still be present, not dropped entirely')
+    assert.equal(result.value.renderedHtml!.length, 6_000_000, 'an oversized page must be truncated to exactly MAX_RENDERED_HTML_CHARS, not left unbounded')
+  } finally {
+    server.close()
+  }
+})
 
 skippableTest('the capture service refuses a private-network target end-to-end — the real safety boundary, not merely mocked out', async () => {
   const { server, port } = await startFixtureServer('clean.html')

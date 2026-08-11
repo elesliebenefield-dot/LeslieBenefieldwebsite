@@ -373,8 +373,16 @@ export async function captureOverflowAndReadability(rawUrl: string, options: Cap
           // rendered so far; see the comment above.
         }
         try {
-          const html = await page.evaluate(() => document.documentElement.outerHTML)
-          renderedHtml = html.length > MAX_RENDERED_HTML_CHARS ? html.slice(0, MAX_RENDERED_HTML_CHARS) : html
+          // Safety review: truncate INSIDE the page, not after retrieval —
+          // slicing only after `page.evaluate` returns would still require
+          // the full (potentially far larger than 6,000,000-char) string to
+          // cross the CDP/IPC boundary and land in this process's memory
+          // first. Passing the bound in and slicing before it ever leaves
+          // the page means only the already-bounded result is ever
+          // serialized/transferred, regardless of how large the real page
+          // is — the memory/time cost of an oversized page is capped at
+          // the source, not just at the point of use.
+          renderedHtml = await page.evaluate((max) => document.documentElement.outerHTML.slice(0, max), MAX_RENDERED_HTML_CHARS)
         } catch {
           // Best-effort only: the overflow/readability capture above
           // already succeeded, so this failing must not fail the whole

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Reveal past the recheck bound</title></head>
+<body>
+  <!-- Evidences the readability failure mode found in production for a
+       real client-rendered site: content that takes LONGER than the
+       existing bounded recheck window (TEXT_RECHECK_TIMEOUT_MS, 2000ms
+       — see captureService.ts) to appear. Unlike delayed-reveal.html
+       (300ms — well inside the bound, proving the recheck catches it),
+       this fixture reveals content well PAST the bound, proving the
+       opposite, equally important property: the capture must still
+       complete promptly and return an honest "unverified" readability
+       result — not hang, not crash, not fabricate a pass — while
+       overflow (which never depends on text being present at all, only
+       on document/viewport width) still returns a real measurement.
+       This is not a bug: it is the documented, intentional behavior of
+       a bounded wait for content whose real-world reveal time varies
+       and can genuinely exceed any fixed, evidenced bound. -->
+  <main id="content" style="display: none; max-width: 380px;">
+    <h1 style="font-size: 24px;">Welcome</h1>
+    <p style="font-size: 16px;">This content is revealed well after the recheck window has already elapsed.</p>
+  </main>
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        document.getElementById('content').style.display = 'block'
+      }, 3500)
+    })
+  </script>
+</body>
+</html>
