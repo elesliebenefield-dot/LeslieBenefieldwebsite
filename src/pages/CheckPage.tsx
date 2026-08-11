@@ -4,10 +4,10 @@ import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
 import { normalizeWebsiteUrl } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, Finding, FindingBucket } from '../lib/websiteCheck'
-import type { VisualCheckSuccess, VisualFinding, VisualFindingBucket, RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
+import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
-
-const RESULTS_EMAIL = 'websitesbyleslie01@gmail.com'
+import { buildMailtoHref } from '../lib/emailBody'
+import { mergeFallbackIntoResult } from '../lib/technicalFallbackMerge'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 
@@ -30,7 +30,8 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
   },
   improve: {
     title: 'Worth improving',
-    description: 'Common small-business website issues Leslie may be able to help with.',
+    description:
+      'Improvements Leslie may be able to help with, for straightforward informational and service-business websites. Online stores, marketplace shops, and complex ecommerce sites are often better handled by their platform provider or an ecommerce specialist.',
   },
   unverified: {
     title: 'Unable to verify automatically',
@@ -46,140 +47,9 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
 const SCOPE_NOTICE =
   'Designed primarily for informational and service-based small-business websites. Results may be limited for marketplace shops and complex ecommerce sites, including Etsy, Shopify, Square Online, WooCommerce, and similar platforms.'
 
-const EMAIL_SECTION_TITLE: Record<FindingBucket, string> = {
-  good: 'Looking Good',
-  improve: 'Worth Improving',
-  unverified: 'Unable to Verify Automatically',
-  specialist: 'May Need Current Provider or a Specialist',
-}
-
-const VISUAL_CATEGORY_ORDER: VisualFindingBucket[] = ['good', 'improve', 'unverified', 'specialist']
-
-// VISUAL_CATEGORY_INFO and WHAT_WE_CHECK_VISUAL (old scored-review-only
-// display copy) were removed here: the first real-checker release's
-// VisualSection below renders its own plain-English findings list, not
-// the old scored/12-check display. VISUAL_CATEGORY_ORDER/
-// VISUAL_EMAIL_SECTION_TITLE remain — buildCombinedEmailBody still
-// references them (currently always called with visual=null; see
-// runVisualCheck below).
-
-const VISUAL_EMAIL_SECTION_TITLE: Record<VisualFindingBucket, string> = {
-  good: 'Visual — Looking Good',
-  improve: 'Visual — Worth Reviewing',
-  unverified: 'Visual — Unable to Verify',
-  specialist: 'Visual — May Need a Specialist',
-}
-
-// Conservative cross-client budget for a mailto: URL's total length. Some mail clients
-// (notably older Outlook) truncate or reject much longer mailto links.
-const MAILTO_SAFE_LENGTH = 1800
-
-function truncateDetail(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text
-  const slice = text.slice(0, maxLen - 1)
-  const lastSpace = slice.lastIndexOf(' ')
-  const cut = lastSpace > maxLen * 0.6 ? slice.slice(0, lastSpace) : slice
-  return `${cut.trimEnd()}…`
-}
-
-function checkedDomain(result: CheckSuccess): string {
-  try {
-    return new URL(result.finalUrl).hostname
-  } catch {
-    return result.finalUrl
-  }
-}
-
-interface EmailTierOptions {
-  detailLimit: number | null
-  includeGoodSections: boolean
-  unverifiedSummaryOnly: boolean
-}
-
-// Priority order when space is tight (mirrors the fallback tiers below):
-// 1. Checked URL  2. Both scores + completion counts  3. Worth-reviewing findings
-// 4. Specialist warnings  5. Unverified summary. "Looking good" detail is the
-// first thing trimmed, since it's the least actionable content in a tight email.
-function buildCombinedEmailBody(technical: CheckSuccess, visual: VisualCheckSuccess | null, opts: EmailTierOptions): string {
-  const lines: string[] = []
-  lines.push(`Website checked: ${technical.finalUrl}`)
-  lines.push(`Technical Basics Score: ${technical.score}/100 (${technical.checksCompleted} of ${technical.checksTotal} checks completed)`)
-  lines.push(
-    visual && visual.checksCompleted > 0
-      ? `Visual & Usability Score: ${visual.score}/100 (${visual.checksCompleted} of ${visual.checksTotal} checks completed)`
-      : 'Visual & Usability Score: not available (the visual review did not complete)'
-  )
-  lines.push('')
-
-  function addSection(bucket: FindingBucket, title: string, items: Finding[]) {
-    if (bucket === 'good' && !opts.includeGoodSections) return
-    if (items.length === 0) return
-    if (bucket === 'unverified' && opts.unverifiedSummaryOnly) {
-      lines.push(`${title}: ${items.length} item${items.length === 1 ? '' : 's'} — see the full report on the checkup page.`)
-      lines.push('')
-      return
-    }
-    lines.push(`${title}:`)
-    for (const f of items) {
-      const detail = opts.detailLimit === null ? f.detail : truncateDetail(f.detail, opts.detailLimit)
-      lines.push(`- ${f.label}: ${detail}`)
-    }
-    lines.push('')
-  }
-
-  for (const bucket of CATEGORY_ORDER) {
-    addSection(bucket, EMAIL_SECTION_TITLE[bucket], technical.findings.filter((f) => f.bucket === bucket))
-  }
-
-  if (visual) {
-    function addVisualSection(bucket: VisualFindingBucket, title: string, items: VisualFinding[]) {
-      if (bucket === 'good' && !opts.includeGoodSections) return
-      if (items.length === 0) return
-      if (bucket === 'unverified' && opts.unverifiedSummaryOnly) {
-        lines.push(`${title}: ${items.length} item${items.length === 1 ? '' : 's'} — see the full report on the checkup page.`)
-        lines.push('')
-        return
-      }
-      lines.push(`${title}:`)
-      for (const f of items) {
-        const viewportTag = f.viewport !== 'both' ? ` (${f.viewport})` : ''
-        const detail = opts.detailLimit === null ? f.detail : truncateDetail(f.detail, opts.detailLimit)
-        lines.push(`- ${f.label}${viewportTag}: ${detail}`)
-      }
-      lines.push('')
-    }
-    for (const bucket of VISUAL_CATEGORY_ORDER) {
-      addVisualSection(bucket, VISUAL_EMAIL_SECTION_TITLE[bucket], visual.findings.filter((f) => f.bucket === bucket))
-    }
-  }
-
-  lines.push('I’d like Leslie to review these results and let me know whether this project may be a fit for her services.')
-  lines.push('')
-  lines.push('Anything else I’d like Leslie to know:')
-  lines.push('')
-  lines.push('')
-
-  return lines.join('\r\n')
-}
-
-function buildMailtoHref(technical: CheckSuccess, visual: VisualCheckSuccess | null): string {
-  const subject = `Website Checkup Results — ${checkedDomain(technical)}`
-  const toEncoded = (body: string) =>
-    `mailto:${RESULTS_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-
-  const tiers: EmailTierOptions[] = [
-    { detailLimit: null, includeGoodSections: true, unverifiedSummaryOnly: false },
-    { detailLimit: 70, includeGoodSections: true, unverifiedSummaryOnly: false },
-    { detailLimit: 70, includeGoodSections: false, unverifiedSummaryOnly: false },
-    { detailLimit: 50, includeGoodSections: false, unverifiedSummaryOnly: true },
-  ]
-
-  for (const tier of tiers) {
-    const href = toEncoded(buildCombinedEmailBody(technical, visual, tier))
-    if (href.length <= MAILTO_SAFE_LENGTH) return href
-  }
-  return toEncoded(buildCombinedEmailBody(technical, visual, tiers[tiers.length - 1]))
-}
+// Email-building logic (buildCombinedEmailBody/buildMailtoHref) lives in
+// ../lib/emailBody.ts, extracted so it's directly testable without a
+// browser/JSX environment — see test/emailBody.test.ts.
 
 function scoreLabel(score: number): string {
   if (score >= 85) return 'Looking strong'
@@ -404,7 +274,7 @@ function ResultsReport({
           </button>
         ) : (
           <a
-            href={buildMailtoHref(result, null)}
+            href={buildMailtoHref(result, visualResult)}
             className="btn btn-primary"
           >
             Email My Results to Leslie
@@ -431,6 +301,16 @@ export default function CheckPage() {
   const [visualResult, setVisualResult] = useState<RebuildCheckSuccess | null>(null)
   const [visualErrorMessage, setVisualErrorMessage] = useState<string | null>(null)
 
+  // The technical result resolves faster than the visual review (plus any
+  // contact/links fallback merge it may trigger). Showing the technical-only
+  // result the instant it arrives, then silently swapping in a higher score/
+  // check count once the visual review finishes, makes the checker look
+  // inconsistent — see the release-polish pass fixing that visible flash.
+  // "Finalizing" covers the whole window between the technical result
+  // arriving and the visual review reaching a terminal state (success or
+  // error) — the full results report only ever renders once, already merged.
+  const isFinalizing = status === 'success' && visualStatus !== 'success' && visualStatus !== 'error'
+
   const validationErrorRef = useRef<HTMLParagraphElement>(null)
   const apiErrorRef = useRef<HTMLDivElement>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -449,10 +329,12 @@ export default function CheckPage() {
 
   useEffect(() => {
     if (status === 'error') apiErrorRef.current?.focus()
-    if (status === 'success') resultsHeadingRef.current?.focus()
-  }, [status])
+    // Wait for the merged results report to actually be on the page — while
+    // still finalizing, resultsHeadingRef isn't attached to anything yet.
+    if (status === 'success' && !isFinalizing) resultsHeadingRef.current?.focus()
+  }, [status, isFinalizing])
 
-  async function runVisualCheck(url: string, requestId: number) {
+  async function runVisualCheck(url: string, requestId: number, needsContactFallback: boolean, needsLinksFallback: boolean) {
     setVisualStatus('loading')
     setVisualResult(null)
     setVisualErrorMessage(null)
@@ -460,7 +342,7 @@ export default function CheckPage() {
       const res = await fetch('/api/check-visual', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, needsContactFallback, needsLinksFallback }),
       })
       if (requestId !== requestIdRef.current) return // superseded by a newer submission
 
@@ -480,6 +362,15 @@ export default function CheckPage() {
       }
       setVisualResult(data)
       setVisualStatus('success')
+      // A resolved contact/links fallback replaces the corresponding
+      // "Unable to verify" Technical Basics finding and renormalizes the
+      // score — see mergeFallbackIntoResult above. Absent on every
+      // request that didn't need one, wasn't requested, or couldn't be
+      // resolved (extraction failure, or genuinely too few rendered
+      // links) — the technical result is untouched in those cases.
+      if (data.contactFallback || data.linksFallback) {
+        setResult((prev) => (prev ? mergeFallbackIntoResult(prev, data.contactFallback, data.linksFallback) : prev))
+      }
     } catch {
       if (requestId !== requestIdRef.current) return
       setVisualStatus('error')
@@ -525,7 +416,14 @@ export default function CheckPage() {
       setStatus('success')
       // The visual review runs after the technical check completes, and independently
       // of it — a slow or failed visual review never blocks or hides technical results.
-      void runVisualCheck(data.finalUrl, requestId)
+      // If contact-info and/or homepage-links came back "unable to verify" specifically
+      // because the page appears to need JavaScript rendering, ask the visual review's
+      // already-open browser page to also gather that evidence — no second browser launch.
+      const contactFinding = data.findings.find((f) => f.id === 'contact')
+      const linksFinding = data.findings.find((f) => f.id === 'links')
+      const needsContactFallback = contactFinding?.bucket === 'unverified'
+      const needsLinksFallback = linksFinding?.bucket === 'unverified'
+      void runVisualCheck(data.finalUrl, requestId, needsContactFallback, needsLinksFallback)
     } catch {
       if (requestId !== requestIdRef.current) return
       setApiError('Something went wrong on our end. Please check your connection and try again.')
@@ -617,7 +515,14 @@ export default function CheckPage() {
               )}
             </div>
 
-            {status === 'success' && result && (
+            {status === 'success' && result && isFinalizing && (
+              <div className="checkup-loading checkup-finalizing" role="status">
+                <span className="checkup-spinner" aria-hidden="true" />
+                Finishing your check…
+              </div>
+            )}
+
+            {status === 'success' && result && !isFinalizing && (
               <ResultsReport
                 result={result}
                 headingRef={resultsHeadingRef}

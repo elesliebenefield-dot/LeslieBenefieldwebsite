@@ -49,7 +49,11 @@ export function normalizeReadabilityEvidence(capture: RawCapture<'readability'>)
     checkId: 'readability',
     sourceCapturePayloadSchemaVersion: '1.0.0',
     evidenceSchemaVersion: '1.0.0',
-    evidence: { __brand: 'ReadabilityCheckEvidence', minVisibleFontSizePx: capture.payload.minVisibleFontSizePx },
+    evidence: {
+      __brand: 'ReadabilityCheckEvidence',
+      minVisibleFontSizePx: capture.payload.minVisibleFontSizePx,
+      footerMinVisibleFontSizePx: capture.payload.footerMinVisibleFontSizePx,
+    },
     viewportsPresent: [capture.provenance.viewport.name],
     incompleteCoverage: { ...capture.incompleteCoverage },
   }

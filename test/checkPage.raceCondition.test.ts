@@ -155,12 +155,14 @@ test('a stale, slow visual response from an earlier submission does not overwrit
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
 
-    // Submit A.
+    // Submit A. Its fast technical result resolves, but the full results
+    // report stays hidden (release-polish: no partial-result flash) until
+    // its slow visual response also resolves — the earliest observable
+    // signal that A's technical fetch landed is the neutral "finalizing"
+    // state, not the results report itself.
     await page.type('#website-url', 'site-a.example')
     await page.click('.checkup-submit')
-    // Wait for A's technical result (fast) to appear, re-enabling the form.
-    await page.waitForSelector('.checkup-summary')
-    await assertContainsText(page, '.checkup-summary', 'TECHNICAL-A')
+    await page.waitForSelector('.checkup-finalizing')
 
     // Before A's slow visual response resolves, submit B for a different URL.
     await page.evaluate(() => {

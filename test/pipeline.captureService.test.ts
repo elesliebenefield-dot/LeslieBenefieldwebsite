@@ -44,6 +44,14 @@ async function startFixtureServer(fileName: string): Promise<{ server: http.Serv
   return { server, port: address.port }
 }
 
+async function killAndAwaitDisconnect(handle: { browser: { process(): { kill(signal: string): void } | null }; isDisconnected(): boolean }): Promise<void> {
+  handle.browser.process()?.kill('SIGKILL')
+  const deadline = Date.now() + 3000
+  while (!handle.isDisconnected() && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
 function depsFor(port: number) {
   return {
     lookup: async (hostname: string) => {
@@ -105,9 +113,72 @@ skippableTest('end-to-end: a borderline text-size fixture produces "manual-revie
   assert.equal(readabilityClassification.outcome, 'manual-review-advisory')
 })
 
+// ─── Release polish: readability distinguishes footer/utility text from
+// meaningful page content — see captureService.ts's
+// extractRawMeasurements and classificationEngine.ts's classifyReadability. ──
+
+skippableTest('end-to-end: small semantic-footer text does not determine the readability outcome, and is mentioned as context', async () => {
+  const { readabilityClassification } = await captureAndClassify('small-footer-text.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px <footer> text must not be read as the page\'s smallest MEANINGFUL text')
+  assert.match(readabilityClassification.reasoning, /footer/i, 'the smaller footer text must still be mentioned as context')
+})
+
+skippableTest('end-to-end: small div-based (unsemantic) footer text does not determine the readability outcome', async () => {
+  const { readabilityClassification } = await captureAndClassify('div-based-footer-small-text.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px div.site-footer text must not be read as the page\'s smallest MEANINGFUL text')
+  assert.match(readabilityClassification.reasoning, /footer/i, 'the smaller footer text must still be mentioned as context')
+})
+
+skippableTest('end-to-end: the no-<main> fallback still excludes footer text, and still measures <nav> as meaningful content', async () => {
+  const { readabilityClassification } = await captureAndClassify('no-main-small-footer.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px <footer> text must not be read as the page\'s smallest MEANINGFUL text')
+})
+
+skippableTest('end-to-end: small navigation text outside any footer still triggers a readability finding — never dismissed as footer/utility', async () => {
+  const { readabilityClassification } = await captureAndClassify('small-nav-text.html')
+  assert.equal(readabilityClassification.outcome, 'improve', 'the 9px <nav> text is meaningful interface text, not footer/utility content')
+})
+
 skippableTest('end-to-end: a fixture with no visible text produces "unverified" for readability — honest uncertainty, not a fabricated pass', async () => {
   const { readabilityClassification } = await captureAndClassify('no-visible-text.html')
   assert.equal(readabilityClassification.outcome, 'unverified')
+})
+
+// ─── Reliability fix: a single sample taken too early (before JS-driven
+// content reveal finishes) must not be normalized into "no visible
+// text" — see captureService.ts's post-measurement recheck. ──────────
+
+skippableTest('end-to-end: content revealed shortly after load is still measured — a too-early sample does not normalize to "no visible text"', async () => {
+  const { readabilityClassification } = await captureAndClassify('delayed-reveal.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 16px content revealed 300ms after load must still be found, not treated as absent')
+})
+
+skippableTest('end-to-end: the rendered-HTML fallback capture does not clear or replace a readability measurement that needed the recheck', async () => {
+  const { server, port } = await startFixtureServer('delayed-reveal.html')
+  try {
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 8000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      captureRenderedHtml: true,
+    })
+    assert.equal(result.ok, true)
+    if (!result.ok) throw new Error('unreachable')
+    assert.ok(result.value.renderedHtml && result.value.renderedHtml.length > 0, 'the fallback HTML capture must still run')
+    const readabilityEvidence = normalizeReadabilityEvidence(result.value.readability)
+    const readabilityClassification = classifyReadability({ evidence: readabilityEvidence, contract: getReadabilityContract() })
+    assert.equal(readabilityClassification.outcome, 'good', 'requesting the fallback capture must not clear or replace the readability measurement')
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('end-to-end: repeated complete-pipeline runs against a delayed-reveal page produce stable readability results', async () => {
+  for (let i = 0; i < 5; i++) {
+    const { readabilityClassification } = await captureAndClassify('delayed-reveal.html')
+    assert.equal(readabilityClassification.outcome, 'good', `run ${i} must find the revealed content, not report it as absent`)
+  }
 })
 
 // ─── Safety boundary is genuinely wired in, not bypassed ────────────
@@ -132,4 +203,53 @@ skippableTest('an invalid URL is rejected before any browser is launched', async
   const result = await captureOverflowAndReadability('not a url at all', { executablePath: CHROME_PATH })
   assert.equal(result.ok, false)
   if (!result.ok) assert.equal(result.error.kind, 'unsafe-url')
+})
+
+// ─── Crash diagnostics: a browser that launches but dies before/while
+// creating a page is a structured 'browser-crashed' failure, not an
+// uncaught exception — see api/check-visual.ts's production incident
+// (TargetCloseError at context.newPage(), thrown past this function
+// entirely before this patch). onHandleReady deterministically kills the
+// REAL browser process right after a REAL launch succeeds, so this
+// reproduces production's actual failure class end-to-end rather than
+// mocking the outcome.
+
+skippableTest('a browser that dies right after launch (killed before a page is created) is reported as a structured "browser-crashed" failure, not thrown', async () => {
+  const { server, port } = await startFixtureServer('clean.html')
+  try {
+    const result = await captureOverflowAndReadability(`http://safe.invalid:${port}/`, {
+      executablePath: CHROME_PATH,
+      navigationTimeoutMs: 5000,
+      deps: depsFor(port),
+      allowedHttpPort: port,
+      onHandleReady: (handle) => killAndAwaitDisconnect(handle),
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) {
+      assert.equal(result.error.kind, 'browser-crashed')
+      assert.ok(result.error.reason.length > 0)
+    }
+  } finally {
+    server.close()
+  }
+})
+
+skippableTest('the browser layer itself: newIsolatedContext()/newPage() reject once the underlying process has been killed', async () => {
+  const { launchCaptureBrowser } = await import('../src/lib/pipeline/capture/browserLifecycle.ts')
+  const { startConnectionBindingProxy } = await import('../src/lib/pipeline/capture/connectionBindingProxy.ts')
+  const proxy = await startConnectionBindingProxy({})
+  try {
+    const handle = await launchCaptureBrowser({ executablePath: CHROME_PATH, proxyPort: proxy.port })
+    try {
+      await killAndAwaitDisconnect(handle)
+      await assert.rejects(async () => {
+        const context = await handle.newIsolatedContext()
+        await context.newPage()
+      })
+    } finally {
+      await handle.close()
+    }
+  } finally {
+    await proxy.close()
+  }
 })

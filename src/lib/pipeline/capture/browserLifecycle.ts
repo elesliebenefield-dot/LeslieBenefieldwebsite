@@ -1,7 +1,9 @@
 // Sub-patch 2d (practical scope reset) — browser process lifecycle:
-// launch wired to connectionBindingProxy.ts, fresh incognito context per
-// capture (storage isolation between requests), and guaranteed cleanup
-// on success, timeout, cancellation, and crash.
+// launch wired to connectionBindingProxy.ts, a fresh browser process per
+// capture (storage isolation between requests — see newIsolatedContext
+// below, updated by the crash-diagnostics patch to use the browser's
+// default context rather than creating a new one), and guaranteed
+// cleanup on success, timeout, cancellation, and crash.
 //
 // Adapted from the pre-rebuild launchBrowser pattern (dev: local Chrome;
 // production-shaped: @sparticuz/chromium) — same executable-resolution
@@ -29,6 +31,14 @@ export interface CaptureBrowserOptions {
    *  of any single page's navigation timeout — if graceful close doesn't
    *  finish first, the process is force-killed when this elapses. */
   overallBudgetMs?: number
+  /** Puppeteer's `headless` launch mode. Defaults to `true` (the "new"
+   *  headless mode) — correct for a full desktop Chrome/Chromium binary
+   *  (local dev). @sparticuz/chromium's binary is `headless_shell`,
+   *  which per its own README does not support the new mode; callers
+   *  using that resolution path must pass `'shell'` here instead. See
+   *  resolveServerlessChromium below, which is the one place this
+   *  should come from — never guessed at in this function. */
+  headless?: boolean | 'shell'
 }
 
 export interface CaptureBrowserHandle {
@@ -37,9 +47,17 @@ export interface CaptureBrowserHandle {
    *  or a clean close already happened) — tests use this to prove crash
    *  handling doesn't hang cleanup. */
   isDisconnected(): boolean
-  /** Creates a fresh incognito context — call once per logical capture
-   *  within a single browser process; closing it clears all storage for
-   *  that capture without needing a whole new browser. */
+  /** Returns the browser's default context — no CDP round-trip, since
+   *  nothing has to be created. Storage isolation between captures comes
+   *  from launchCaptureBrowser giving each capture its own fresh browser
+   *  *process* (never pooled/reused, always fully closed after), not
+   *  from a separate CDP-created context within a shared process. See
+   *  the crash-diagnostics patch: creating a new context here
+   *  (`browser.createBrowserContext()`) was a live CDP command
+   *  (`Target.createBrowserContext`) that could fail if the browser was
+   *  unstable right after launch — @sparticuz/chromium's own issue
+   *  tracker (#298) notes exactly this and recommends the default
+   *  context instead. */
   newIsolatedContext(): Promise<BrowserContext>
   /** Idempotent; safe to call more than once and from a catch/finally.
    *  Always resolves (never rejects) — a failed graceful close falls
@@ -60,11 +78,19 @@ export function resolveLocalChromePath(): string {
 /** Production-shaped resolution via @sparticuz/chromium, matching the
  *  pre-rebuild pattern exactly (same package, same call shape) — never
  *  invoked by 2d's own tests, which stay on local Chrome only; provided
- *  so a real captureService (a later sub-patch) has a ready adapter. */
-export async function resolveServerlessChromium(): Promise<{ executablePath: string; args: string[] }> {
+ *  so a real captureService (a later sub-patch) has a ready adapter.
+ *
+ *  `headless: 'shell'` is returned alongside the executable/args
+ *  deliberately, not left for the caller to guess: every one of
+ *  @sparticuz/chromium's own documented usage examples pairs its binary
+ *  with `headless: 'shell'`, and its README states plainly that the
+ *  `headless_shell` binary this package ships does not support
+ *  Puppeteer's "new" headless mode (`headless: true`'s default meaning
+ *  as of puppeteer-core v22+) — see the crash-diagnostics patch. */
+export async function resolveServerlessChromium(): Promise<{ executablePath: string; args: string[]; headless: 'shell' }> {
   const chromium = (await import('@sparticuz/chromium')).default
   const executablePath = await chromium.executablePath()
-  return { executablePath, args: chromium.args }
+  return { executablePath, args: chromium.args, headless: 'shell' }
 }
 
 /**
@@ -100,7 +126,7 @@ export async function launchCaptureBrowser(options: CaptureBrowserOptions): Prom
   const browser = await puppeteer.launch({
     executablePath: options.executablePath,
     args,
-    headless: true,
+    headless: options.headless ?? true,
     defaultViewport: null,
   })
 
@@ -137,7 +163,7 @@ export async function launchCaptureBrowser(options: CaptureBrowserOptions): Prom
   return {
     browser,
     isDisconnected: () => disconnected,
-    newIsolatedContext: () => browser.createBrowserContext(),
+    newIsolatedContext: () => Promise.resolve(browser.defaultBrowserContext()),
     close: closeHandle,
   }
 }

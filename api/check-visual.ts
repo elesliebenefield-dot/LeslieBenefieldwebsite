@@ -23,7 +23,8 @@ import { normalizeOverflowEvidence, normalizeReadabilityEvidence } from '../src/
 import { classifyOverflow, classifyReadability } from '../src/lib/pipeline/classify/classificationEngine.js'
 import { getOverflowContract, getReadabilityContract } from '../src/lib/pipeline/classify/contractRegistry.js'
 import { presentOverflowFindings, presentReadabilityFindings } from '../src/lib/pipeline/present/findingsPresenter.js'
-import type { RebuildCheckResponse } from '../src/lib/visualCheck.js'
+import { evaluateContactSignal, evaluateHomepageLinks, CONTACT_POINTS, LINKS_POINTS, type ContactLinksDeps } from '../src/lib/contactLinksCheck.js'
+import type { RebuildCheckResponse, TechnicalFallbackResult } from '../src/lib/visualCheck.js'
 
 const NAV_TIMEOUT_MS = 18000
 const OVERALL_BUDGET_MS = 45000
@@ -42,6 +43,8 @@ function friendlyErrorFor(error: CaptureFailure): string {
   switch (error.kind) {
     case 'unsafe-url':
       return 'That website address isn’t supported.'
+    case 'browser-crashed':
+      return 'This page couldn’t be checked right now — the checker closed unexpectedly. Please try again in a moment.'
     case 'navigation-failed':
       return 'We couldn’t load that page in a browser — it may be blocking automated visits, or it took too long to respond.'
     case 'measurement-failed':
@@ -51,10 +54,10 @@ function friendlyErrorFor(error: CaptureFailure): string {
   }
 }
 
-async function resolveExecutable(): Promise<{ executablePath: string; extraArgs?: string[] }> {
+async function resolveExecutable(): Promise<{ executablePath: string; extraArgs?: string[]; headless?: boolean | 'shell' }> {
   if (process.env.VERCEL) {
     const resolved = await resolveServerlessChromium()
-    return { executablePath: resolved.executablePath, extraArgs: resolved.args }
+    return { executablePath: resolved.executablePath, extraArgs: resolved.args, headless: resolved.headless }
   }
   return { executablePath: resolveLocalChromePath() }
 }
@@ -66,18 +69,31 @@ async function resolveExecutable(): Promise<{ executablePath: string; extraArgs?
  * fixture server via captureService's own `deps`/`allowedHttpPort`/
  * `allowedConnectPort` injection (the same pattern already used by
  * test/pipeline.captureService.test.ts), instead of re-implementing this
- * handler's logic in the test file.
+ * handler's logic in the test file. `contactLinksDeps` is the same
+ * test-only override for the contact/links fallback's OWN, separate
+ * safety boundary (src/lib/contactLinksCheck.ts's assertSafeUrl/
+ * checkLink — real DNS + fetch, not the capture pipeline's proxy).
  */
-export async function handleCheckVisual(req: VercelRequest, res: VercelResponse, captureOverrides: Partial<CaptureOptions> = {}): Promise<void> {
+export async function handleCheckVisual(
+  req: VercelRequest,
+  res: VercelResponse,
+  captureOverrides: Partial<CaptureOptions> = {},
+  contactLinksDeps: ContactLinksDeps = {}
+): Promise<void> {
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method not allowed.' })
     return
   }
 
   let rawUrl: unknown
+  let needsContactFallback = false
+  let needsLinksFallback = false
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    rawUrl = (body as { url?: unknown } | null)?.url
+    const parsed = body as { url?: unknown; needsContactFallback?: unknown; needsLinksFallback?: unknown } | null
+    rawUrl = parsed?.url
+    needsContactFallback = parsed?.needsContactFallback === true
+    needsLinksFallback = parsed?.needsLinksFallback === true
   } catch {
     res.status(400).json({ ok: false, error: 'Please enter a valid website address.' })
     return
@@ -94,13 +110,19 @@ export async function handleCheckVisual(req: VercelRequest, res: VercelResponse,
     return
   }
 
-  const { executablePath, extraArgs } = await resolveExecutable()
+  const { executablePath, extraArgs, headless } = await resolveExecutable()
 
   const result = await captureOverflowAndReadability(normalized.toString(), {
     executablePath,
     extraArgs,
+    headless,
     navigationTimeoutMs: NAV_TIMEOUT_MS,
     overallBudgetMs: OVERALL_BUDGET_MS,
+    // Only the SAME already-open page's rendered HTML is captured, and
+    // only when a fallback was actually requested — the default
+    // (no-fallback-needed) path does no extra work at all. No second
+    // browser, no extra navigation. See captureService.ts.
+    captureRenderedHtml: needsContactFallback || needsLinksFallback,
     ...captureOverrides,
   })
 
@@ -116,11 +138,37 @@ export async function handleCheckVisual(req: VercelRequest, res: VercelResponse,
 
   const findings = [...presentOverflowFindings(overflowClassification), ...presentReadabilityFindings(readabilityClassification)]
 
+  // Technical Basics 'contact'/'links' fallback — only attempted when
+  // requested, and only using the rendered HTML from the browser page
+  // already captured above (never a second browser, never a new
+  // navigation). Uses the exact same detection/scoring functions
+  // api/check-website.ts's own static path uses — see
+  // src/lib/contactLinksCheck.ts.
+  let contactFallback: TechnicalFallbackResult | undefined
+  let linksFallback: TechnicalFallbackResult | undefined
+  const renderedHtml = result.value.renderedHtml
+  if (renderedHtml) {
+    const finalUrl = result.value.overflow.provenance.finalUrl
+    if (needsContactFallback) {
+      const evaluated = evaluateContactSignal(renderedHtml)
+      contactFallback = { finding: evaluated.finding, points: evaluated.points, possiblePointsRestored: CONTACT_POINTS }
+    }
+    if (needsLinksFallback) {
+      const evaluated = await evaluateHomepageLinks(renderedHtml, finalUrl, contactLinksDeps)
+      // null means still not enough safe link candidates even after
+      // rendering — leave linksFallback undefined so the client keeps
+      // its existing "Unable to verify" result rather than a fabricated one.
+      if (evaluated) linksFallback = { finding: evaluated.finding, points: evaluated.points, possiblePointsRestored: LINKS_POINTS }
+    }
+  }
+
   res.status(200).json({
     ok: true,
     status: 'complete',
     finalUrl: result.value.overflow.provenance.finalUrl,
     findings: findings.map((f) => ({ checkId: f.checkId, label: f.label, detail: f.detail })),
+    ...(contactFallback ? { contactFallback } : {}),
+    ...(linksFallback ? { linksFallback } : {}),
   })
 }
 
