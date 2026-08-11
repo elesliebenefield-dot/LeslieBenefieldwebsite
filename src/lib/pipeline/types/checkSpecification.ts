@@ -113,11 +113,17 @@ export interface OverflowCheckEvidence {
 export interface ReadabilityCapturePayload {
   readonly __brand: 'ReadabilityCapturePayload'
   readonly minVisibleFontSizePx: number | null
+  /** Smallest font size among text identified as footer/utility content
+   *  (copyright, legal, payment, attribution, and similar) — `null` if
+   *  none was found. Context only; never drives the readability outcome
+   *  on its own. See captureService.ts's extractRawMeasurements. */
+  readonly footerMinVisibleFontSizePx: number | null
 }
 
 export interface ReadabilityCheckEvidence {
   readonly __brand: 'ReadabilityCheckEvidence'
   readonly minVisibleFontSizePx: number | null
+  readonly footerMinVisibleFontSizePx: number | null
 }
 
 /**

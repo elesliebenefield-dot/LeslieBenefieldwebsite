@@ -113,18 +113,30 @@ skippableTest('end-to-end: a borderline text-size fixture produces "manual-revie
   assert.equal(readabilityClassification.outcome, 'manual-review-advisory')
 })
 
-// ─── Release polish: readability measures the page's actual content,
-// not incidental small footer/navigation text — see
-// captureService.ts's extractRawMeasurements for the exclusion rules. ──
+// ─── Release polish: readability distinguishes footer/utility text from
+// meaningful page content — see captureService.ts's
+// extractRawMeasurements and classificationEngine.ts's classifyReadability. ──
 
-skippableTest('end-to-end: small footer text does not trigger a readability finding when normal main content exists', async () => {
+skippableTest('end-to-end: small semantic-footer text does not determine the readability outcome, and is mentioned as context', async () => {
   const { readabilityClassification } = await captureAndClassify('small-footer-text.html')
-  assert.equal(readabilityClassification.outcome, 'good', 'the 9px footer text must not be read as the page\'s smallest visible text')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px <footer> text must not be read as the page\'s smallest MEANINGFUL text')
+  assert.match(readabilityClassification.reasoning, /footer/i, 'the smaller footer text must still be mentioned as context')
 })
 
-skippableTest('end-to-end: the no-<main> fallback still excludes footer/nav text — comfortable body content is measured instead', async () => {
-  const { readabilityClassification } = await captureAndClassify('no-main-small-footer-nav.html')
-  assert.equal(readabilityClassification.outcome, 'good', 'the 8-9px nav/footer text must not be read as the page\'s smallest visible text')
+skippableTest('end-to-end: small div-based (unsemantic) footer text does not determine the readability outcome', async () => {
+  const { readabilityClassification } = await captureAndClassify('div-based-footer-small-text.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px div.site-footer text must not be read as the page\'s smallest MEANINGFUL text')
+  assert.match(readabilityClassification.reasoning, /footer/i, 'the smaller footer text must still be mentioned as context')
+})
+
+skippableTest('end-to-end: the no-<main> fallback still excludes footer text, and still measures <nav> as meaningful content', async () => {
+  const { readabilityClassification } = await captureAndClassify('no-main-small-footer.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px <footer> text must not be read as the page\'s smallest MEANINGFUL text')
+})
+
+skippableTest('end-to-end: small navigation text outside any footer still triggers a readability finding — never dismissed as footer/utility', async () => {
+  const { readabilityClassification } = await captureAndClassify('small-nav-text.html')
+  assert.equal(readabilityClassification.outcome, 'improve', 'the 9px <nav> text is meaningful interface text, not footer/utility content')
 })
 
 skippableTest('end-to-end: a fixture with no visible text produces "unverified" for readability — honest uncertainty, not a fabricated pass', async () => {

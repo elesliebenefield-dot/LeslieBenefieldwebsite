@@ -677,12 +677,26 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
 
 // Scoped to what was actually checked, not the website as a whole — this
 // is a limited set of technical basics (see WHAT_WE_CHECK in
-// CheckPage.tsx), not a verdict on the site overall.
-function summaryFor(score: number): string {
-  if (score >= 85) return 'The technical basics checked look great, with just a few small things worth a look.'
-  if (score >= 65) return 'The technical basics checked look solid, with some room to improve.'
-  if (score >= 40) return 'The technical basics checked are working, but a few common issues could be affecting visitors.'
-  return 'The technical basics checked ran into some notable issues. A closer look would likely help.'
+// CheckPage.tsx), not a verdict on the site overall. `hasImproveFindings`
+// gates the "a few small things"/"room to improve" language — a
+// completed, fully-verified result with zero 'improve' findings must
+// not claim there's something worth a look when there genuinely isn't
+// one. `checksCompleted`/`checksTotal` add a qualification when not
+// everything could be verified, so a high score from a partial check
+// doesn't read as more complete than it was.
+export function summaryFor(score: number, hasImproveFindings: boolean, checksCompleted: number, checksTotal: number): string {
+  const incompleteNote = checksCompleted < checksTotal ? ' Not every check could be completed, so this reflects only what was verified.' : ''
+
+  if (score >= 85) {
+    const base = hasImproveFindings ? 'The technical basics checked look great, with just a few small things worth a look.' : 'The technical basics checked look great.'
+    return `${base}${incompleteNote}`
+  }
+  if (score >= 65) {
+    const base = hasImproveFindings ? 'The technical basics checked look solid, with some room to improve.' : 'The technical basics checked look solid.'
+    return `${base}${incompleteNote}`
+  }
+  if (score >= 40) return `The technical basics checked are working, but a few common issues could be affecting visitors.${incompleteNote}`
+  return `The technical basics checked ran into some notable issues. A closer look would likely help.${incompleteNote}`
 }
 
 // ─── Handler ─────────────────────────────────────────────────────
@@ -774,7 +788,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     input: normalized.toString(),
     finalUrl: fetchResult.finalUrl,
     score,
-    summary: summaryFor(score),
+    summary: summaryFor(score, findings.some((f) => f.bucket === 'improve'), checksCompleted, checksTotal),
     findings: findings.map(({ id, label, bucket, detail }): Finding => ({ id, label, bucket, detail })),
     checksCompleted,
     checksTotal,

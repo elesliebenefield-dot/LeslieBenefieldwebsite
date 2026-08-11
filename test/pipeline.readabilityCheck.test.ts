@@ -10,19 +10,19 @@ import { getReadabilityContract } from '../src/lib/pipeline/classify/contractReg
 import { presentReadabilityFindings } from '../src/lib/pipeline/present/findingsPresenter.ts'
 import { RAW_CAPTURE_ENVELOPE_SCHEMA_VERSION, type RawCapture } from '../src/lib/pipeline/types/rawCapture.ts'
 
-function makeCapture(minVisibleFontSizePx: number | null): RawCapture<'readability'> {
+function makeCapture(minVisibleFontSizePx: number | null, footerMinVisibleFontSizePx: number | null = null): RawCapture<'readability'> {
   return {
     envelopeSchemaVersion: RAW_CAPTURE_ENVELOPE_SCHEMA_VERSION,
     checkId: 'readability',
     payloadSchemaVersion: '1.0.0',
     provenance: { capturedAt: '2026-01-01T00:00:00.000Z', viewport: { name: 'mobile', width: 390, height: 844 }, finalUrl: 'https://fixture.invalid/' },
-    payload: { __brand: 'ReadabilityCapturePayload', minVisibleFontSizePx },
+    payload: { __brand: 'ReadabilityCapturePayload', minVisibleFontSizePx, footerMinVisibleFontSizePx },
     incompleteCoverage: {},
   }
 }
 
-function runReadability(minVisibleFontSizePx: number | null) {
-  const capture = makeCapture(minVisibleFontSizePx)
+function runReadability(minVisibleFontSizePx: number | null, footerMinVisibleFontSizePx: number | null = null) {
+  const capture = makeCapture(minVisibleFontSizePx, footerMinVisibleFontSizePx)
   const evidence = normalizeReadabilityEvidence(capture)
   const classification = classifyReadability({ evidence, contract: getReadabilityContract() })
   const findings = presentReadabilityFindings(classification)
@@ -117,4 +117,56 @@ test('display: a fractional measurement that rounds to a whole number shows no d
 test('classification threshold still uses the raw, unrounded measurement: 10.96px (which displays as "11px") is still "improve", not "good"', () => {
   const { classification } = runReadability(10.96)
   assert.equal(classification.outcome, 'improve', 'the unrounded value (10.96) is below the 11px clear-issue threshold, even though it displays rounded to "11px"')
+})
+
+// ─── Footer/utility context: never drives the outcome, only mentioned
+// when it's genuinely smaller than the meaningful content, phrased
+// conservatively when exceptionally tiny ────────────────────────────
+
+test('footer context: a smaller footer/utility measurement does not change a "good" outcome, and is mentioned in the reasoning', () => {
+  const { classification } = runReadability(14, 9.9)
+  assert.equal(classification.outcome, 'good', 'the meaningful minimum (14px) drives the outcome, not the smaller footer text')
+  assert.match(classification.reasoning, /14px/)
+  assert.match(classification.reasoning, /9\.9px/)
+  assert.match(classification.reasoning, /footer/i)
+})
+
+test('footer context: exceptionally tiny footer text (below the clear-issue threshold) is phrased as "worth a manual look", not a definite defect', () => {
+  const { classification } = runReadability(16, 8)
+  assert.equal(classification.outcome, 'good')
+  assert.match(classification.reasoning, /worth a manual look/i)
+})
+
+test('footer context: footer text that is small but not exceptionally tiny is mentioned plainly, without "worth a manual look"', () => {
+  const { classification } = runReadability(16, 12)
+  assert.equal(classification.outcome, 'good')
+  assert.match(classification.reasoning, /12px/)
+  assert.ok(!classification.reasoning.toLowerCase().includes('worth a manual look'))
+})
+
+test('footer context: footer text that is not smaller than the meaningful minimum is not mentioned at all', () => {
+  const { classification } = runReadability(12, 16)
+  assert.equal(classification.outcome, 'manual-review-advisory')
+  assert.ok(!classification.reasoning.toLowerCase().includes('footer'), 'footer text larger than the meaningful minimum is not noteworthy context')
+})
+
+test('footer context never turns an ordinary small footer measurement into "Likely opportunity" on its own — outcome tracks the meaningful minimum only', () => {
+  const { classification: comfortable } = runReadability(16, 9.9)
+  const { classification: tinyMeaningful } = runReadability(9, 9.9)
+  assert.equal(comfortable.outcome, 'good')
+  assert.equal(tinyMeaningful.outcome, 'improve', 'the SAME footer measurement (9.9px) must not itself be what drives "improve" — only the meaningful minimum does')
+})
+
+test('when NO meaningful text can be measured but footer/utility text exists, the result is a cautious "unverified" — not an unsupported "good" pass', () => {
+  const { classification, findings } = runReadability(null, 10)
+  assert.equal(classification.outcome, 'unverified')
+  assert.equal(findings[0].label, "Couldn't be checked")
+  assert.match(classification.reasoning, /10px/)
+  assert.match(classification.reasoning, /footer/i)
+})
+
+test('when NO text at all could be measured (no footer either), the original honest message is unchanged', () => {
+  const { classification } = runReadability(null, null)
+  assert.equal(classification.outcome, 'unverified')
+  assert.equal(classification.reasoning, 'No visible text could be measured on this page, so text-size readability could not be checked.')
 })

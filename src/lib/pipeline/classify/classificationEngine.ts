@@ -98,22 +98,41 @@ function formatPx(px: number): string {
   return Number.isInteger(rounded) ? `${rounded}px` : `${rounded.toFixed(1)}px`
 }
 
+/**
+ * Only ever appended, never used to derive `outcome` — footer/utility
+ * text is context, not a finding of its own. Only mentioned when it's
+ * actually smaller than the meaningful minimum (otherwise it isn't
+ * noteworthy). Exceptionally tiny footer text (below the same
+ * clear-issue line used for meaningful content) is still phrased
+ * cautiously — "worth a manual look" — never as a definite defect.
+ */
+function footerContextClause(footerMinVisibleFontSizePx: number | null, meaningfulMinVisibleFontSizePx: number): string {
+  if (footerMinVisibleFontSizePx === null || footerMinVisibleFontSizePx >= meaningfulMinVisibleFontSizePx) return ''
+  const formatted = formatPx(footerMinVisibleFontSizePx)
+  return footerMinVisibleFontSizePx < READABILITY_CLEAR_ISSUE_PX
+    ? ` Smaller ${formatted} utility text was also found in the footer — worth a manual look, though it wasn’t used to judge the page’s main readability.`
+    : ` Smaller ${formatted} utility text was found in the footer and wasn’t used to judge the page’s main readability.`
+}
+
 export function classifyReadability(input: ClassificationInput<'readability'>): ClassificationResult<'readability'> {
-  const { minVisibleFontSizePx } = input.evidence.evidence
+  const { minVisibleFontSizePx, footerMinVisibleFontSizePx } = input.evidence.evidence
   let outcome: ClassificationOutcome
   let reasoning: string
   if (minVisibleFontSizePx === null) {
     outcome = 'unverified'
-    reasoning = 'No visible text could be measured on this page, so text-size readability could not be checked.'
+    reasoning =
+      footerMinVisibleFontSizePx === null
+        ? 'No visible text could be measured on this page, so text-size readability could not be checked.'
+        : `No meaningful content text could be measured outside the page’s footer/utility content, so text-size readability could not be confidently checked. The smallest text found overall was ${formatPx(footerMinVisibleFontSizePx)}, in footer/utility content.`
   } else if (minVisibleFontSizePx < READABILITY_CLEAR_ISSUE_PX) {
     outcome = 'improve'
-    reasoning = `The smallest visible text found on the page is ${formatPx(minVisibleFontSizePx)}, which is hard to read on a phone.`
+    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)}, which is hard to read on a phone.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   } else if (minVisibleFontSizePx < READABILITY_BORDERLINE_PX) {
     outcome = 'manual-review-advisory'
-    reasoning = `The smallest visible text found on the page is ${formatPx(minVisibleFontSizePx)} — on the small side; worth a manual look.`
+    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)} — on the small side; worth a manual look.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   } else {
     outcome = 'good'
-    reasoning = `The smallest visible text found on the page is ${formatPx(minVisibleFontSizePx)}, a comfortable reading size.`
+    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)}, a comfortable reading size.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   }
   return {
     checkId: input.contract.id,
