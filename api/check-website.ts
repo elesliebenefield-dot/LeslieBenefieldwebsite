@@ -675,11 +675,14 @@ function buildReport(fetchResult: FetchResult, brokenLinks: number, linksChecked
   }
 }
 
+// Scoped to what was actually checked, not the website as a whole — this
+// is a limited set of technical basics (see WHAT_WE_CHECK in
+// CheckPage.tsx), not a verdict on the site overall.
 function summaryFor(score: number): string {
-  if (score >= 85) return 'Your website is in great shape overall, with just a few small things worth a look.'
-  if (score >= 65) return 'Your website is solid overall, with some room to improve.'
-  if (score >= 40) return 'Your website is working, but a few common issues could be affecting visitors.'
-  return 'We ran into some notable issues. A closer look would likely help.'
+  if (score >= 85) return 'The technical basics checked look great, with just a few small things worth a look.'
+  if (score >= 65) return 'The technical basics checked look solid, with some room to improve.'
+  if (score >= 40) return 'The technical basics checked are working, but a few common issues could be affecting visitors.'
+  return 'The technical basics checked ran into some notable issues. A closer look would likely help.'
 }
 
 // ─── Handler ─────────────────────────────────────────────────────

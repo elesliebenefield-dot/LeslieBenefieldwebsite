@@ -98,3 +98,23 @@ test('readability evidenceRefs is always empty — no audit trail is claimed for
   const { classification } = runReadability(9)
   assert.deepEqual(classification.evidenceRefs, [])
 })
+
+// ─── Release polish: displayed measurement is rounded, classification
+// still uses the raw value ────────────────────────────────────────────
+
+test('display: a fractional measurement is rounded to at most one decimal place — never a raw float like "10.6667px"', () => {
+  const { classification } = runReadability(10.666666666666666)
+  assert.match(classification.reasoning, /10\.7px/)
+  assert.ok(!classification.reasoning.includes('10.6666'), 'must not display the raw unrounded float')
+})
+
+test('display: a fractional measurement that rounds to a whole number shows no decimal point — "11px", not "11.0px"', () => {
+  const { classification } = runReadability(10.96)
+  assert.match(classification.reasoning, /\b11px\b/)
+  assert.ok(!classification.reasoning.includes('11.0px'))
+})
+
+test('classification threshold still uses the raw, unrounded measurement: 10.96px (which displays as "11px") is still "improve", not "good"', () => {
+  const { classification } = runReadability(10.96)
+  assert.equal(classification.outcome, 'improve', 'the unrounded value (10.96) is below the 11px clear-issue threshold, even though it displays rounded to "11px"')
+})

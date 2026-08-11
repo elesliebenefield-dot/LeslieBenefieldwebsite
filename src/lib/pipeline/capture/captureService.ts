@@ -93,30 +93,54 @@ interface RawMeasurements {
  * over Node scope). Walks visible, non-empty text nodes to find the
  * smallest rendered font size; `null` if none could be measured (an
  * honest "couldn't determine," not coerced to 0).
+ *
+ * Release-polish pass: intentionally small footer/utility text (a
+ * copyright line, a legal disclaimer) was being read as "the page's
+ * text is unreadably small," even when the actual content was a
+ * comfortable size — a false positive, not a real finding. When a
+ * `<main>` element is present, only text inside it is measured (that's
+ * the page's actual content, by definition). Without one, the whole
+ * body is measured but footer/navigation/script/style content is
+ * excluded — semantic tags and ARIA roles only (`footer`,
+ * `[role="contentinfo"]`, `nav`, `[role="navigation"]`), never a
+ * site-specific class name, which would be fragile and site-by-site.
  */
 function extractRawMeasurements(): RawMeasurements {
   const viewportWidthPx = window.innerWidth
   const documentScrollWidthPx = document.documentElement.scrollWidth
 
-  let minVisibleFontSizePx: number | null = null
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      return node.textContent && node.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
-    },
-  })
-  let node: Node | null
-  while ((node = walker.nextNode())) {
-    const el = (node as Text).parentElement
-    if (!el) continue
-    const style = window.getComputedStyle(el)
-    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) continue
-    const rect = el.getBoundingClientRect()
-    if (rect.width === 0 || rect.height === 0) continue
-    const fontSizePx = parseFloat(style.fontSize)
-    if (!Number.isNaN(fontSizePx) && (minVisibleFontSizePx === null || fontSizePx < minVisibleFontSizePx)) {
-      minVisibleFontSizePx = fontSizePx
-    }
+  const EXCLUDED_SELECTOR = 'footer, [role="contentinfo"], nav, [role="navigation"], script, style, noscript, template'
+
+  function isExcluded(el: Element): boolean {
+    return el.closest(EXCLUDED_SELECTOR) !== null
   }
+
+  function minVisibleFontSizeWithin(root: Element): number | null {
+    let min: number | null = null
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        return node.textContent && node.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+      },
+    })
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+      const el = (node as Text).parentElement
+      if (!el || isExcluded(el)) continue
+      const style = window.getComputedStyle(el)
+      if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) continue
+      const rect = el.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) continue
+      const fontSizePx = parseFloat(style.fontSize)
+      if (!Number.isNaN(fontSizePx) && (min === null || fontSizePx < min)) min = fontSizePx
+    }
+    return min
+  }
+
+  const main = document.querySelector('main')
+  // A <main> with no measurable text of its own (empty, or entirely
+  // excluded content) falls back to the whole body rather than reporting
+  // a false "nothing visible" — the exclusions above still apply either way.
+  const minVisibleFontSizePx = main ? (minVisibleFontSizeWithin(main) ?? minVisibleFontSizeWithin(document.body)) : minVisibleFontSizeWithin(document.body)
 
   return { viewportWidthPx, documentScrollWidthPx, minVisibleFontSizePx }
 }

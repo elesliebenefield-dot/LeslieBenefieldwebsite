@@ -128,13 +128,6 @@ export async function launchCaptureBrowser(options: CaptureBrowserOptions): Prom
     args,
     headless: options.headless ?? true,
     defaultViewport: null,
-    // Diagnostic only (crash-diagnostics patch): pipes Chromium's own
-    // stdout/stderr into this function's, so a crash's real reason
-    // (OOM, missing library, sandbox denial, ...) lands in the platform's
-    // runtime logs — instead of only Puppeteer's generic "Target closed"
-    // transport error, which names no cause. Nothing here is exposed to
-    // a caller or a visitor; it only affects server-side log output.
-    dumpio: true,
   })
 
   let disconnected = false

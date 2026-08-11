@@ -113,6 +113,20 @@ skippableTest('end-to-end: a borderline text-size fixture produces "manual-revie
   assert.equal(readabilityClassification.outcome, 'manual-review-advisory')
 })
 
+// ─── Release polish: readability measures the page's actual content,
+// not incidental small footer/navigation text — see
+// captureService.ts's extractRawMeasurements for the exclusion rules. ──
+
+skippableTest('end-to-end: small footer text does not trigger a readability finding when normal main content exists', async () => {
+  const { readabilityClassification } = await captureAndClassify('small-footer-text.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 9px footer text must not be read as the page\'s smallest visible text')
+})
+
+skippableTest('end-to-end: the no-<main> fallback still excludes footer/nav text — comfortable body content is measured instead', async () => {
+  const { readabilityClassification } = await captureAndClassify('no-main-small-footer-nav.html')
+  assert.equal(readabilityClassification.outcome, 'good', 'the 8-9px nav/footer text must not be read as the page\'s smallest visible text')
+})
+
 skippableTest('end-to-end: a fixture with no visible text produces "unverified" for readability — honest uncertainty, not a fabricated pass', async () => {
   const { readabilityClassification } = await captureAndClassify('no-visible-text.html')
   assert.equal(readabilityClassification.outcome, 'unverified')
