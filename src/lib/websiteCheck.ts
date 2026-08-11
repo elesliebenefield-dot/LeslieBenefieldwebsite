@@ -76,3 +76,33 @@ export function normalizeWebsiteUrl(raw: string): URL | null {
 
   return url
 }
+
+// Scoped to what was actually checked, not the website as a whole — this
+// is a limited set of technical basics (see WHAT_WE_CHECK in
+// CheckPage.tsx), not a verdict on the site overall. `hasImproveFindings`
+// gates the "a few small things"/"room to improve" language — a
+// completed, fully-verified result with zero 'improve' findings must
+// not claim there's something worth a look when there genuinely isn't
+// one. `checksCompleted`/`checksTotal` add a qualification when not
+// everything could be verified, so a high score from a partial check
+// doesn't read as more complete than it was.
+//
+// Shared here (not left in api/check-website.ts) so it's ONE calculation
+// both the initial static result AND a later contact/links rendered-DOM
+// fallback resolution (see src/lib/technicalFallbackMerge.ts) call —
+// never two slightly-different summary rules that could disagree about
+// the same final findings.
+export function summaryFor(score: number, hasImproveFindings: boolean, checksCompleted: number, checksTotal: number): string {
+  const incompleteNote = checksCompleted < checksTotal ? ' Not every check could be completed, so this reflects only what was verified.' : ''
+
+  if (score >= 85) {
+    const base = hasImproveFindings ? 'The technical basics checked look great, with just a few small things worth a look.' : 'The technical basics checked look great.'
+    return `${base}${incompleteNote}`
+  }
+  if (score >= 65) {
+    const base = hasImproveFindings ? 'The technical basics checked look solid, with some room to improve.' : 'The technical basics checked look solid.'
+    return `${base}${incompleteNote}`
+  }
+  if (score >= 40) return `The technical basics checked are working, but a few common issues could be affecting visitors.${incompleteNote}`
+  return `The technical basics checked ran into some notable issues. A closer look would likely help.${incompleteNote}`
+}

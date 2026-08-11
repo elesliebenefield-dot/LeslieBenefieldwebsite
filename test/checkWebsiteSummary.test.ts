@@ -4,10 +4,14 @@
 // improve" language is now gated on whether any 'improve' finding
 // actually exists, and a qualification is added when not every check
 // could be completed.
+//
+// summaryFor now lives in src/lib/websiteCheck.ts (shared with the
+// client-side rendered-fallback merge — see technicalFallbackMerge.test.ts),
+// not api/check-website.ts.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { summaryFor } from '../api/check-website.ts'
+import { summaryFor } from '../src/lib/websiteCheck.ts'
 
 test('a perfect, fully-verified score with no improve findings does not claim there are "small things worth a look"', () => {
   const summary = summaryFor(100, false, 7, 7)
