@@ -1875,8 +1875,7 @@ section[id] {
   line-height: 1.6;
 }
 
-.checkup-score-table,
-.checkup-score-bands {
+.checkup-score-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 0.9rem;
@@ -1884,26 +1883,13 @@ section[id] {
 }
 
 .checkup-score-table th,
-.checkup-score-table td,
-.checkup-score-bands th,
-.checkup-score-bands td {
+.checkup-score-table td {
   text-align: left;
   padding: 0.4rem 0.6rem;
   border-bottom: 1px solid var(--color-border);
 }
 
-.checkup-score-bands tr[aria-current='true'] {
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.checkup-score-formula {
-  margin-top: 0.9rem;
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-
+.checkup-score-thresholds-note,
 .checkup-score-visual-note {
   margin-top: 0.9rem;
   font-family: var(--font-body);

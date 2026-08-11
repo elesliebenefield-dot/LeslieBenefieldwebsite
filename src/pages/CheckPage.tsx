@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'rea
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
-import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, SCORE_BANDS, scoreBandFor, checkStatusLabel, TITLE_MIN_LENGTH, META_DESCRIPTION_MIN_LENGTH } from '../lib/websiteCheck'
+import { normalizeWebsiteUrl, CHECK_WEIGHTS, CHECK_LABELS, CHECK_ORDER, scoreBandFor, checkStatusLabel } from '../lib/websiteCheck'
 import type { CheckResponse, CheckSuccess, CheckScored, Finding, FindingBucket } from '../lib/websiteCheck'
 import type { RebuildCheckResponse, RebuildCheckSuccess } from '../lib/visualCheck'
 import { REBUILD_CHECK_LABEL } from '../lib/visualCheck'
@@ -51,35 +51,31 @@ const SCOPE_NOTICE =
 // ../lib/emailBody.ts, extracted so it's directly testable without a
 // browser/JSX environment — see test/emailBody.test.ts.
 
-// Score-explanation release: reads the same SCORE_BANDS the disclosure
-// below renders, instead of its own separately-hardcoded thresholds —
-// see ../lib/websiteCheck.ts.
+// Score-explanation release: reads the same score-band thresholds
+// websiteCheck.ts's scoreBandFor uses, instead of its own separately-
+// hardcoded ones.
 function scoreLabel(score: number): string {
   return scoreBandFor(score).label
-}
-
-/** Upper bound (inclusive) of each score band, derived from the NEXT
- *  (lower) band's threshold — never a separately hand-typed number.
- *  SCORE_BANDS is ordered highest-threshold-first. */
-function scoreBandRangeLabel(index: number): string {
-  const band = SCORE_BANDS[index]
-  const upperBound = index === 0 ? null : SCORE_BANDS[index - 1].minScore - 1
-  return upperBound === null ? `${band.minScore}–100` : `${band.minScore}–${upperBound}`
 }
 
 /**
  * Accessible "How this score is calculated" disclosure — a native
  * <details>/<summary> (keyboard- and screen-reader-operable with no
  * extra JS). Renders entirely from `result`: CHECK_WEIGHTS/CHECK_LABELS/
- * CHECK_ORDER/SCORE_BANDS (the single scoring source of truth, shared
- * with api/check-website.ts) plus whatever `result.findings`/
- * `result.rawScore`/`result.possiblePoints`/`result.score` actually
- * are right now — never a second, hand-reconstructed calculation. This
- * is why it stays correct after a contact/links fallback merge updates
+ * CHECK_ORDER (the single scoring source of truth, shared with
+ * api/check-website.ts) plus whatever `result.findings` actually is
+ * right now — never a second, hand-reconstructed calculation. This is
+ * why it stays correct after a contact/links fallback merge updates
  * `result`: the same props, already updated, are all this reads.
+ *
+ * Simplification release: the weights, thresholds, score bands, point
+ * states, denominator rules, and detection logic behind this table are
+ * all UNCHANGED — only the surrounding explanatory text was cut down.
+ * The equation and the score-ranges table were dropped as redundant
+ * with what the table and the score row already show; see git history
+ * for the fuller version this replaced.
  */
 function ScoreExplanation({ result }: { result: CheckScored }) {
-  const currentBandIndex = SCORE_BANDS.findIndex((band) => result.score >= band.minScore)
   const responseTimeFinding = result.findings.find((f) => f.id === 'response-time')
 
   return (
@@ -96,12 +92,8 @@ function ScoreExplanation({ result }: { result: CheckScored }) {
         <summary>How this score is calculated</summary>
 
         <p className="checkup-score-rationale">
-          These weights are this checkup’s own prioritization — not an industry standard or a benchmark validated
-          against real outcomes. They reflect how essential each item is to a basic, working, secure site, and how
-          confidently this automated check can actually establish it. The {TITLE_MIN_LENGTH}-character (title) and{' '}
-          {META_DESCRIPTION_MIN_LENGTH}-character (meta description) cutoffs below are this tool’s own coarse
-          thresholds for “probably long enough to be useful,” not universal requirements or a guarantee of quality —
-          a page can clear the threshold and still read poorly, or fall short and still be fine.
+          This score is based on seven automated technical checks, weighted by their importance within this limited
+          checkup. Checks that can’t be verified are left out rather than counted as failures.
         </p>
 
         <table className="checkup-score-table">
@@ -132,35 +124,12 @@ function ScoreExplanation({ result }: { result: CheckScored }) {
           </tbody>
         </table>
 
-        <p className="checkup-score-formula">
-          Score = round((points earned ÷ possible points) × 100) = round(({result.rawScore} ÷ {result.possiblePoints}) × 100) ={' '}
-          {result.score}.
+        <p className="checkup-score-thresholds-note">
+          Title and meta-description checks use basic length thresholds. Meeting a threshold does not guarantee
+          quality.
         </p>
 
-        <table className="checkup-score-bands">
-          <caption>Score ranges</caption>
-          <thead>
-            <tr>
-              <th scope="col">Range</th>
-              <th scope="col">Label</th>
-            </tr>
-          </thead>
-          <tbody>
-            {SCORE_BANDS.map((band, index) => (
-              <tr key={band.label} aria-current={index === currentBandIndex ? 'true' : undefined}>
-                <th scope="row">{scoreBandRangeLabel(index)}</th>
-                <td>
-                  {band.label}
-                  {index === currentBandIndex ? ' (this result)' : ''}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <p className="checkup-score-visual-note">
-          The separate Visual &amp; Usability Review below is not included in this score.
-        </p>
+        <p className="checkup-score-visual-note">The separate Visual &amp; Usability Review is not included in this score.</p>
       </details>
     </div>
   )

@@ -200,15 +200,30 @@ test('fully completed 100/100 result: disclosure shows all 7 checks at full cred
     const rowLabels = await page.$$eval('.checkup-score-table tbody th', (els) => els.map((e) => e.textContent))
     assert.deepEqual(rowLabels, ['Homepage availability', 'HTTPS / secure connection', 'Mobile setup', 'Page title', 'Meta description', 'Contact information', 'Homepage links'], 'exactly the 7 counted checks, in order — response-time must not appear as a row')
 
-    const formulaText = await page.$eval('.checkup-score-formula', (el) => el.textContent || '')
-    assert.match(formulaText, /100 ÷ 100/)
+    const pointCells = await page.$$eval('.checkup-score-table tbody td:last-child', (els) => els.map((e) => (e.textContent || '').trim()))
+    assert.deepEqual(pointCells, ['30 / 30', '25 / 25', '15 / 15', '10 / 10', '10 / 10', '5 / 5', '5 / 5'], 'the points table itself must still be accurate after the surrounding text was simplified')
 
-    const currentBandText = await page.$eval("tr[aria-current='true']", (el) => el.textContent || '')
-    assert.match(currentBandText, /Looking strong/)
+    // Simplification release: the equation and the score-ranges table
+    // are gone — only the points table, a short intro, a thresholds
+    // note, and the visual-review note remain.
+    assert.equal(await page.$('.checkup-score-formula'), null, 'the equation must no longer render')
+    assert.equal(await page.$('.checkup-score-bands'), null, 'the score-ranges table must no longer render')
+    assert.equal(await page.$("tr[aria-current='true']"), null, 'no score-band row remains to be marked current')
+
+    const rationaleText = await page.$eval('.checkup-score-rationale', (el) => el.textContent || '')
+    assert.equal(
+      rationaleText,
+      'This score is based on seven automated technical checks, weighted by their importance within this limited checkup. Checks that can’t be verified are left out rather than counted as failures.'
+    )
+
+    const thresholdsNoteText = await page.$eval('.checkup-score-thresholds-note', (el) => el.textContent || '')
+    assert.equal(thresholdsNoteText, 'Title and meta-description checks use basic length thresholds. Meeting a threshold does not guarantee quality.')
+
+    const visualNoteText = await page.$eval('.checkup-score-visual-note', (el) => el.textContent || '')
+    assert.equal(visualNoteText, 'The separate Visual & Usability Review is not included in this score.')
 
     const scoreExplanationText = await page.$eval('.checkup-score-explanation', (el) => el.textContent || '')
     assert.ok(!scoreExplanationText.includes('VISUAL-OVERFLOW-full') && !scoreExplanationText.includes('VISUAL-READABILITY-full'), 'visual findings must never appear inside the Technical Basics score explanation')
-    assert.match(scoreExplanationText, /not included in this score/)
   } finally {
     await page.close()
   }
