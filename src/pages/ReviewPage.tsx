@@ -1,57 +1,15 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
+import { LESLIE_EMAIL, EMAIL_PATTERN, buildMailtoHref, buildFallbackText, openMailClient, type ReviewFormValues } from '../lib/reviewMailto'
 
-const LESLIE_EMAIL = 'websitesbyleslie01@gmail.com'
-
-// Deliberately light: this only needs to catch obviously-malformed input
-// (no @, no dot) well enough that Leslie can actually reply — it's never
-// used to fetch or connect to anything, just relayed as plain text in an
-// email body, so it doesn't need the stricter shape-validation a
-// server-side network request would.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-interface FormValues {
-  name: string
-  businessName: string
-  websiteAddress: string
-  email: string
-  message: string
-}
+type FormValues = ReviewFormValues
 
 interface FieldErrors {
   name?: string
   websiteAddress?: string
   email?: string
-}
-
-function buildMailtoHref(values: FormValues): string {
-  const lines: string[] = []
-  lines.push(`Name: ${values.name.trim()}`)
-  if (values.businessName.trim()) lines.push(`Business name: ${values.businessName.trim()}`)
-  lines.push(`Website address: ${values.websiteAddress.trim()}`)
-  lines.push(`Reply email: ${values.email.trim()}`)
-  lines.push('')
-  lines.push("What they'd like help with:")
-  lines.push(values.message.trim() || 'Not specified')
-
-  const subject = `Free Website Review Request — ${values.businessName.trim() || values.websiteAddress.trim()}`
-  const body = lines.join('\n')
-  return `mailto:${LESLIE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-}
-
-function buildFallbackText(values: FormValues): string {
-  const lines: string[] = []
-  lines.push(`To: ${LESLIE_EMAIL}`)
-  lines.push(`Name: ${values.name.trim()}`)
-  if (values.businessName.trim()) lines.push(`Business name: ${values.businessName.trim()}`)
-  lines.push(`Website address: ${values.websiteAddress.trim()}`)
-  lines.push(`Reply email: ${values.email.trim()}`)
-  lines.push('')
-  lines.push("What they'd like help with:")
-  lines.push(values.message.trim() || 'Not specified')
-  return lines.join('\n')
 }
 
 export default function ReviewPage() {
@@ -65,13 +23,40 @@ export default function ReviewPage() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitted, setSubmitted] = useState(false)
   const [copied, setCopied] = useState(false)
+  // Increments only on a failed submit attempt — deliberately NOT the same
+  // as "errors changed," since errors also changes (shrinks) whenever the
+  // visitor fixes one field while others still have errors, which must
+  // NOT steal focus back to the summary while they're actively typing.
+  const [failedSubmitCount, setFailedSubmitCount] = useState(0)
   const errorSummaryRef = useRef<HTMLDivElement>(null)
   const confirmationRef = useRef<HTMLDivElement>(null)
+
+  // useEffect (not requestAnimationFrame in the submit handler) so this
+  // always runs after React has actually committed the DOM node the ref
+  // points at — an rAF scheduled inside the same event handler that
+  // triggers the state update can race React's commit and fire before the
+  // element exists, intermittently leaving focus un-moved.
+  useEffect(() => {
+    if (failedSubmitCount > 0) errorSummaryRef.current?.focus()
+  }, [failedSubmitCount])
+
+  useEffect(() => {
+    if (submitted) confirmationRef.current?.focus()
+  }, [submitted])
 
   function updateField<K extends keyof FormValues>(field: K, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }))
     if (errors[field as keyof FieldErrors]) {
-      setErrors((prev) => ({ ...prev, [field]: undefined }))
+      setErrors((prev) => {
+        // Delete the key entirely — leaving it present but set to
+        // `undefined` would keep it in Object.keys(errors), which drives
+        // both hasErrors (the summary banner never disappearing) and the
+        // focus-management effect (repeatedly stealing focus back to the
+        // summary on every subsequent keystroke).
+        const next = { ...prev }
+        delete next[field as keyof FieldErrors]
+        return next
+      })
     }
   }
 
@@ -93,13 +78,12 @@ export default function ReviewPage() {
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       setSubmitted(false)
-      requestAnimationFrame(() => errorSummaryRef.current?.focus())
+      setFailedSubmitCount((n) => n + 1)
       return
     }
     setErrors({})
-    window.location.href = buildMailtoHref(values)
+    openMailClient(buildMailtoHref(values))
     setSubmitted(true)
-    requestAnimationFrame(() => confirmationRef.current?.focus())
   }
 
   async function handleCopy() {

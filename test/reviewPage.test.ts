@@ -5,15 +5,23 @@
 // client opens — matching the site's only other established lead-capture
 // pattern (Contact.tsx's "Email Me" button). These tests verify:
 //   - required vs. optional fields, and inline/summary error states
-//   - the always-visible copyable fallback (name/business/website/email/
-//     message) that appears alongside the honest, non-overclaiming
-//     confirmation message after a valid submission — this is what
-//     actually survives navigating to an unhandled mailto: link in a
-//     headless/sandboxed browser with no mail client configured, so it's
-//     the correct thing to assert against rather than trying to intercept
-//     the OS-level mailto handoff itself
+//   - the confirmation UI and its copyable fallback block, after a valid
+//     submission
 //   - accessibility: focus moves to the error summary or confirmation,
 //     aria-invalid/aria-describedby wiring
+//
+// IMPORTANT: a real mailto: navigation, even inside headless Chrome, still
+// gets dispatched to the OS's registered mail handler — confirmed: it
+// opened a real compose window on the developer's own machine during
+// preview verification, independent of the browser's own sandboxing.
+// Every test below that reaches a valid submission installs
+// installMailtoInterceptor() BEFORE navigating, which defines
+// window.__reviewPageTestOpenMailClient — see src/lib/reviewMailto.ts's
+// openMailClient(), which checks for that hook and calls it instead of
+// actually navigating. Real visitors never define this hook, so their
+// behavior (clicking the button opens their configured email app) is
+// completely unaffected. Content correctness (recipient/subject/body) has
+// its own dedicated, browser-free test file: test/reviewMailto.test.ts.
 //
 // Runs against the real production build (dist/, always rebuilt fresh) in
 // a real browser via Puppeteer. No live network access.
@@ -27,6 +35,22 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
+import { parseMailtoHref, LESLIE_EMAIL } from '../src/lib/reviewMailto.ts'
+
+/** Must be called before page.goto() — installs the interception hook
+ *  before the app's own bundle (and therefore openMailClient) loads. */
+async function installMailtoInterceptor(page: Page): Promise<void> {
+  await page.evaluateOnNewDocument(() => {
+    ;(window as unknown as { __interceptedMailtoHrefs: string[] }).__interceptedMailtoHrefs = []
+    window.__reviewPageTestOpenMailClient = (href: string) => {
+      ;(window as unknown as { __interceptedMailtoHrefs: string[] }).__interceptedMailtoHrefs.push(href)
+    }
+  })
+}
+
+async function interceptedHrefs(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __interceptedMailtoHrefs: string[] }).__interceptedMailtoHrefs)
+}
 
 const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const ROOT = path.resolve(import.meta.dirname, '..')
@@ -136,6 +160,38 @@ test('submitting with all required fields empty shows the error summary and all 
   }
 })
 
+test('fixing one field after a failed submit clears only that field\'s error, shrinks the summary count, and does not steal focus back from the field being typed in', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+    await page.click('.review-submit')
+    await page.waitForSelector('.review-error-summary')
+    assert.match(await page.$eval('.review-error-summary', (el) => el.textContent!), /fields/)
+
+    await page.focus('#review-name')
+    await page.type('#review-name', 'Alex Chen')
+
+    // The name field's own error must be gone...
+    assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'false')
+    assert.ok(!(await page.$('#review-name-error')))
+    // ...the other two errors must still be present (never over-cleared)...
+    assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
+    assert.equal(await page.$eval('#review-email', (el) => el.getAttribute('aria-invalid')), 'true')
+    // ...the summary must now say "field" (singular is wrong here — 2 remain)...
+    assert.match(await page.$eval('.review-error-summary', (el) => el.textContent!), /fields/)
+    // ...and focus must still be in the name input, not stolen back to the summary.
+    const activeId = await page.evaluate(() => document.activeElement?.id)
+    assert.equal(activeId, 'review-name')
+
+    // Now fix the remaining two and confirm the summary disappears entirely.
+    await page.type('#review-url', 'alexchen.example.com')
+    await page.type('#review-email', 'alex@example.com')
+    assert.ok(!(await page.$('.review-error-summary')), 'the summary banner must be gone once every field is valid')
+  } finally {
+    await page.close()
+  }
+})
+
 test('an obviously malformed email is rejected with a specific message, independent of the other required fields', async () => {
   const page: Page = await browser.newPage()
   try {
@@ -157,6 +213,7 @@ test('an obviously malformed email is rejected with a specific message, independ
 test('business name and the help-with message are genuinely optional: a valid submission without them succeeds', async () => {
   const page: Page = await browser.newPage()
   try {
+    await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
     await fillField(page, 'review-name', 'Priya Nair')
     await fillField(page, 'review-url', 'nairconsulting.com')
@@ -170,6 +227,12 @@ test('business name and the help-with message are genuinely optional: a valid su
     assert.match(fallbackText, /Reply email: priya@nairconsulting\.com/)
     assert.match(fallbackText, /Not specified/)
     assert.ok(!/Business name:/.test(fallbackText), 'must not print a Business name line when none was given')
+
+    // The real navigation was intercepted (see installMailtoInterceptor) —
+    // confirm exactly one attempt occurred, targeting the right recipient.
+    const hrefs = await interceptedHrefs(page)
+    assert.equal(hrefs.length, 1)
+    assert.equal(parseMailtoHref(hrefs[0]).recipient, LESLIE_EMAIL)
   } finally {
     await page.close()
   }
@@ -178,6 +241,7 @@ test('business name and the help-with message are genuinely optional: a valid su
 test('a fully filled-out valid submission shows the honest confirmation message and a fallback block with every field', async () => {
   const page: Page = await browser.newPage()
   try {
+    await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
     await fillField(page, 'review-name', 'Tomás García')
     await fillField(page, 'review-business', "García's Auto Repair")
@@ -210,6 +274,19 @@ test('a fully filled-out valid submission shows the honest confirmation message 
     // Focus should move to the confirmation for screen-reader users.
     const activeClass = await page.evaluate(() => document.activeElement?.className)
     assert.equal(activeClass, 'review-confirmation')
+
+    // Confirm the component actually attempted to open exactly the right
+    // mailto: content (recipient/subject/body) — intercepted, never a real
+    // navigation. See test/reviewMailto.test.ts for exhaustive content
+    // coverage; this just proves the component wires real form values into
+    // it correctly end-to-end.
+    const hrefs = await interceptedHrefs(page)
+    assert.equal(hrefs.length, 1)
+    const parsed = parseMailtoHref(hrefs[0])
+    assert.equal(parsed.recipient, LESLIE_EMAIL)
+    assert.equal(parsed.subject, "Free Website Review Request — García's Auto Repair")
+    assert.match(parsed.body, /Name: Tomás García/)
+    assert.match(parsed.body, /Not sure my site works well on phones\./)
   } finally {
     await page.close()
   }
@@ -225,6 +302,7 @@ test('the copy button attempts to copy the fallback text and never crashes the p
   const pageErrors: string[] = []
   page.on('pageerror', (err) => pageErrors.push(String(err)))
   try {
+    await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
     await fillField(page, 'review-name', 'Dana Okafor')
     await fillField(page, 'review-url', 'okaforstudio.com')
@@ -246,6 +324,7 @@ test('the copy button attempts to copy the fallback text and never crashes the p
 test('"Start over" returns to a blank form', async () => {
   const page: Page = await browser.newPage()
   try {
+    await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
     await fillField(page, 'review-name', 'Sam Lee')
     await fillField(page, 'review-url', 'samleedesign.com')
