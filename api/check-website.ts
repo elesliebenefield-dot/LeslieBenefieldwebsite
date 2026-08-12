@@ -3,7 +3,7 @@
 // Nothing submitted here is stored — the result is computed and returned
 // in a single request/response cycle.
 
-import { normalizeWebsiteUrl, summaryFor, unscoredSummaryFor, CHECK_WEIGHTS, TITLE_MIN_LENGTH, META_DESCRIPTION_MIN_LENGTH } from '../src/lib/websiteCheck.js'
+import { normalizeWebsiteUrl, hasExplicitProtocol, summaryFor, unscoredSummaryFor, CHECK_WEIGHTS, TITLE_MIN_LENGTH, META_DESCRIPTION_MIN_LENGTH } from '../src/lib/websiteCheck.js'
 import type { Finding, CheckResponse } from '../src/lib/websiteCheck.js'
 import {
   assertSafeUrl,
@@ -35,6 +35,20 @@ interface FetchResult {
   redirected: boolean
 }
 
+/** Thrown ONLY when no HTTP response was ever received for a hop —
+ *  connection refused, TLS handshake/negotiation failure, DNS failure,
+ *  or a timeout before any response arrived. Every OTHER safeFetchHtml
+ *  failure (an unsafe redirect target, a malformed/missing redirect
+ *  destination, too many redirects) happens only AFTER a real response
+ *  (the redirect itself) was already received, and stays a plain Error.
+ *  This distinction is what makes the HTTPS→HTTP fallback in
+ *  handleCheckWebsite both safe and general: it can only ever trigger
+ *  when HTTPS never got a response at all — never merely because of a
+ *  real status code (404/500 never throws in the first place) and never
+ *  because of a redirect-handling problem on an HTTPS connection that
+ *  DID succeed. */
+class PreResponseNetworkError extends Error {}
+
 /** Follows redirects manually so every hop can be safety-checked before being followed.
  *  `deps`/`timeoutMs` are test-only (see ContactLinksDeps) — production
  *  never supplies them; the real safety boundary and the real 8s timeout
@@ -62,9 +76,9 @@ async function safeFetchHtml(startUrl: URL, deps: ContactLinksDeps = {}, timeout
     } catch (err) {
       clearTimeout(timer)
       if ((err as Error).name === 'AbortError') {
-        throw new Error('The website took too long to respond.')
+        throw new PreResponseNetworkError('The website took too long to respond.')
       }
-      throw new Error('The website couldn’t be reached.')
+      throw new PreResponseNetworkError('The website couldn’t be reached.')
     }
     clearTimeout(timer)
 
@@ -234,7 +248,15 @@ type BuildReportResult =
   // unrenormalized number that would overstate how much was checked.
   | { status: 'unscored'; findings: Finding[]; checksCompleted: number; checksTotal: number }
 
-function httpsFinding(usedHttps: boolean, redirected: boolean): Finding {
+/** `httpsConnectionFailed` is set only by the HTTPS→HTTP fallback path in
+ *  handleCheckWebsite: HTTPS wasn't merely unused or unenforced, it was
+ *  actively tried and failed to connect at all — stronger, more specific
+ *  evidence than the ordinary "doesn't appear to use HTTPS" case (e.g. a
+ *  site the user pointed at plain http:// directly, or one whose HTTPS
+ *  simply isn't the default). Wording reflects that difference; nothing
+ *  else about scoring changes — this is still 0/25, 'improve', same as
+ *  before. */
+function httpsFinding(usedHttps: boolean, redirected: boolean, httpsConnectionFailed: boolean = false): Finding {
   if (usedHttps) {
     return {
       id: 'https',
@@ -246,6 +268,16 @@ function httpsFinding(usedHttps: boolean, redirected: boolean): Finding {
       points: CHECK_WEIGHTS.https,
     }
   }
+  if (httpsConnectionFailed) {
+    return {
+      id: 'https',
+      label: 'HTTPS / secure connection',
+      bucket: 'improve',
+      detail:
+        'A secure (HTTPS) connection to your website could not be made, so this check used a plain HTTP connection instead. Your visitors’ connections aren’t encrypted right now. Moving to HTTPS — most hosting providers offer free SSL certificates — is strongly recommended.',
+      points: 0,
+    }
+  }
   return {
     id: 'https',
     label: 'HTTPS / secure connection',
@@ -255,7 +287,7 @@ function httpsFinding(usedHttps: boolean, redirected: boolean): Finding {
   }
 }
 
-function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null): BuildReportResult {
+function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null, httpsConnectionFailed: boolean = false): BuildReportResult {
   const { html, elapsedMs, usedHttps, status } = fetchResult
   const available = status >= 200 && status < 400
 
@@ -276,7 +308,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
         detail: `Your homepage responded with a status of ${status} instead of a normal success status. This usually means the page couldn’t be found or the server encountered an error — worth checking with your host, or confirming the address is correct.`,
         points: 0,
       },
-      httpsFinding(usedHttps, fetchResult.redirected),
+      httpsFinding(usedHttps, fetchResult.redirected, httpsConnectionFailed),
     ]
     return { status: 'unscored', findings, checksCompleted: 2, checksTotal: SCORED_CHECK_COUNT }
   }
@@ -317,7 +349,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
   }
 
   // HTTPS (25 pts)
-  const https = httpsFinding(usedHttps, fetchResult.redirected)
+  const https = httpsFinding(usedHttps, fetchResult.redirected, httpsConnectionFailed)
   if (usedHttps) score += CHECK_WEIGHTS.https
   findings.push(https)
 
@@ -567,13 +599,49 @@ export async function handleCheckWebsite(req: VercelRequest, res: VercelResponse
   // never confirmed evidence the website is broken — only that this
   // attempt didn't succeed. safeFetchHtml's own thrown messages are
   // already safe to show verbatim (no internals/stack traces).
+  //
+  // Protocol-fallback release: when the user never chose a protocol
+  // themselves (normalizeWebsiteUrl defaulted to https) and HTTPS fails
+  // with a PreResponseNetworkError specifically — a connection, TLS, or
+  // protocol-negotiation failure, never a real status code and never a
+  // redirect-handling problem on a connection that DID succeed — the
+  // exact same validated hostname is retried once over plain HTTP,
+  // through the identical safety boundary (assertSafeUrl + safeFetchHtml's
+  // own per-hop re-validation). A site with no working HTTPS at all
+  // (like the scarservices.com case this fixes) previously came back as
+  // a flat "couldn't be reached," even though it was reachable — just
+  // not securely. An explicit http:// or https:// the user typed
+  // themselves is never second-guessed here.
   let fetchResult: FetchResult
+  let httpsConnectionFailed = false
   try {
     fetchResult = await safeFetchHtml(normalized, deps, timeoutMs)
   } catch (err) {
-    const reason = ((err as Error).message || 'An unknown error occurred.').replace(/\.*$/, '.')
-    res.status(200).json(checkerUnavailableResponse(normalized.toString(), normalized.toString(), reason))
-    return
+    const canRetryOverHttp = err instanceof PreResponseNetworkError && normalized.protocol === 'https:' && !hasExplicitProtocol(rawUrl)
+    if (!canRetryOverHttp) {
+      const reason = ((err as Error).message || 'An unknown error occurred.').replace(/\.*$/, '.')
+      res.status(200).json(checkerUnavailableResponse(normalized.toString(), normalized.toString(), reason))
+      return
+    }
+
+    const httpUrl = new URL(normalized.toString())
+    httpUrl.protocol = 'http:'
+    try {
+      await assertSafeUrl(httpUrl, deps)
+      fetchResult = await safeFetchHtml(httpUrl, deps, timeoutMs)
+      httpsConnectionFailed = true
+    } catch {
+      // Neither protocol worked — an honest unverified/no-score result,
+      // same shape as any other total failure.
+      res.status(200).json(
+        checkerUnavailableResponse(
+          normalized.toString(),
+          normalized.toString(),
+          'The website couldn’t be reached over a secure (HTTPS) or a plain (HTTP) connection.'
+        )
+      )
+      return
+    }
   }
 
   // Post-fetch failure: an unexpected exception in evaluateHomepageLinks
@@ -590,7 +658,7 @@ export async function handleCheckWebsite(req: VercelRequest, res: VercelResponse
       linksEval = await evaluateHomepageLinks(fetchResult.html, fetchResult.finalUrl, deps)
     }
 
-    const report = buildReport(fetchResult, linksEval)
+    const report = buildReport(fetchResult, linksEval, httpsConnectionFailed)
 
     const response: CheckResponse =
       report.status === 'scored'
