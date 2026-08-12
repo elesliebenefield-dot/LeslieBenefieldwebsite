@@ -116,6 +116,18 @@ const technicalByMarker = new Map<string, unknown>([
 // reachable URL, not the original input.
 const visualCheckCalledWith: string[] = []
 
+// Records the exact raw `url` field the client sent to /api/check-website
+// for each submission — this is the direct proof the client sends the
+// user's UNNORMALIZED input, not a client-pre-normalized (already
+// protocol-qualified) string. A real, live-preview-discovered bug: the
+// client used to send the pre-normalized URL (e.g. "https://example.com/"
+// even when the visitor typed a bare "example.com"), which made the
+// server's hasExplicitProtocol(rawUrl) check always see an explicit
+// protocol — permanently disabling the HTTPS→HTTP fallback for every
+// real visitor, even though it worked correctly in every test that
+// called the server directly with a genuinely bare hostname.
+const technicalRequestUrls: string[] = []
+
 function markerFor(url: string): string {
   const match = /marker-([a-z]+)/i.exec(url)
   return match ? match[1].toLowerCase() : 'unknown'
@@ -136,6 +148,7 @@ before(async () => {
     if (req.method === 'POST' && req.url === '/api/check-website') {
       const body = await readBody(req)
       const { url } = JSON.parse(body)
+      technicalRequestUrls.push(url)
       const marker = markerFor(url)
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify(technicalByMarker.get(marker)))
@@ -221,6 +234,33 @@ test('a successful HTTPS→HTTP fallback: the Visual & Usability Review receives
     assert.equal(httpsRow?.[3], '0 / 25')
     const availabilityRow = rows.find((r) => r[0] === 'Homepage availability')
     assert.equal(availabilityRow?.[2], 'Passed')
+  } finally {
+    await page.close()
+  }
+})
+
+// Live-preview-discovered regression: the client used to send
+// normalizeWebsiteUrl(inputValue).toString() as the request body's `url`
+// field — the client-side PRE-NORMALIZED string, already protocol-
+// qualified — instead of the visitor's own raw input. That made the
+// server's hasExplicitProtocol(rawUrl) check see an explicit protocol on
+// EVERY real submission, even a bare "example.com," permanently
+// disabling the HTTPS→HTTP fallback for real visitors while every
+// server-level test (which calls the handler directly with a genuinely
+// bare hostname) kept passing. This test submits a bare hostname through
+// the real page and inspects the exact HTTP request body the browser
+// actually sent — the only way to catch this class of bug, since a
+// canned mock response (as used above) never reveals what request body
+// produced it.
+test('a bare hostname (no protocol typed) is sent to the server exactly as typed — never pre-normalized to an explicit https:// URL', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    const before = technicalRequestUrls.length
+    await submitAndWaitForResults(page, 'fallback')
+    const sent = technicalRequestUrls.slice(before)
+    assert.equal(sent.length, 1, 'exactly one request to /api/check-website for this submission')
+    assert.equal(sent[0], 'marker-fallback.example', 'the server must receive the visitor’s raw input verbatim, not a client-pre-normalized https://-qualified string')
+    assert.equal(sent[0].startsWith('http'), false, 'a bare hostname must never arrive at the server already looking like it had an explicit protocol')
   } finally {
     await page.close()
   }

@@ -515,7 +515,18 @@ export default function CheckPage() {
       const res = await fetch('/api/check-website', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url: normalized.toString() }),
+        // Protocol-fallback release: sends the user's RAW input, not the
+        // client-side normalized URL. The server re-normalizes this
+        // itself (normalizeWebsiteUrl(rawUrl)) — nothing about server-
+        // side behavior for a valid address changes. What matters is
+        // hasExplicitProtocol(rawUrl): sending the already-normalized
+        // string here would make every bare hostname LOOK like it had
+        // an explicit https:// the user never typed, permanently
+        // disabling the HTTPS→HTTP fallback for every real visitor
+        // (verified live against the deployed preview — this was a
+        // real bug, not a hypothetical). `normalized` above is used
+        // only for this submit's own pre-flight validity check.
+        body: JSON.stringify({ url: inputValue.trim() }),
       })
       if (requestId !== requestIdRef.current) return // superseded by a newer submission
 
