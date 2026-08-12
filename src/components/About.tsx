@@ -16,17 +16,39 @@ export default function About() {
             <p className="section-label">About</p>
             <h2 className="section-title">Hi, I'm Leslie.</h2>
             <p>
-              I'm an independent local developer who builds websites for small
-              businesses, creators, and service providers. I got into web
-              development because I enjoy helping people — and I saw how many
-              small business owners were struggling to get online.
+              I didn't come to web design through a typical agency path — and
+              I think that's part of what makes my approach different.
             </p>
             <p>
-              Before learning web and app development, I spent nearly 30 years
-              working with people, customers, teams, and businesses in the real
-              world. That experience shapes how I approach every project today —
-              with clear communication and a focus on what actually matters for
-              your business.
+              Before starting Websites by Leslie, I spent more than a decade
+              in private security and loss-prevention leadership, along with
+              years in customer service, hospitality, logistics, and retail.
+              Those experiences taught me how quickly people decide whether
+              they trust a business, and how much clear communication and a
+              professional first impression matter.
+            </p>
+            <p>
+              I started learning website design because I wanted to build
+              something of my own. What began with a little guidance from a
+              friend became a skill set I kept developing — and a business
+              built to help other small-business owners feel more confident
+              online.
+            </p>
+            <p>
+              Today, I work directly with small businesses, service
+              providers, nonprofits, creators, and women-owned businesses
+              that need a website for the first time or a better version of
+              the one they have. My goal is to help your business look
+              credible, easy to understand, and ready for the customers you
+              want to reach.
+            </p>
+            <p>
+              I'm especially glad to work with veterans, nonprofits,
+              women-owned businesses, and people building something
+              meaningful in their communities. And because small businesses
+              do not always have agency-sized budgets, I'm open to discussing
+              practical options — including bartering services when it makes
+              sense for both of us.
             </p>
           </div>
           <div className="about-card" data-reveal data-reveal-delay="2">

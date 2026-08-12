@@ -3,15 +3,16 @@ export default function Hero() {
     <section id="hero" className="hero">
       <div className="hero-inner hero-inner--centered">
         <div className="hero-text">
-          <p className="hero-eyebrow">Independent Web Designer</p>
+          <p className="hero-eyebrow">A Website That Feels Like You</p>
           <h1 className="hero-headline">
-            Good websites don't have to come from a big agency.
+            A thoughtful online home for your business.
           </h1>
           <p className="hero-copy">
-            I design and build every site personally — working directly with
-            you from first conversation to launch. Simple process, no jargon,
-            no hand-offs. Just careful work for small businesses that want a
-            website they're actually proud of.
+            I make professional websites for small businesses, service
+            providers, nonprofits, creators, and women-owned businesses —
+            without the agency maze, tech-speak, or mystery. Just one real
+            person, good communication, and a website you'll feel proud to
+            share.
           </p>
           <div className="hero-ctas">
             <a
@@ -23,7 +24,7 @@ export default function Hero() {
               Get a Free Quote
             </a>
             <a href="#work" className="btn btn-outline">
-              See My Work
+              Explore My Work
             </a>
           </div>
         </div>
