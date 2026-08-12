@@ -4,11 +4,16 @@
 // client-side, and "delivery" is a mailto: link the visitor's own email
 // client opens — matching the site's only other established lead-capture
 // pattern (Contact.tsx's "Email Me" button). These tests verify:
-//   - required vs. optional fields, and inline/summary error states
+//   - required vs. optional fields (name, website address, phone number,
+//     preferred contact method are required; business name and the
+//     help-with message are optional), and inline/summary error states
 //   - the confirmation UI and its copyable fallback block, after a valid
 //     submission
 //   - accessibility: focus moves to the error summary or confirmation,
-//     aria-invalid/aria-describedby wiring
+//     aria-invalid/aria-describedby wiring, the contact-method fieldset
+//     is a real fieldset/legend/radiogroup
+//   - there is no email-address field anywhere on this page — it was
+//     replaced by phone number + preferred first contact method
 //
 // IMPORTANT: a real mailto: navigation, even inside headless Chrome, still
 // gets dispatched to the OS's registered mail handler — confirmed: it
@@ -104,7 +109,25 @@ async function fillField(page: Page, id: string, value: string) {
   await page.type(`#${id}`, value)
 }
 
-test('the page renders the specified copy, all five fields, and the submit button', async () => {
+async function chooseContactMethod(page: Page, method: 'Phone call' | 'Text message' | 'Email') {
+  await page.click(`.review-radio-option input[value="${method}"]`)
+}
+
+/** Fills every required field with valid data, defaulting the optional
+ *  ones and the contact method unless overridden. */
+async function fillValidForm(
+  page: Page,
+  overrides: Partial<{ name: string; business: string; url: string; phone: string; method: 'Phone call' | 'Text message' | 'Email'; message: string }> = {}
+) {
+  await fillField(page, 'review-name', overrides.name ?? 'Jamie Rivera')
+  if (overrides.business) await fillField(page, 'review-business', overrides.business)
+  await fillField(page, 'review-url', overrides.url ?? 'jamiesbakery.com')
+  await fillField(page, 'review-phone', overrides.phone ?? '555-123-4567')
+  await chooseContactMethod(page, overrides.method ?? 'Text message')
+  if (overrides.message) await fillField(page, 'review-message', overrides.message)
+}
+
+test('the page renders the specified copy, all fields (no email field), and the submit button', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -117,9 +140,11 @@ test('the page renders the specified copy, all five fields, and the submit butto
     assert.match(bodyText, /I'll let you know whether your website may be a good fit for my services/)
     assert.match(bodyText, /No pressure, and no automatic score or promise that every issue can be fixed/)
 
-    for (const id of ['review-name', 'review-business', 'review-url', 'review-email', 'review-message']) {
+    for (const id of ['review-name', 'review-business', 'review-url', 'review-phone', 'review-message']) {
       assert.ok(await page.$(`#${id}`), `expected field #${id} to exist`)
     }
+    assert.ok(!(await page.$('#review-email')), 'the email field must be gone entirely')
+    assert.ok(!/email address/i.test(bodyText), 'no visible reference to collecting an email address should remain')
 
     const buttonText = await page.$eval('.review-submit', (el) => el.textContent)
     assert.equal(buttonText, 'Open My Email to Request a Free Review')
@@ -131,7 +156,37 @@ test('the page renders the specified copy, all five fields, and the submit butto
   }
 })
 
-test('submitting with all required fields empty shows the error summary and all three inline errors, without opening anything', async () => {
+test('the preferred-contact question is a real, accessible fieldset/legend with three radio options and the required follow-up note', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+
+    const legendText = await page.$eval('.review-fieldset legend', (el) => el.textContent)
+    assert.equal(legendText, 'How would you prefer I contact you first?')
+
+    const tagName = await page.$eval('.review-fieldset', (el) => el.tagName)
+    assert.equal(tagName, 'FIELDSET')
+
+    const options = await page.$$eval('.review-radio-option input[type="radio"]', (els) =>
+      els.map((el) => (el as HTMLInputElement).value)
+    )
+    assert.deepEqual(options, ['Phone call', 'Text message', 'Email'])
+
+    // All three share one name so only one can be selected at a time.
+    const names = await page.$$eval('.review-radio-option input[type="radio"]', (els) => Array.from(new Set(els.map((el) => (el as HTMLInputElement).name))))
+    assert.equal(names.length, 1)
+
+    const noteText = await page.$eval('.review-contact-note', (el) => el.textContent)
+    assert.equal(
+      noteText,
+      "I'll use your preferred contact method to follow up. Before we begin planning a website project, we'll schedule a short phone call to talk through the details."
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('submitting with all required fields empty shows the error summary and all four inline errors, without opening anything', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -142,11 +197,13 @@ test('submitting with all required fields empty shows the error summary and all 
 
     assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'true')
     assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.equal(await page.$eval('#review-email', (el) => el.getAttribute('aria-invalid')), 'true')
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+    assert.equal(await page.$eval('.review-fieldset', (el) => el.getAttribute('aria-invalid')), 'true')
 
     assert.match(await page.$eval('#review-name-error', (el) => el.textContent!), /Please enter your name/)
     assert.match(await page.$eval('#review-url-error', (el) => el.textContent!), /Please enter your website address/)
-    assert.match(await page.$eval('#review-email-error', (el) => el.textContent!), /Please enter your email address/)
+    assert.match(await page.$eval('#review-phone-error', (el) => el.textContent!), /Please enter your phone number/)
+    assert.match(await page.$eval('#review-contact-method-error', (el) => el.textContent!), /Please choose how you would prefer to be contacted/)
 
     // Focus should move to the error summary so screen-reader users hear it.
     const activeId = await page.evaluate(() => document.activeElement?.className)
@@ -160,7 +217,7 @@ test('submitting with all required fields empty shows the error summary and all 
   }
 })
 
-test('fixing one field after a failed submit clears only that field\'s error, shrinks the summary count, and does not steal focus back from the field being typed in', async () => {
+test('choosing a contact method after a failed submit clears that error independently of the other three', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -168,43 +225,42 @@ test('fixing one field after a failed submit clears only that field\'s error, sh
     await page.waitForSelector('.review-error-summary')
     assert.match(await page.$eval('.review-error-summary', (el) => el.textContent!), /fields/)
 
-    await page.focus('#review-name')
-    await page.type('#review-name', 'Alex Chen')
+    await chooseContactMethod(page, 'Phone call')
 
-    // The name field's own error must be gone...
-    assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'false')
-    assert.ok(!(await page.$('#review-name-error')))
-    // ...the other two errors must still be present (never over-cleared)...
+    assert.equal(await page.$eval('.review-fieldset', (el) => el.getAttribute('aria-invalid')), 'false')
+    assert.ok(!(await page.$('#review-contact-method-error')))
+    // The other three required fields are still empty and must still be flagged.
+    assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'true')
     assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.equal(await page.$eval('#review-email', (el) => el.getAttribute('aria-invalid')), 'true')
-    // ...the summary must now say "field" (singular is wrong here — 2 remain)...
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
     assert.match(await page.$eval('.review-error-summary', (el) => el.textContent!), /fields/)
-    // ...and focus must still be in the name input, not stolen back to the summary.
-    const activeId = await page.evaluate(() => document.activeElement?.id)
-    assert.equal(activeId, 'review-name')
-
-    // Now fix the remaining two and confirm the summary disappears entirely.
-    await page.type('#review-url', 'alexchen.example.com')
-    await page.type('#review-email', 'alex@example.com')
-    assert.ok(!(await page.$('.review-error-summary')), 'the summary banner must be gone once every field is valid')
   } finally {
     await page.close()
   }
 })
 
-test('an obviously malformed email is rejected with a specific message, independent of the other required fields', async () => {
+test('fixing one text field after a failed submit clears only that field\'s error and does not steal focus back from the field being typed in', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
-    await fillField(page, 'review-name', 'Jamie Rivera')
-    await fillField(page, 'review-url', 'jamies-bakery.com')
-    await fillField(page, 'review-email', 'not-an-email')
     await page.click('.review-submit')
+    await page.waitForSelector('.review-error-summary')
 
-    assert.equal(await page.$eval('#review-email', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.match(await page.$eval('#review-email-error', (el) => el.textContent!), /doesn't look like a valid email address/)
+    await page.focus('#review-name')
+    await page.type('#review-name', 'Alex Chen')
+
     assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'false')
-    assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'false')
+    assert.ok(!(await page.$('#review-name-error')))
+    assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+    const activeId = await page.evaluate(() => document.activeElement?.id)
+    assert.equal(activeId, 'review-name')
+
+    // Now fix the rest and confirm the summary disappears entirely.
+    await page.type('#review-url', 'alexchen.example.com')
+    await page.type('#review-phone', '555-000-1111')
+    await chooseContactMethod(page, 'Email')
+    assert.ok(!(await page.$('.review-error-summary')), 'the summary banner must be gone once every field is valid')
   } finally {
     await page.close()
   }
@@ -215,21 +271,19 @@ test('business name and the help-with message are genuinely optional: a valid su
   try {
     await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
-    await fillField(page, 'review-name', 'Priya Nair')
-    await fillField(page, 'review-url', 'nairconsulting.com')
-    await fillField(page, 'review-email', 'priya@nairconsulting.com')
+    await fillValidForm(page, { name: 'Priya Nair', url: 'nairconsulting.com', phone: '555-222-3333', method: 'Phone call' })
     await page.click('.review-submit')
     await page.waitForSelector('.review-confirmation', { timeout: 5000 })
 
     const fallbackText = await page.$eval('.review-fallback-text', (el) => el.textContent || '')
     assert.match(fallbackText, /Name: Priya Nair/)
     assert.match(fallbackText, /Website address: nairconsulting\.com/)
-    assert.match(fallbackText, /Reply email: priya@nairconsulting\.com/)
+    assert.match(fallbackText, /Phone number: 555-222-3333/)
+    assert.match(fallbackText, /Preferred first contact method: Phone call/)
     assert.match(fallbackText, /Not specified/)
     assert.ok(!/Business name:/.test(fallbackText), 'must not print a Business name line when none was given')
+    assert.ok(!/reply email/i.test(fallbackText))
 
-    // The real navigation was intercepted (see installMailtoInterceptor) —
-    // confirm exactly one attempt occurred, targeting the right recipient.
     const hrefs = await interceptedHrefs(page)
     assert.equal(hrefs.length, 1)
     assert.equal(parseMailtoHref(hrefs[0]).recipient, LESLIE_EMAIL)
@@ -238,16 +292,19 @@ test('business name and the help-with message are genuinely optional: a valid su
   }
 })
 
-test('a fully filled-out valid submission shows the honest confirmation message and a fallback block with every field', async () => {
+test('a fully filled-out valid submission shows the honest confirmation message and a fallback block with every field, and never mentions email collection', async () => {
   const page: Page = await browser.newPage()
   try {
     await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
-    await fillField(page, 'review-name', 'Tomás García')
-    await fillField(page, 'review-business', "García's Auto Repair")
-    await fillField(page, 'review-url', 'garciasautorepair.com')
-    await fillField(page, 'review-email', 'tomas@garciasautorepair.com')
-    await fillField(page, 'review-message', 'Not sure my site works well on phones.')
+    await fillValidForm(page, {
+      name: 'Tomás García',
+      business: "García's Auto Repair",
+      url: 'garciasautorepair.com',
+      phone: '555-444-5555',
+      method: 'Text message',
+      message: 'Not sure my site works well on phones.',
+    })
     await page.click('.review-submit')
     await page.waitForSelector('.review-confirmation', { timeout: 5000 })
 
@@ -264,29 +321,27 @@ test('a fully filled-out valid submission shows the honest confirmation message 
     assert.match(fallbackText, /Name: Tomás García/)
     assert.match(fallbackText, /Business name: García's Auto Repair/)
     assert.match(fallbackText, /Website address: garciasautorepair\.com/)
-    assert.match(fallbackText, /Reply email: tomas@garciasautorepair\.com/)
+    assert.match(fallbackText, /Phone number: 555-444-5555/)
+    assert.match(fallbackText, /Preferred first contact method: Text message/)
     assert.match(fallbackText, /Not sure my site works well on phones\./)
+    assert.ok(!/reply email/i.test(fallbackText))
 
-    // Page must still be on /check — a mailto: href assignment must never
-    // navigate the visitor away from the confirmation they need to see.
+    // Page must still be on /check — the intercepted mailto: attempt must
+    // never navigate the visitor away from the confirmation they need to see.
     assert.ok(page.url().includes('/check.html'))
 
-    // Focus should move to the confirmation for screen-reader users.
     const activeClass = await page.evaluate(() => document.activeElement?.className)
     assert.equal(activeClass, 'review-confirmation')
 
-    // Confirm the component actually attempted to open exactly the right
-    // mailto: content (recipient/subject/body) — intercepted, never a real
-    // navigation. See test/reviewMailto.test.ts for exhaustive content
-    // coverage; this just proves the component wires real form values into
-    // it correctly end-to-end.
     const hrefs = await interceptedHrefs(page)
     assert.equal(hrefs.length, 1)
     const parsed = parseMailtoHref(hrefs[0])
     assert.equal(parsed.recipient, LESLIE_EMAIL)
     assert.equal(parsed.subject, "Free Website Review Request — García's Auto Repair")
     assert.match(parsed.body, /Name: Tomás García/)
-    assert.match(parsed.body, /Not sure my site works well on phones\./)
+    assert.match(parsed.body, /Phone number: 555-444-5555/)
+    assert.match(parsed.body, /Preferred first contact method: Text message/)
+    assert.ok(!/reply email/i.test(parsed.body))
   } finally {
     await page.close()
   }
@@ -304,9 +359,7 @@ test('the copy button attempts to copy the fallback text and never crashes the p
   try {
     await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
-    await fillField(page, 'review-name', 'Dana Okafor')
-    await fillField(page, 'review-url', 'okaforstudio.com')
-    await fillField(page, 'review-email', 'dana@okaforstudio.com')
+    await fillValidForm(page, { name: 'Dana Okafor', url: 'okaforstudio.com', phone: '555-666-7777' })
     await page.click('.review-submit')
     await page.waitForSelector('.review-confirmation', { timeout: 5000 })
 
@@ -321,14 +374,12 @@ test('the copy button attempts to copy the fallback text and never crashes the p
   }
 })
 
-test('"Request another review" is styled as a primary button (not outline) and returns to a blank form', async () => {
+test('"Request another review" is styled as a primary button (not outline) and returns to a blank form, including the radio selection', async () => {
   const page: Page = await browser.newPage()
   try {
     await installMailtoInterceptor(page)
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
-    await fillField(page, 'review-name', 'Sam Lee')
-    await fillField(page, 'review-url', 'samleedesign.com')
-    await fillField(page, 'review-email', 'sam@samleedesign.com')
+    await fillValidForm(page, { name: 'Sam Lee', url: 'samleedesign.com', phone: '555-888-9999' })
     await page.click('.review-submit')
     await page.waitForSelector('.review-confirmation', { timeout: 5000 })
 
@@ -359,6 +410,9 @@ test('"Request another review" is styled as a primary button (not outline) and r
     await page.click('.review-start-over')
     await page.waitForSelector('.review-form', { timeout: 5000 })
     assert.equal(await page.$eval('#review-name', (el) => (el as HTMLInputElement).value), '')
+    assert.equal(await page.$eval('#review-phone', (el) => (el as HTMLInputElement).value), '')
+    const anyChecked = await page.$$eval('.review-radio-option input[type="radio"]', (els) => els.some((el) => (el as HTMLInputElement).checked))
+    assert.equal(anyChecked, false, 'the contact-method selection must also reset')
   } finally {
     await page.close()
   }

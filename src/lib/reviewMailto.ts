@@ -11,18 +11,15 @@
 
 export const LESLIE_EMAIL = 'websitesbyleslie01@gmail.com'
 
-// Deliberately light: this only needs to catch obviously-malformed input
-// (no @, no dot) well enough that Leslie can actually reply — it's never
-// used to fetch or connect to anything, just relayed as plain text in an
-// email body, so it doesn't need the stricter shape-validation a
-// server-side network request would.
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const CONTACT_METHODS = ['Phone call', 'Text message', 'Email'] as const
+export type ContactMethod = (typeof CONTACT_METHODS)[number]
 
 export interface ReviewFormValues {
   name: string
   businessName: string
   websiteAddress: string
-  email: string
+  phone: string
+  contactMethod: ContactMethod | ''
   message: string
 }
 
@@ -31,7 +28,8 @@ function bodyLines(values: ReviewFormValues): string[] {
   lines.push(`Name: ${values.name.trim()}`)
   if (values.businessName.trim()) lines.push(`Business name: ${values.businessName.trim()}`)
   lines.push(`Website address: ${values.websiteAddress.trim()}`)
-  lines.push(`Reply email: ${values.email.trim()}`)
+  lines.push(`Phone number: ${values.phone.trim()}`)
+  lines.push(`Preferred first contact method: ${values.contactMethod || 'Not specified'}`)
   lines.push('')
   lines.push("What they'd like help with:")
   lines.push(values.message.trim() || 'Not specified')

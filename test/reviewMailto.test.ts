@@ -11,14 +11,15 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildMailtoHref, buildFallbackText, parseMailtoHref, LESLIE_EMAIL, EMAIL_PATTERN, type ReviewFormValues } from '../src/lib/reviewMailto.ts'
+import { buildMailtoHref, buildFallbackText, parseMailtoHref, LESLIE_EMAIL, CONTACT_METHODS, type ReviewFormValues } from '../src/lib/reviewMailto.ts'
 
 function values(overrides: Partial<ReviewFormValues> = {}): ReviewFormValues {
   return {
     name: 'Jamie Rivera',
     businessName: "Jamie's Bakery",
     websiteAddress: 'jamiesbakery.com',
-    email: 'jamie@jamiesbakery.com',
+    phone: '555-123-4567',
+    contactMethod: 'Text message',
     message: 'Not sure my site looks good on phones.',
     ...overrides,
   }
@@ -40,7 +41,7 @@ test('subject falls back to the website address when no business name is given',
   assert.equal(subject, 'Free Website Review Request — jamiesbakery.com')
 })
 
-test('body includes name, website address, reply email, and the message, each on its own labeled line', () => {
+test('body includes name, website address, phone number, preferred contact method, and the message, each on its own labeled line', () => {
   const { body } = parseMailtoHref(buildMailtoHref(values()))
   assert.equal(
     body,
@@ -48,12 +49,19 @@ test('body includes name, website address, reply email, and the message, each on
       'Name: Jamie Rivera',
       "Business name: Jamie's Bakery",
       'Website address: jamiesbakery.com',
-      'Reply email: jamie@jamiesbakery.com',
+      'Phone number: 555-123-4567',
+      'Preferred first contact method: Text message',
       '',
       "What they'd like help with:",
       'Not sure my site looks good on phones.',
     ].join('\n')
   )
+})
+
+test('body never includes a reply-email line — the email field was removed entirely', () => {
+  const { body } = parseMailtoHref(buildMailtoHref(values()))
+  assert.ok(!/reply email/i.test(body))
+  assert.ok(!/email address/i.test(body))
 })
 
 test('body omits the business-name line entirely when none was supplied, rather than printing it empty', () => {
@@ -66,21 +74,26 @@ test('body says "Not specified" when no message was supplied, rather than leavin
   assert.match(body, /What they'd like help with:\nNot specified$/)
 })
 
-test('leading/trailing whitespace in every field is trimmed before it reaches the subject or body', () => {
+test('body says "Not specified" for preferred contact method if somehow empty (defensive — the form requires a choice)', () => {
+  const { body } = parseMailtoHref(buildMailtoHref(values({ contactMethod: '' })))
+  assert.match(body, /^Preferred first contact method: Not specified$/m)
+})
+
+test('leading/trailing whitespace in every text field is trimmed before it reaches the subject or body', () => {
   const { subject, body } = parseMailtoHref(
     buildMailtoHref(
       values({
         name: '  Jamie Rivera  ',
         businessName: "  Jamie's Bakery  ",
         websiteAddress: '  jamiesbakery.com  ',
-        email: '  jamie@jamiesbakery.com  ',
+        phone: '  555-123-4567  ',
         message: '  Not sure my site looks good on phones.  ',
       })
     )
   )
   assert.equal(subject, "Free Website Review Request — Jamie's Bakery")
   assert.match(body, /^Name: Jamie Rivera$/m)
-  assert.match(body, /^Reply email: jamie@jamiesbakery\.com$/m)
+  assert.match(body, /^Phone number: 555-123-4567$/m)
   assert.match(body, /^Not sure my site looks good on phones\.$/m)
 })
 
@@ -104,22 +117,26 @@ test('the mailto href itself is well-formed: scheme, recipient, and both query p
   assert.match(href, /[?&]body=/)
 })
 
-test('the visible copyable fallback text carries the same fields as the mailto body, plus an explicit "To:" line', () => {
+test('the visible copyable fallback text carries the same fields as the mailto body, plus an explicit "To:" line, and never a reply-email line', () => {
   const v = values()
   const fallback = buildFallbackText(v)
   assert.match(fallback, new RegExp(`^To: ${LESLIE_EMAIL}$`, 'm'))
   assert.match(fallback, /^Name: Jamie Rivera$/m)
   assert.match(fallback, /^Business name: Jamie's Bakery$/m)
   assert.match(fallback, /^Website address: jamiesbakery\.com$/m)
-  assert.match(fallback, /^Reply email: jamie@jamiesbakery\.com$/m)
+  assert.match(fallback, /^Phone number: 555-123-4567$/m)
+  assert.match(fallback, /^Preferred first contact method: Text message$/m)
   assert.match(fallback, /Not sure my site looks good on phones\.$/m)
+  assert.ok(!/reply email/i.test(fallback))
 })
 
-test('EMAIL_PATTERN accepts ordinary addresses and rejects obviously malformed input', () => {
-  assert.ok(EMAIL_PATTERN.test('jamie@jamiesbakery.com'))
-  assert.ok(EMAIL_PATTERN.test('j.rivera+review@example.co.uk'))
-  assert.ok(!EMAIL_PATTERN.test('not-an-email'))
-  assert.ok(!EMAIL_PATTERN.test('missing-domain@'))
-  assert.ok(!EMAIL_PATTERN.test('@missing-local.com'))
-  assert.ok(!EMAIL_PATTERN.test('no-at-sign.com'))
+test('CONTACT_METHODS is exactly the three required options, in order', () => {
+  assert.deepEqual(CONTACT_METHODS, ['Phone call', 'Text message', 'Email'])
+})
+
+test('each contact method round-trips correctly through the mailto body', () => {
+  for (const method of CONTACT_METHODS) {
+    const { body } = parseMailtoHref(buildMailtoHref(values({ contactMethod: method })))
+    assert.match(body, new RegExp(`^Preferred first contact method: ${method}$`, 'm'))
+  }
 })

@@ -2,24 +2,28 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
-import { LESLIE_EMAIL, EMAIL_PATTERN, buildMailtoHref, buildFallbackText, openMailClient, type ReviewFormValues } from '../lib/reviewMailto'
+import { LESLIE_EMAIL, CONTACT_METHODS, buildMailtoHref, buildFallbackText, openMailClient, type ReviewFormValues } from '../lib/reviewMailto'
 
 type FormValues = ReviewFormValues
+
+const BLANK_VALUES: FormValues = {
+  name: '',
+  businessName: '',
+  websiteAddress: '',
+  phone: '',
+  contactMethod: '',
+  message: '',
+}
 
 interface FieldErrors {
   name?: string
   websiteAddress?: string
-  email?: string
+  phone?: string
+  contactMethod?: string
 }
 
 export default function ReviewPage() {
-  const [values, setValues] = useState<FormValues>({
-    name: '',
-    businessName: '',
-    websiteAddress: '',
-    email: '',
-    message: '',
-  })
+  const [values, setValues] = useState<FormValues>(BLANK_VALUES)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [submitted, setSubmitted] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -44,7 +48,7 @@ export default function ReviewPage() {
     if (submitted) confirmationRef.current?.focus()
   }, [submitted])
 
-  function updateField<K extends keyof FormValues>(field: K, value: string) {
+  function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [field]: value }))
     if (errors[field as keyof FieldErrors]) {
       setErrors((prev) => {
@@ -64,11 +68,8 @@ export default function ReviewPage() {
     const next: FieldErrors = {}
     if (!values.name.trim()) next.name = 'Please enter your name.'
     if (!values.websiteAddress.trim()) next.websiteAddress = 'Please enter your website address.'
-    if (!values.email.trim()) {
-      next.email = 'Please enter your email address.'
-    } else if (!EMAIL_PATTERN.test(values.email.trim())) {
-      next.email = "That doesn't look like a valid email address."
-    }
+    if (!values.phone.trim()) next.phone = 'Please enter your phone number.'
+    if (!values.contactMethod) next.contactMethod = 'Please choose how you would prefer to be contacted.'
     return next
   }
 
@@ -189,25 +190,58 @@ export default function ReviewPage() {
                   </p>
                 )}
 
-                <label htmlFor="review-email" className="review-label">
-                  Email address
+                <label htmlFor="review-phone" className="review-label">
+                  Phone number
                 </label>
                 <input
-                  id="review-email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={values.email}
-                  onChange={(e) => updateField('email', e.target.value)}
+                  id="review-phone"
+                  name="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={values.phone}
+                  onChange={(e) => updateField('phone', e.target.value)}
                   className="review-input"
-                  aria-invalid={errors.email ? 'true' : 'false'}
-                  aria-describedby={errors.email ? 'review-email-error' : undefined}
+                  aria-invalid={errors.phone ? 'true' : 'false'}
+                  aria-describedby={errors.phone ? 'review-phone-error' : undefined}
                 />
-                {errors.email && (
-                  <p id="review-email-error" className="review-inline-error" role="alert">
-                    {errors.email}
+                {errors.phone && (
+                  <p id="review-phone-error" className="review-inline-error" role="alert">
+                    {errors.phone}
                   </p>
                 )}
+
+                <fieldset
+                  className="review-fieldset"
+                  aria-invalid={errors.contactMethod ? 'true' : 'false'}
+                  aria-describedby={errors.contactMethod ? 'review-contact-method-error' : undefined}
+                >
+                  <legend className="review-label review-legend">How would you prefer I contact you first?</legend>
+                  <div className="review-radio-group">
+                    {CONTACT_METHODS.map((method) => (
+                      <label key={method} className="review-radio-option">
+                        <input
+                          type="radio"
+                          name="contactMethod"
+                          value={method}
+                          checked={values.contactMethod === method}
+                          onChange={() => updateField('contactMethod', method)}
+                        />
+                        {method}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                {errors.contactMethod && (
+                  <p id="review-contact-method-error" className="review-inline-error" role="alert">
+                    {errors.contactMethod}
+                  </p>
+                )}
+
+                <p className="review-contact-note">
+                  I'll use your preferred contact method to follow up. Before we begin planning a website project,
+                  we'll schedule a short phone call to talk through the details.
+                </p>
 
                 <label htmlFor="review-message" className="review-label">
                   What would you like help with? <span className="review-optional">(optional)</span>
@@ -252,7 +286,7 @@ export default function ReviewPage() {
                   type="button"
                   className="btn btn-primary review-start-over"
                   onClick={() => {
-                    setValues({ name: '', businessName: '', websiteAddress: '', email: '', message: '' })
+                    setValues(BLANK_VALUES)
                     setErrors({})
                     setCopied(false)
                     setSubmitted(false)
