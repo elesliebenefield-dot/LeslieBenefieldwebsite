@@ -1,6 +1,20 @@
+import { useRef } from 'react'
+import { useHeroParallax } from '../hooks/useHeroParallax'
+
+const DOT_COUNT = 10
+
 export default function Hero() {
+  const sectionRef = useRef<HTMLElement>(null)
+  const dotsRef = useRef<HTMLDivElement>(null)
+  useHeroParallax(sectionRef, dotsRef)
+
   return (
-    <section id="hero" className="hero">
+    <section id="hero" className="hero" ref={sectionRef}>
+      <div className="hero-dots" aria-hidden="true" ref={dotsRef}>
+        {Array.from({ length: DOT_COUNT }, (_, i) => (
+          <span key={i} className={`hero-dot hero-dot--${i + 1}`} />
+        ))}
+      </div>
       <div className="hero-inner hero-inner--centered">
         <div className="hero-text">
           <p className="hero-eyebrow">Hi, I'm Leslie.</p>

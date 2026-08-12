@@ -46,7 +46,17 @@ export default function Process() {
               data-reveal="soft"
               data-reveal-delay={i + 1}
             >
-              <div className="process-number">{s.number}</div>
+              <div className="process-marker">
+                <span className="process-number">{s.number}</span>
+                {/* Purely decorative — grows in once this card's own reveal
+                    fires (see .process-step.revealed .process-connector in
+                    index.css). Not a literal line connecting every card
+                    (the grid reflows between 1 and 2 columns, which a
+                    page-spanning line can't follow cleanly) — each card's
+                    own connector "drawing in" as you scroll to it is what
+                    reads as a progression across the five steps. */}
+                <span className="process-connector" aria-hidden="true" />
+              </div>
               {/* h2, not h3: each .process-step card reveals independently of
                   the "My Process" h2 above (separate data-reveal wrapper), so
                   a step title can be visible while that h2 isn't — with h3 that
