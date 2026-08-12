@@ -13,8 +13,6 @@
     "test": "node --experimental-strip-types --import ./test-support/register-ts-sibling-loader.mjs --test"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^149.0.0",
-    "axe-core": "4.13.0",
     "puppeteer-core": "^25.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

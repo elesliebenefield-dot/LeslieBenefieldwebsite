@@ -1,8 +1,9 @@
 // Verifies scrollThroughPageAndSettle actually waits for the page's scroll
 // position to settle back at the top before resolving, on a page that uses
-// `scroll-behavior: smooth` — the exact condition that previously caused the
-// checker's overlap/clipping detection to fire on content that was only ever
-// mid-animation, never actually obstructed.
+// `scroll-behavior: smooth` — the exact condition that could otherwise let a
+// Puppeteer-based page measurement (see site.headingStructure.test.ts) read
+// a transient, mid-animation layout instead of the page's actual resting
+// state.
 //
 // Run with: node --test test/scrollSettle.test.ts
 

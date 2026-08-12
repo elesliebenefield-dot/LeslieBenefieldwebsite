@@ -1,7 +1,7 @@
 // Regression test for the reported mobile heading-structure skip on the
 // homepage: each .process-step card reveals independently of the "My
-// Process" section heading (separate data-reveal wrappers), so at the
-// checker's exact production settle timing, a process-step title could be
+// Process" section heading (separate data-reveal wrappers), so at a
+// realistic reveal-animation settle time, a process-step title could be
 // visible while its parent heading wasn't — producing an h1 -> h3 skip in
 // the visible heading sequence on mobile only. Fixed by retagging the
 // step titles from h3 to h2 (src/components/Process.tsx) — same level as
@@ -10,9 +10,11 @@
 // is styled purely by class, not tag, so this is a structural-only change.
 //
 // Runs against the real production build (dist/, always rebuilt fresh) in a
-// real browser via Puppeteer, using the exact same viewport dimensions and
-// settle delays as api/check-visual.ts, so this reproduces what the checker
-// itself would measure. No live network access.
+// real browser via Puppeteer. No live network access. The heading-collection
+// logic below is a small, purpose-built inline helper (not shared with any
+// other module) — it only needs to answer "is the visible heading sequence
+// well-formed," not the full range of things a general page-measurement
+// tool would check.
 //
 // Run with: node --test test/site.headingStructure.test.ts
 
@@ -23,7 +25,6 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
-import { collectPageMeasurements } from '../src/lib/visualAnalysis.ts'
 import { scrollThroughPageAndSettle } from '../src/lib/scrollSettle.ts'
 
 const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -40,9 +41,15 @@ const MIME: Record<string, string> = {
   '.png': 'image/png',
 }
 
-// Matches api/check-visual.ts exactly.
+// Wide enough for the full desktop nav row; 390x844 is a common real phone
+// viewport (matches navOverflow.test.ts's and the rest of the site's own
+// mobile-testing convention).
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 }
 const MOBILE_VIEWPORT = { width: 390, height: 844 }
+// Comfortably longer than the site's own data-reveal transition duration,
+// so every section has genuinely finished revealing before headings are
+// read — mobile gets a shorter allowance since fewer/smaller sections are
+// still settling into view by the time scrollThroughPageAndSettle returns.
 const SETTLE_MS = 900
 const MOBILE_SETTLE_MS = 500
 
@@ -79,7 +86,38 @@ after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()))
 })
 
-async function measureHeadings(viewport: { width: number; height: number }, settleMs: number, label: 'desktop' | 'mobile') {
+/** Collects only what this file's tests need: the count/order of VISIBLE
+ *  h1-h6 elements, whether the sequence skips a level, and whether any
+ *  heading is empty. Runs inside the page via page.evaluate. */
+function collectHeadingStructure() {
+  function isVisible(el: Element): boolean {
+    const htmlEl = el as HTMLElement
+    if (typeof htmlEl.checkVisibility === 'function') {
+      return htmlEl.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })
+    }
+    let node: Element | null = el
+    while (node) {
+      const s = window.getComputedStyle(node)
+      if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) return false
+      node = node.parentElement
+    }
+    return true
+  }
+
+  const allHeadings = Array.from(document.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6')).filter(isVisible)
+  const h1Count = allHeadings.filter((h) => h.tagName === 'H1').length
+  const levels = allHeadings.map((h) => Number(h.tagName[1]))
+  let hasSkippedLevel = false
+  for (let i = 1; i < levels.length; i++) {
+    if (levels[i] - levels[i - 1] > 1) hasSkippedLevel = true
+  }
+  if (levels.length > 0 && levels[0] > 2) hasSkippedLevel = true
+  const emptyHeadingCount = allHeadings.filter((h) => (h.textContent || '').trim().length === 0).length
+
+  return { h1Count, hasSkippedLevel, emptyHeadingCount }
+}
+
+async function measureHeadings(viewport: { width: number; height: number }, settleMs: number) {
   const page: Page = await browser.newPage()
   try {
     await page.setViewport(viewport)
@@ -90,26 +128,26 @@ async function measureHeadings(viewport: { width: number; height: number }, sett
       /* non-fatal, matches production */
     }
     await new Promise((r) => setTimeout(r, settleMs))
-    return await page.evaluate(collectPageMeasurements, label)
+    return await page.evaluate(collectHeadingStructure)
   } finally {
     await page.close()
   }
 }
 
-test('homepage heading structure at desktop: no skipped level, single h1, matches production settle timing', async () => {
-  const m = await measureHeadings(DESKTOP_VIEWPORT, SETTLE_MS, 'desktop')
-  assert.deepEqual(m.headings, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 })
+test('homepage heading structure at desktop: no skipped level, single h1', async () => {
+  const m = await measureHeadings(DESKTOP_VIEWPORT, SETTLE_MS)
+  assert.deepEqual(m, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 })
 })
 
 test('homepage heading structure at mobile: no skipped level (previously true — reproduces the reported finding) — fixed without changing wording or placement', async () => {
-  const m = await measureHeadings(MOBILE_VIEWPORT, MOBILE_SETTLE_MS, 'mobile')
-  assert.deepEqual(m.headings, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 })
+  const m = await measureHeadings(MOBILE_VIEWPORT, MOBILE_SETTLE_MS)
+  assert.deepEqual(m, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 })
 })
 
 test('mobile heading structure is deterministic across repeated measurements, not a one-off timing fluke', async () => {
   for (let i = 0; i < 3; i++) {
-    const m = await measureHeadings(MOBILE_VIEWPORT, MOBILE_SETTLE_MS, 'mobile')
-    assert.deepEqual(m.headings, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 }, `run ${i + 1}`)
+    const m = await measureHeadings(MOBILE_VIEWPORT, MOBILE_SETTLE_MS)
+    assert.deepEqual(m, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 }, `run ${i + 1}`)
   }
 })
 
