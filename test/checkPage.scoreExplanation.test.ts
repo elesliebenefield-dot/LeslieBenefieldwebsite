@@ -194,11 +194,11 @@ test('fully completed 100/100 result: disclosure shows all 7 checks at full cred
     const calcText = await page.$eval('.checkup-score-calc', (el) => el.textContent || '')
     assert.match(calcText, /100 of 100 possible points/)
     assert.match(calcText, /score of 100/)
-    assert.match(calcText, /Response time is measured and shown for context, but it isn.t scored/)
+    assert.match(calcText, /Response time is measured and shown for context, but it isn.t part of the score/)
     assert.doesNotMatch(calcText, /left out of that possible-points total/, 'a fully-completed result must not show the unverified-exclusion note')
 
     const rowLabels = await page.$$eval('.checkup-score-table tbody th', (els) => els.map((e) => e.textContent))
-    assert.deepEqual(rowLabels, ['Homepage availability', 'HTTPS / secure connection', 'Mobile setup', 'Page title', 'Meta description', 'Contact information', 'Homepage links'], 'exactly the 7 counted checks, in order — response-time must not appear as a row')
+    assert.deepEqual(rowLabels, ['Homepage availability', 'HTTPS / secure connection', 'Mobile setup', 'Page title', 'Search-result description', 'Contact information', 'Homepage links'], 'exactly the 7 counted checks, in order — response-time must not appear as a row')
 
     const pointCells = await page.$$eval('.checkup-score-table tbody td:last-child', (els) => els.map((e) => (e.textContent || '').trim()))
     assert.deepEqual(pointCells, ['30 / 30', '25 / 25', '15 / 15', '10 / 10', '10 / 10', '5 / 5', '5 / 5'], 'the points table itself must still be accurate after the surrounding text was simplified')
@@ -213,11 +213,11 @@ test('fully completed 100/100 result: disclosure shows all 7 checks at full cred
     const rationaleText = await page.$eval('.checkup-score-rationale', (el) => el.textContent || '')
     assert.equal(
       rationaleText,
-      'This score is based on seven automated technical checks, weighted by their importance within this limited checkup. Checks that can’t be verified are left out rather than counted as failures.'
+      'This score is based on seven automated technical checks, weighted by how important each one is within this limited checkup. Checks that can’t be verified are left out rather than counted as failures. “Completed” below means we were able to check it — not that it passed; see the Result column for that.'
     )
 
     const thresholdsNoteText = await page.$eval('.checkup-score-thresholds-note', (el) => el.textContent || '')
-    assert.equal(thresholdsNoteText, 'Title and meta-description checks use basic length thresholds. Meeting a threshold does not guarantee quality.')
+    assert.equal(thresholdsNoteText, 'The page title and search-result description checks use basic length guidelines. Meeting those guidelines doesn’t guarantee they’re well-written or effective.')
 
     const visualNoteText = await page.$eval('.checkup-score-visual-note', (el) => el.textContent || '')
     assert.equal(visualNoteText, 'The separate Visual & Usability Review is not included in this score.')
@@ -236,7 +236,7 @@ test('partially completed result: an unverified check is excluded from the possi
 
     const calcText = await page.$eval('.checkup-score-calc', (el) => el.textContent || '')
     assert.match(calcText, /80 of 95 possible points/)
-    assert.match(calcText, /left out of that possible-points total entirely — they.re not counted as failures/)
+    assert.match(calcText, /left out of that points total entirely — they.re not counted against you/)
 
     const rows = await page.$$eval('.checkup-score-table tbody tr', (trs) =>
       trs.map((tr) => Array.from(tr.querySelectorAll('th, td')).map((c) => c.textContent))

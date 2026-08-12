@@ -276,7 +276,7 @@ export function evaluateContactSignal(html: string): ContactEvaluation {
         id: 'contact',
         label: 'Contact information',
         bucket: 'good',
-        detail: 'We found what appears to be contact information (a phone number, email address, or contact link) on your homepage.',
+        detail: 'We found what looks like contact information — a phone number, email address, or contact link — on your homepage. This was an automated scan of your homepage only, not every page.',
         points: CONTACT_POINTS,
       },
     }
@@ -288,7 +288,7 @@ export function evaluateContactSignal(html: string): ContactEvaluation {
       id: 'contact',
       label: 'Contact information',
       bucket: 'improve',
-      detail: 'We couldn’t clearly find contact information on your homepage. Visible contact details help build trust with visitors.',
+      detail: 'We couldn’t clearly find contact information — like a phone number, email address, or contact link — on your homepage. Visible contact details can help visitors trust your business and know how to reach you.',
       points: 0,
     },
   }
@@ -325,14 +325,14 @@ export async function evaluateHomepageLinks(html: string, finalUrl: string, deps
           id: 'links',
           label: 'Homepage links',
           bucket: 'good',
-          detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage and all of them loaded fine. This is a sample, not a full site crawl.`,
+          detail: `We tested a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} on your homepage, and all of them opened fine. This was a small sample, not a check of your entire website.`,
           points,
         }
       : {
           id: 'links',
           label: 'Homepage links',
           bucket: 'improve',
-          detail: `We checked a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} from your homepage, and ${brokenLinks} may be broken or slow to respond. This is a sample, not a full site crawl.`,
+          detail: `We tested a sample of ${linksChecked} link${linksChecked === 1 ? '' : 's'} on your homepage, and ${brokenLinks} of them may be broken or slow to respond. This was a small sample, not a check of your entire website — it’s worth clicking through those links yourself to confirm.`,
           points,
         }
 

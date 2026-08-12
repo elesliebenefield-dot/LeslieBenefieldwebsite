@@ -144,12 +144,18 @@ export const META_DESCRIPTION_MIN_LENGTH = 50
  *  the order buildReport computes them in. */
 export const CHECK_ORDER: string[] = ['availability', 'https', 'mobile', 'title', 'meta-description', 'contact', 'links']
 
+/** Plain-language release: labels a visitor sees without needing to know
+ *  website terminology. `meta-description` is deliberately labeled
+ *  "Search-result description," not "Meta description" — the technical
+ *  term is still mentioned once, secondarily, inside that check's own
+ *  finding text (see api/check-website.ts), never used as the primary
+ *  label anywhere a visitor reads first. */
 export const CHECK_LABELS: Record<string, string> = {
   availability: 'Homepage availability',
   https: 'HTTPS / secure connection',
   mobile: 'Mobile setup',
   title: 'Page title',
-  'meta-description': 'Meta description',
+  'meta-description': 'Search-result description',
   contact: 'Contact information',
   links: 'Homepage links',
 }
@@ -259,9 +265,9 @@ export function summaryFor(score: number, hasImproveFindings: boolean, checksCom
  *  consumer only reads one of the two. */
 export function unscoredSummaryFor(reason: 'confirmed-error-response' | 'checker-unavailable', checksCompleted: number, checksTotal: number): string {
   if (reason === 'confirmed-error-response') {
-    return `Only ${checksCompleted} of ${checksTotal} technical basics could be checked, because your homepage didn’t return a normal response. See the details below.`
+    return `We could only check ${checksCompleted} of ${checksTotal} basics, because your homepage didn’t open normally when we tried. See the details below for what we found.`
   }
-  return `We weren’t able to complete this check for your website (${checksCompleted} of ${checksTotal} checks completed). This may be temporary, a limitation of this automated checker, or an issue reaching your site — it doesn’t necessarily mean your website has a problem. Please try again in a few minutes.`
+  return `We weren’t able to finish checking your website (${checksCompleted} of ${checksTotal} checks completed). This may be temporary, a limitation of this automated checker, or a connection issue on our end — it doesn’t necessarily mean there’s a problem with your website. It’s worth trying again in a few minutes.`
 }
 
 /**

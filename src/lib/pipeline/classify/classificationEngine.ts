@@ -63,13 +63,13 @@ export function classifyOverflow(input: ClassificationInput<'overflow'>): Classi
   let reasoning: string
   if (overflowPx <= OVERFLOW_TOLERANCE_PX) {
     outcome = 'good'
-    reasoning = `The page content fits within the ${viewportWidthPx}px mobile viewport — no measurable horizontal overflow.`
+    reasoning = `Your page fits within a typical phone screen (${viewportWidthPx}px wide) — nothing appears to require sideways scrolling.`
   } else if (overflowPx <= OVERFLOW_CLEAR_ISSUE_PX) {
     outcome = 'manual-review-advisory'
-    reasoning = `The page content is about ${overflowPx}px wider than the ${viewportWidthPx}px mobile viewport — small enough that it may or may not be visually noticeable; worth a manual look.`
+    reasoning = `Part of your page is about ${overflowPx}px wider than a typical phone screen (${viewportWidthPx}px) — small enough that it may or may not be noticeable to visitors; worth a manual look on an actual phone.`
   } else {
     outcome = 'improve'
-    reasoning = `The page content is about ${overflowPx}px wider than the ${viewportWidthPx}px mobile viewport, which causes visible horizontal scrolling on a phone.`
+    reasoning = `Part of your page is about ${overflowPx}px wider than a typical phone screen (${viewportWidthPx}px), which causes visible sideways scrolling on a phone.`
   }
   return {
     checkId: input.contract.id,
@@ -110,8 +110,8 @@ function footerContextClause(footerMinVisibleFontSizePx: number | null, meaningf
   if (footerMinVisibleFontSizePx === null || footerMinVisibleFontSizePx >= meaningfulMinVisibleFontSizePx) return ''
   const formatted = formatPx(footerMinVisibleFontSizePx)
   return footerMinVisibleFontSizePx < READABILITY_CLEAR_ISSUE_PX
-    ? ` Smaller ${formatted} utility text was also found in the footer — worth a manual look, though it wasn’t used to judge the page’s main readability.`
-    : ` Smaller ${formatted} utility text was found in the footer and wasn’t used to judge the page’s main readability.`
+    ? ` We also noticed smaller ${formatted} text in the footer or utility area — worth a manual look, though it wasn’t used to judge your page’s main readability.`
+    : ` We also noticed smaller ${formatted} text in the footer or utility area, which wasn’t used to judge your page’s main readability.`
 }
 
 export function classifyReadability(input: ClassificationInput<'readability'>): ClassificationResult<'readability'> {
@@ -122,17 +122,17 @@ export function classifyReadability(input: ClassificationInput<'readability'>): 
     outcome = 'unverified'
     reasoning =
       footerMinVisibleFontSizePx === null
-        ? 'No visible text could be measured on this page, so text-size readability could not be checked.'
-        : `No meaningful content text could be measured outside the page’s footer/utility content, so text-size readability could not be confidently checked. The smallest text found overall was ${formatPx(footerMinVisibleFontSizePx)}, in footer/utility content.`
+        ? 'We couldn’t find any visible text to measure on this page, so we couldn’t check text size.'
+        : `We couldn’t find enough main content text to confidently check text size — only smaller footer or utility text (like a copyright line), which we don’t judge your page by. The smallest text found overall was ${formatPx(footerMinVisibleFontSizePx)}.`
   } else if (minVisibleFontSizePx < READABILITY_CLEAR_ISSUE_PX) {
     outcome = 'improve'
-    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)}, which is hard to read on a phone.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
+    reasoning = `The smallest text we found in your main content is ${formatPx(minVisibleFontSizePx)} — small enough that it may be hard to read on a phone.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   } else if (minVisibleFontSizePx < READABILITY_BORDERLINE_PX) {
     outcome = 'manual-review-advisory'
-    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)} — on the small side; worth a manual look.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
+    reasoning = `The smallest text we found in your main content is ${formatPx(minVisibleFontSizePx)} — on the small side; worth a manual look.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   } else {
     outcome = 'good'
-    reasoning = `The smallest meaningful content text is ${formatPx(minVisibleFontSizePx)}, a comfortable reading size.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
+    reasoning = `The smallest text we found in your main content is ${formatPx(minVisibleFontSizePx)} — a comfortable size to read.${footerContextClause(footerMinVisibleFontSizePx, minVisibleFontSizePx)}`
   }
   return {
     checkId: input.contract.id,

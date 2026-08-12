@@ -273,7 +273,7 @@ test('confirmed 404: only availability and https complete (2 of 7), no score fie
     assert.ok(!('rawScore' in result), 'no rawScore field either')
     assert.ok(!('possiblePoints' in result), 'no possiblePoints field either')
     const availability = result.findings.find((f) => f.id === 'availability')!
-    assert.match(availability.detail, /status of 404/)
+    assert.match(availability.detail, /technical code: 404/)
     assert.ok(!availability.detail.toLowerCase().includes("doesn't work") && !availability.detail.toLowerCase().includes('does not work'), 'must not claim the website itself is broken')
     const https = result.findings.find((f) => f.id === 'https')!
     assert.ok(https, 'https is still evaluated even on a confirmed-bad-status response — a real response came back at all')
@@ -296,7 +296,7 @@ test('confirmed 500: same shape as 404 — real status named, 2 of 7, no score',
     assert.equal(result.checksCompleted, 2)
     assert.ok(!('score' in result))
     const availability = result.findings.find((f) => f.id === 'availability')!
-    assert.match(availability.detail, /status of 500/)
+    assert.match(availability.detail, /technical code: 500/)
   } finally {
     server.close()
   }

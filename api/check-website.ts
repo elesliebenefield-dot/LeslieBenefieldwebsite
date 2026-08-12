@@ -84,12 +84,12 @@ async function safeFetchHtml(startUrl: URL, deps: ContactLinksDeps = {}, timeout
 
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location')
-      if (!location) throw new Error('The website redirected without a destination.')
+      if (!location) throw new Error('The website tried to redirect visitors, but didn’t say where to.')
       let next: URL
       try {
         next = new URL(location, current)
       } catch {
-        throw new Error('The website redirected to an invalid address.')
+        throw new Error('The website tried to redirect visitors to an address we couldn’t understand.')
       }
       current = next
       redirected = true
@@ -107,7 +107,7 @@ async function safeFetchHtml(startUrl: URL, deps: ContactLinksDeps = {}, timeout
     }
   }
 
-  throw new Error('The website redirected too many times.')
+  throw new Error('The website kept redirecting without ever finishing, so we stopped checking.')
 }
 
 async function readBodyCapped(res: Response, maxBytes: number): Promise<string> {
@@ -263,8 +263,8 @@ function httpsFinding(usedHttps: boolean, redirected: boolean, httpsConnectionFa
       label: 'HTTPS / secure connection',
       bucket: 'good',
       detail: redirected
-        ? 'Your website redirects visitors to a secure (HTTPS) connection.'
-        : 'Your website loads over a secure (HTTPS) connection.',
+        ? 'Your website automatically sends visitors to a secure (HTTPS) connection, which protects information traveling between a visitor’s browser and your site — for example, anything typed into a form.'
+        : 'Your website loads over a secure (HTTPS) connection, which protects information traveling between a visitor’s browser and your site — for example, anything typed into a form.',
       points: CHECK_WEIGHTS.https,
     }
   }
@@ -274,7 +274,7 @@ function httpsFinding(usedHttps: boolean, redirected: boolean, httpsConnectionFa
       label: 'HTTPS / secure connection',
       bucket: 'improve',
       detail:
-        'A secure (HTTPS) connection to your website could not be made, so this check used a plain HTTP connection instead. Your visitors’ connections aren’t encrypted right now. Moving to HTTPS — most hosting providers offer free SSL certificates — is strongly recommended.',
+        'We tried to open your website securely (HTTPS) and couldn’t connect at all, so this check used a plain, unsecured connection instead. Right now, information traveling between visitors’ browsers and your site — like anything typed into a form — isn’t protected. Adding a secure connection is strongly recommended; most hosting providers offer this for free.',
       points: 0,
     }
   }
@@ -282,7 +282,8 @@ function httpsFinding(usedHttps: boolean, redirected: boolean, httpsConnectionFa
     id: 'https',
     label: 'HTTPS / secure connection',
     bucket: 'improve',
-    detail: 'Your website doesn’t appear to use a secure (HTTPS) connection. Most hosting providers offer free SSL certificates to enable this.',
+    detail:
+      'Your website doesn’t appear to use a secure (HTTPS) connection, which normally protects information traveling between a visitor’s browser and your site. Most hosting providers offer this for free — it’s worth asking about.',
     points: 0,
   }
 }
@@ -305,7 +306,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
         id: 'availability',
         label: 'Homepage availability',
         bucket: 'specialist',
-        detail: `Your homepage responded with a status of ${status} instead of a normal success status. This usually means the page couldn’t be found or the server encountered an error — worth checking with your host, or confirming the address is correct.`,
+        detail: `When we tried to open your homepage, it didn’t load normally — the server sent back an error instead (technical code: ${status}). This usually means the page can’t be found, or something went wrong on the server. It’s worth checking with whoever hosts your website, or confirming the address is correct.`,
         points: 0,
       },
       httpsFinding(usedHttps, fetchResult.redirected, httpsConnectionFailed),
@@ -324,18 +325,21 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     id: 'availability',
     label: 'Homepage availability',
     bucket: 'good',
-    detail: 'Your homepage loaded successfully.',
+    detail: 'Your homepage opened normally when we checked it — visitors should be able to reach it without a problem.',
     points: CHECK_WEIGHTS.availability,
   })
 
-  // Response time — informational only, not scored
-  const seconds = (elapsedMs / 1000).toFixed(1)
+  // Response time — informational only, not scored. Plain-language
+  // release: a genuinely sub-0.1s response used to round down to "about
+  // 0.0 seconds," which reads as a display bug, not a real measurement —
+  // "under 0.1 seconds" says the same true thing without looking broken.
+  const responseTimeText = elapsedMs < 100 ? 'under 0.1 seconds' : `about ${(elapsedMs / 1000).toFixed(1)} seconds`
   if (elapsedMs < 2500) {
     findings.push({
       id: 'response-time',
       label: 'Response time',
       bucket: 'good',
-      detail: `Your homepage responded in about ${seconds} seconds, which is a reasonable speed for visitors.`,
+      detail: `Your homepage started responding in ${responseTimeText}, a reasonable speed for visitors. This measures how quickly your site begins to load, not the complete page.`,
       points: 0,
     })
   } else {
@@ -343,7 +347,7 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'response-time',
       label: 'Response time',
       bucket: 'improve',
-      detail: `Your homepage took about ${seconds} seconds to respond. This is a rough measurement, not a full performance audit, but a faster response can help keep visitors from leaving early.`,
+      detail: `Your homepage took ${responseTimeText} to start responding. This is a quick, rough measurement, not a full speed test — but a slow start can lead some visitors to leave before the page even loads.`,
       points: 0,
     })
   }
@@ -363,7 +367,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'mobile',
       label: 'Mobile setup',
       bucket: 'good',
-      detail: 'Your site includes a mobile viewport tag — the basic technical setup for displaying properly on phones and tablets.',
+      detail:
+        'Your site includes the basic setting needed to size your page for phones and tablets (sometimes called a viewport tag). This is a technical basic, not a full check of how your site actually looks or works on mobile — see the Visual & Usability Review below for that.',
       points: CHECK_WEIGHTS.mobile,
     })
   } else {
@@ -371,7 +376,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'mobile',
       label: 'Mobile setup',
       bucket: 'improve',
-      detail: 'No mobile viewport tag was found. Without it, your site may look zoomed-out or hard to use on phones.',
+      detail:
+        'We didn’t find the basic setting that tells phones and tablets how to size your page (sometimes called a viewport tag). Without it, your site may appear zoomed out or be awkward to use on a phone.',
       points: 0,
     })
   }
@@ -386,7 +392,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'title',
       label: 'Page title',
       bucket: 'good',
-      detail: 'Your homepage has a page title that meets this check’s basic length threshold.',
+      detail:
+        'Your homepage has a page title — the text shown in a browser tab, and often the clickable headline for your page in search results — and it’s long enough to meet this check’s basic guideline.',
       points: CHECK_WEIGHTS.title,
     })
   } else if (title) {
@@ -395,7 +402,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'title',
       label: 'Page title',
       bucket: 'improve',
-      detail: 'Your homepage has a page title, but it’s quite short. A clearer, more descriptive title can help visitors and search engines.',
+      detail:
+        'Your homepage has a page title — the text shown in a browser tab, and often the clickable headline for your page in search results — but it’s quite short. A clearer, more descriptive title can help visitors know what the page is about before they click.',
       points: 5,
     })
   } else {
@@ -403,37 +411,47 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'title',
       label: 'Page title',
       bucket: 'improve',
-      detail: 'No page title was found. Titles help visitors and search engines understand what your page is about.',
+      detail:
+        'No page title was found. A page title is the text shown in a browser tab, and it often becomes the clickable headline for your page in search results — without one, it may be less clear to visitors what the page is about.',
       points: 0,
     })
   }
 
-  // Meta description (10 pts) — same threshold-is-not-quality framing as title.
+  // Search-result description (10 pts) — same threshold-is-not-quality
+  // framing as title. Plain-language release: wording for the "not
+  // found" case is specified verbatim (label, primary message, and
+  // explanation) — see the comment on CHECK_LABELS['meta-description']
+  // in websiteCheck.ts. It deliberately never implies a missing
+  // description prevents the business from appearing in search results
+  // at all, and never promises higher rankings from adding one.
   const description = findMetaContent(html, 'description')
   if (description && description.length >= META_DESCRIPTION_MIN_LENGTH) {
     score += CHECK_WEIGHTS['meta-description']
     findings.push({
       id: 'meta-description',
-      label: 'Meta description',
+      label: 'Search-result description',
       bucket: 'good',
-      detail: 'Your homepage has a meta description that meets this check’s basic length threshold.',
+      detail:
+        'Your homepage has a search-result description long enough to meet this check’s basic guideline. This is the summary text search engines often show beneath your page’s title in search results, and it can help potential customers understand what you offer before they click. This is commonly called a meta description.',
       points: CHECK_WEIGHTS['meta-description'],
     })
   } else if (description) {
     score += 5
     findings.push({
       id: 'meta-description',
-      label: 'Meta description',
+      label: 'Search-result description',
       bucket: 'improve',
-      detail: 'Your homepage has a meta description, but it’s quite short. A fuller description can help your listing stand out in search results.',
+      detail:
+        'Your homepage has a search-result description, but it’s quite short. A fuller description can help potential customers understand what you offer and decide whether to visit your website. It does not guarantee higher search rankings. This is commonly called a meta description.',
       points: 5,
     })
   } else {
     findings.push({
       id: 'meta-description',
-      label: 'Meta description',
+      label: 'Search-result description',
       bucket: 'improve',
-      detail: 'No meta description was found. This is the summary text often shown in search results.',
+      detail:
+        'No search-result description was found. Search engines may create one automatically using text from your homepage, but it may not describe your business as clearly as you would like. Adding a concise description can help potential customers understand what you offer and decide whether to visit your website. It does not guarantee higher search rankings. This is commonly called a meta description.',
       points: 0,
     })
   }
@@ -452,7 +470,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       id: 'contact',
       label: 'Contact information',
       bucket: 'unverified',
-      detail: 'This website loads some content through browser scripts, so this automated check could not verify contact information. That does not necessarily mean anything is wrong.',
+      detail:
+        'Your homepage’s main content didn’t load in a way this automated check could read directly, so we couldn’t confirm whether contact information is there. That doesn’t necessarily mean anything is missing — some websites build their pages in a way simple automated tools can’t see into.',
       points: 0,
     })
   } else {
@@ -471,8 +490,8 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
       label: 'Homepage links',
       bucket: 'unverified',
       detail: thinContent
-        ? 'This website loads some content through browser scripts, so this automated check could not find enough links to sample. That does not necessarily mean anything is wrong.'
-        : 'We didn’t find enough links on your homepage to sample.',
+        ? 'Your homepage’s main content didn’t load in a way this automated check could read directly, so we couldn’t find enough links to test. That doesn’t necessarily mean anything is wrong — some websites build their pages in a way simple automated tools can’t see into.'
+        : 'We didn’t find enough links on your homepage to test a sample.',
       points: 0,
     })
   } else {
@@ -480,14 +499,19 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     findings.push({ ...linksEval.finding, points: linksEval.points })
   }
 
-  // Ecommerce / marketplace scope signal — informational only, never scored
+  // Ecommerce / marketplace scope signal — informational only, never scored.
+  // Wording is deliberately conservative: hasEcommerceSignal() detects
+  // platform code (e.g. WooCommerce CSS classes), which can be present
+  // from a theme or plugin even on a site that never sells anything
+  // online — so the message describes the software signal found, not a
+  // claim about what the business is or what the page "looks like".
   if (hasEcommerceSignal(html, fetchResult.finalUrl)) {
     findings.push({
       id: 'ecommerce',
-      label: 'Ecommerce / marketplace',
+      label: 'Ecommerce software detected',
       bucket: 'specialist',
       detail:
-        'This appears to be an ecommerce or marketplace website. The checkup can review some general website basics, but it is not designed to evaluate product catalogs, checkout systems, marketplace listings, inventory, shipping, payments, or platform-specific integrations. These areas may require support from your platform provider or an ecommerce specialist.',
+        'We found signs that this website may use ecommerce software or features (such as WooCommerce or a similar platform). This can happen even on a site that doesn’t sell anything online — for example, when a theme or plugin includes it by default. If you do sell products or manage an online store, your website platform provider or an ecommerce specialist may be the best resource for store-specific areas like product listings, checkout, inventory, shipping, or payments.',
       points: 0,
     })
   }
@@ -531,7 +555,7 @@ export function checkerUnavailableResponse(input: string, finalUrl: string, reas
         id: 'availability',
         label: 'Homepage availability',
         bucket: 'unverified',
-        detail: `We weren’t able to complete this check for your website: ${reason} This may be temporary, a limitation of this automated checker, or an issue on our end — it doesn’t necessarily mean your website is down. Please try again in a few minutes.`,
+        detail: `We weren’t able to finish checking your website: ${reason} This may be temporary, a limitation of this automated checker, or a connection issue — it doesn’t necessarily mean your website is down. It’s worth trying again in a few minutes.`,
         points: 0,
       },
     ],

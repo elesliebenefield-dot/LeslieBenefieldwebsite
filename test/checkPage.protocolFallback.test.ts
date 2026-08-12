@@ -202,7 +202,7 @@ test('both protocols failed: the page shows evidence-based wording, never claimi
     await submitAndWaitForResults(page, 'bothfailed')
 
     const categoryDesc = await page.$eval('.checkup-category-desc', (el) => el.textContent || '')
-    assert.match(categoryDesc, /automated checker could not reach this website/)
+    assert.match(categoryDesc, /automated checker wasn.t able to reach your website/)
     assert.ok(!categoryDesc.toLowerCase().includes('browser script'), `category description must not claim scripted content: "${categoryDesc}"`)
 
     const emailHref = await page.$eval('.checkup-cta a.btn-primary', (el) => el.getAttribute('href') || '')

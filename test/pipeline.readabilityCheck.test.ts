@@ -168,5 +168,5 @@ test('when NO meaningful text can be measured but footer/utility text exists, th
 test('when NO text at all could be measured (no footer either), the original honest message is unchanged', () => {
   const { classification } = runReadability(null, null)
   assert.equal(classification.outcome, 'unverified')
-  assert.equal(classification.reasoning, 'No visible text could be measured on this page, so text-size readability could not be checked.')
+  assert.equal(classification.reasoning, 'We couldn’t find any visible text to measure on this page, so we couldn’t check text size.')
 })
