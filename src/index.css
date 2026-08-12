@@ -386,20 +386,12 @@ section[id] {
   margin: 0 auto;
 }
 
-.hero-inner--split {
-  display: grid;
-  gap: 2.5rem;
-  align-items: center;
+.hero-inner--centered {
+  display: flex;
+  justify-content: center;
 }
 
-@media (min-width: 900px) {
-  .hero-inner--split {
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 4rem;
-  }
-}
-
-.hero-inner--split .hero-text {
+.hero-inner--centered .hero-text {
   text-align: left;
   max-width: 620px;
   background: rgba(253, 252, 250, 0.78);
@@ -417,7 +409,7 @@ section[id] {
 }
 
 @media (min-width: 768px) {
-  .hero-inner--split .hero-text {
+  .hero-inner--centered .hero-text {
     padding: 2.25rem 2.5rem;
   }
 }
@@ -467,59 +459,6 @@ section[id] {
   gap: 0.75rem;
   justify-content: flex-start;
   flex-wrap: wrap;
-}
-
-/* A quiet, entirely CSS-based decorative panel — no photo/stock image —
-   made from soft overlapping shapes in the site's existing accent/pop
-   palette, echoing the warmth of the beach background without repeating it. */
-.hero-visual {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 5 / 3;
-  max-height: 220px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(77, 163, 168, 0.82), rgba(228, 189, 198, 0.88));
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 16px 44px rgba(31, 51, 71, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-}
-
-@media (min-width: 900px) {
-  .hero-visual {
-    aspect-ratio: 4 / 5;
-    max-height: 420px;
-  }
-}
-
-.hero-visual-shape {
-  position: absolute;
-  border-radius: 50%;
-  display: block;
-}
-
-.hero-visual-shape--one {
-  width: 62%;
-  aspect-ratio: 1;
-  top: -18%;
-  right: -12%;
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.hero-visual-shape--two {
-  width: 46%;
-  aspect-ratio: 1;
-  bottom: -14%;
-  left: -10%;
-  background: rgba(31, 51, 71, 0.16);
-}
-
-.hero-visual-shape--three {
-  width: 26%;
-  aspect-ratio: 1;
-  bottom: 18%;
-  right: 14%;
-  background: rgba(253, 252, 250, 0.55);
 }
 
 /* ─── Services ───────────────────────────────────────────── */
@@ -1485,7 +1424,6 @@ section[id] {
 .hero-headline { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
 .hero-copy     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both; }
 .hero-ctas     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both; }
-.hero-visual   { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:active,
@@ -1502,7 +1440,7 @@ section[id] {
     transition: none;
     will-change: auto;
   }
-  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas, .hero-visual {
+  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas {
     animation: none;
   }
   .work-card, .service-card, .work-card-thumb-img {
@@ -1687,6 +1625,7 @@ section[id] {
 .review-back:focus-visible,
 .review-input:focus-visible,
 .review-textarea:focus-visible,
+.review-radio-option input[type='radio']:focus-visible,
 .review-submit:focus-visible,
 .review-copy-btn:focus-visible,
 .review-start-over:focus-visible {
@@ -1747,6 +1686,47 @@ section[id] {
 .review-textarea {
   resize: vertical;
   min-height: 6rem;
+}
+
+.review-fieldset {
+  border: none;
+  padding: 0;
+  margin: 1.25rem 0 0;
+}
+
+.review-legend {
+  padding: 0;
+  margin-bottom: 0.55rem;
+}
+
+.review-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.review-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.review-radio-option input[type='radio'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.review-contact-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(31, 51, 71, 0.65);
 }
 
 .review-inline-error {

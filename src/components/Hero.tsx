@@ -1,7 +1,7 @@
 export default function Hero() {
   return (
     <section id="hero" className="hero">
-      <div className="hero-inner hero-inner--split">
+      <div className="hero-inner hero-inner--centered">
         <div className="hero-text">
           <p className="hero-eyebrow">Hi, I'm Leslie.</p>
           <h1 className="hero-headline">
@@ -22,11 +22,6 @@ export default function Hero() {
               Request a Free Website Review
             </a>
           </div>
-        </div>
-        <div className="hero-visual" aria-hidden="true">
-          <span className="hero-visual-shape hero-visual-shape--one" />
-          <span className="hero-visual-shape hero-visual-shape--two" />
-          <span className="hero-visual-shape hero-visual-shape--three" />
         </div>
       </div>
     </section>
