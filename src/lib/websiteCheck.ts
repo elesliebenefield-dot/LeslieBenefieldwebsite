@@ -172,6 +172,18 @@ export function scoreBandFor(score: number): ScoreBand {
   return SCORE_BANDS.find((band) => score >= band.minScore) ?? SCORE_BANDS[SCORE_BANDS.length - 1]
 }
 
+/** True when `raw` already names http:// or https:// explicitly, before
+ *  any normalization. A bare hostname ("example.com") does not — see
+ *  normalizeWebsiteUrl, which defaults it to https. Protocol-fallback
+ *  release: api/check-website.ts uses this (on the RAW input, not the
+ *  normalized URL, which always has SOME protocol by the time it's
+ *  built) to decide whether an HTTPS connection failure is eligible for
+ *  an automatic HTTP retry — only when the user never chose a protocol
+ *  themselves. */
+export function hasExplicitProtocol(raw: string): boolean {
+  return /^https?:\/\//i.test(raw.trim())
+}
+
 /**
  * Turns ordinary user input ("example.com", "www.example.com", "https://example.com")
  * into a normalized URL, or returns null if the input can't reasonably be a public
@@ -183,7 +195,7 @@ export function normalizeWebsiteUrl(raw: string): URL | null {
   if (!trimmed) return null
 
   let candidate = trimmed
-  if (!/^https?:\/\//i.test(candidate)) {
+  if (!hasExplicitProtocol(candidate)) {
     candidate = `https://${candidate}`
   }
 

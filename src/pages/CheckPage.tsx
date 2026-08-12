@@ -33,6 +33,15 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
     description:
       'Improvements Leslie may be able to help with, for straightforward informational and service-business websites. Online stores, marketplace shops, and complex ecommerce sites are often better handled by their platform provider or an ecommerce specialist.',
   },
+  // Protocol-fallback release: this description used to be a single fixed
+  // string, assuming every 'unverified' finding meant "this page needs
+  // browser scripts to render." That's true for a scored result's
+  // thin-content contact/links findings, but false for the ONE other way
+  // an 'unverified' finding appears — an unscored result's single
+  // 'availability' finding, when the checker never received any response
+  // at all (see UNVERIFIED_NO_RESPONSE_DESCRIPTION below, and
+  // ResultsReport's use of it). Claiming scripted content was seen there
+  // is simply inaccurate: nothing was ever received to examine.
   unverified: {
     title: 'Unable to verify automatically',
     description:
@@ -43,6 +52,13 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
     description: 'Outside the normal scope of this automated check — often hosting, security, or platform-specific.',
   },
 }
+
+/** Used instead of CATEGORY_INFO.unverified.description only when
+ *  `result.status === 'unscored'` — the checker never received any
+ *  response, so it has no basis to claim the page "loads some content
+ *  through browser scripts." See the comment above CATEGORY_INFO. */
+const UNVERIFIED_NO_RESPONSE_DESCRIPTION =
+  'The automated checker could not reach this website, so this could not be verified. This may be temporary or a limitation of this checker — it does not necessarily mean anything is wrong with your website.'
 
 const SCOPE_NOTICE =
   'Designed primarily for informational and service-based small-business websites. Results may be limited for marketplace shops and complex ecommerce sites, including Etsy, Shopify, Square Online, WooCommerce, and similar platforms.'
@@ -321,7 +337,9 @@ function ResultsReport({
         grouped[bucket].length > 0 ? (
           <div className="checkup-category" key={bucket}>
             <h3 className="checkup-category-title">{CATEGORY_INFO[bucket].title}</h3>
-            <p className="checkup-category-desc">{CATEGORY_INFO[bucket].description}</p>
+            <p className="checkup-category-desc">
+              {bucket === 'unverified' && result.status === 'unscored' ? UNVERIFIED_NO_RESPONSE_DESCRIPTION : CATEGORY_INFO[bucket].description}
+            </p>
             <ul className="checkup-finding-list">
               {grouped[bucket].map((finding) => (
                 <FindingRow finding={finding} key={finding.id} />
