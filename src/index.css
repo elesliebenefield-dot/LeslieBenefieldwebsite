@@ -384,29 +384,41 @@ section[id] {
   z-index: 1;
   max-width: var(--max-width);
   margin: 0 auto;
-  text-align: center;
 }
 
-.hero-inner--centered .hero-text {
-  max-width: 680px;
-  margin: 0 auto;
-  background: rgba(253, 252, 250, 0.84);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 1.75rem 2rem 1.75rem;
+.hero-inner--split {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .hero-inner--split {
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 4rem;
+  }
+}
+
+.hero-inner--split .hero-text {
+  text-align: left;
+  max-width: 620px;
+  background: rgba(253, 252, 250, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 1.75rem 2rem;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  box-shadow: 0 16px 44px rgba(31, 51, 71, 0.10), 0 3px 12px rgba(31, 51, 71, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 @media (min-width: 768px) {
   .hero {
-    padding: 5.5rem 1.5rem 5.5rem;
+    padding: 4.5rem 1.5rem 4.5rem;
   }
 }
 
 @media (min-width: 768px) {
-  .hero-inner--centered .hero-text {
-    padding: 2.25rem 4rem 2.25rem;
+  .hero-inner--split .hero-text {
+    padding: 2.25rem 2.5rem;
   }
 }
 
@@ -435,9 +447,9 @@ section[id] {
 
 .hero-headline {
   font-family: var(--font-display);
-  font-size: clamp(2.5rem, 5.5vw, 4.5rem);
+  font-size: clamp(1.65rem, 1.05rem + 2vw, 2.5rem);
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.25;
   color: var(--color-text);
   margin-bottom: 1rem;
 }
@@ -446,8 +458,6 @@ section[id] {
   font-family: var(--font-body);
   font-size: 1.05rem;
   color: var(--color-text);
-  max-width: 560px;
-  margin: 0 auto;
   line-height: 1.75;
   margin-bottom: 1.5rem;
 }
@@ -455,8 +465,61 @@ section[id] {
 .hero-ctas {
   display: flex;
   gap: 0.75rem;
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
+}
+
+/* A quiet, entirely CSS-based decorative panel — no photo/stock image —
+   made from soft overlapping shapes in the site's existing accent/pop
+   palette, echoing the warmth of the beach background without repeating it. */
+.hero-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  max-height: 220px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(77, 163, 168, 0.82), rgba(228, 189, 198, 0.88));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 16px 44px rgba(31, 51, 71, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+@media (min-width: 900px) {
+  .hero-visual {
+    aspect-ratio: 4 / 5;
+    max-height: 420px;
+  }
+}
+
+.hero-visual-shape {
+  position: absolute;
+  border-radius: 50%;
+  display: block;
+}
+
+.hero-visual-shape--one {
+  width: 62%;
+  aspect-ratio: 1;
+  top: -18%;
+  right: -12%;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.hero-visual-shape--two {
+  width: 46%;
+  aspect-ratio: 1;
+  bottom: -14%;
+  left: -10%;
+  background: rgba(31, 51, 71, 0.16);
+}
+
+.hero-visual-shape--three {
+  width: 26%;
+  aspect-ratio: 1;
+  bottom: 18%;
+  right: 14%;
+  background: rgba(253, 252, 250, 0.55);
 }
 
 /* ─── Services ───────────────────────────────────────────── */
@@ -1422,7 +1485,7 @@ section[id] {
 .hero-headline { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
 .hero-copy     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both; }
 .hero-ctas     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both; }
-.hero-photo    { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both; }
+.hero-visual   { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.14s both; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:active,
@@ -1439,7 +1502,7 @@ section[id] {
     transition: none;
     will-change: auto;
   }
-  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas, .hero-photo {
+  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas, .hero-visual {
     animation: none;
   }
   .work-card, .service-card, .work-card-thumb-img {

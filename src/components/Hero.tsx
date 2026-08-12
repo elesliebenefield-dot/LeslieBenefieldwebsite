@@ -1,32 +1,32 @@
 export default function Hero() {
   return (
     <section id="hero" className="hero">
-      <div className="hero-inner hero-inner--centered">
+      <div className="hero-inner hero-inner--split">
         <div className="hero-text">
-          <p className="hero-eyebrow">A Website That Feels Like You</p>
+          <p className="hero-eyebrow">Hi, I'm Leslie.</p>
           <h1 className="hero-headline">
-            A thoughtful online home for your business.
+            I help small businesses create a website that feels clear,
+            trustworthy, and like them.
           </h1>
           <p className="hero-copy">
-            I make professional websites for small businesses, service
-            providers, nonprofits, creators, and women-owned businesses —
-            without the agency maze, tech-speak, or mystery. Just one real
-            person, good communication, and a website you'll feel proud to
-            share.
+            I work directly with small businesses, service providers,
+            nonprofits, creators, and women-owned businesses. No confusing
+            tech language — just thoughtful design, clear communication, and
+            a website you'll feel good sharing.
           </p>
           <div className="hero-ctas">
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header"
-              className="btn btn-primary"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Get a Free Quote
+            <a href="#work" className="btn btn-primary">
+              See My Work
             </a>
-            <a href="#work" className="btn btn-outline">
-              Explore My Work
+            <a href="/check" className="btn btn-outline">
+              Request a Free Website Review
             </a>
           </div>
+        </div>
+        <div className="hero-visual" aria-hidden="true">
+          <span className="hero-visual-shape hero-visual-shape--one" />
+          <span className="hero-visual-shape hero-visual-shape--two" />
+          <span className="hero-visual-shape hero-visual-shape--three" />
         </div>
       </div>
     </section>
