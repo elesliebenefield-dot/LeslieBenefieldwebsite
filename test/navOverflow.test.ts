@@ -6,10 +6,15 @@
 // one breakpoint to 960px (see src/index.css) so the hamburger stays active
 // until the full row genuinely fits.
 //
+// This test only ever exercised the shared Nav component and page-level
+// layout via /check.html as a rendering host — nothing checker-specific —
+// so it survived the checker's removal unchanged (renamed from
+// checkPage.overflow.test.ts to drop the retired-component name).
+//
 // Runs against the real production build (dist/, always rebuilt fresh — see
 // the before() hook) in a real browser via Puppeteer. No live network access.
 //
-// Run with: node --test test/checkPage.overflow.test.ts
+// Run with: node --test test/navOverflow.test.ts
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -38,9 +43,9 @@ let server: Server
 let baseUrl: string
 
 before(async () => {
-  // Always rebuild — never trust whatever happens to already be in dist/
-  // (see test/checkPage.raceCondition.test.ts for why this matters: a stale
-  // build would silently test old source, not the fix under review).
+  // Always rebuild — never trust whatever happens to already be in dist/,
+  // since a stale build would silently test old source, not the fix under
+  // review.
   execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
 
   server = createServer(async (req, res) => {

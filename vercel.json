@@ -1,14 +1,5 @@
 {
   "rewrites": [
     { "source": "/check", "destination": "/check.html" }
-  ],
-  "functions": {
-    "api/check-website.ts": {
-      "maxDuration": 20
-    },
-    "api/check-visual.ts": {
-      "maxDuration": 60,
-      "memory": 2048
-    }
-  }
+  ]
 }
