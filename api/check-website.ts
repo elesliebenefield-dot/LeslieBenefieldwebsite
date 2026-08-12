@@ -499,14 +499,19 @@ function buildReport(fetchResult: FetchResult, linksEval: LinksEvaluation | null
     findings.push({ ...linksEval.finding, points: linksEval.points })
   }
 
-  // Ecommerce / marketplace scope signal — informational only, never scored
+  // Ecommerce / marketplace scope signal — informational only, never scored.
+  // Wording is deliberately conservative: hasEcommerceSignal() detects
+  // platform code (e.g. WooCommerce CSS classes), which can be present
+  // from a theme or plugin even on a site that never sells anything
+  // online — so the message describes the software signal found, not a
+  // claim about what the business is or what the page "looks like".
   if (hasEcommerceSignal(html, fetchResult.finalUrl)) {
     findings.push({
       id: 'ecommerce',
-      label: 'Ecommerce / marketplace',
+      label: 'Ecommerce software detected',
       bucket: 'specialist',
       detail:
-        'Your website looks like an online store or marketplace listing. This checkup can review some general website basics, but it isn’t built to evaluate product listings, checkout, inventory, shipping, payments, or store-platform setup. For those areas, your platform provider or an ecommerce specialist would be a better resource.',
+        'We found signs that this website may use ecommerce software or features (such as WooCommerce or a similar platform). This can happen even on a site that doesn’t sell anything online — for example, when a theme or plugin includes it by default. If you do sell products or manage an online store, your website platform provider or an ecommerce specialist may be the best resource for store-specific areas like product listings, checkout, inventory, shipping, or payments.',
       points: 0,
     })
   }
