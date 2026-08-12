@@ -321,7 +321,7 @@ test('the copy button attempts to copy the fallback text and never crashes the p
   }
 })
 
-test('"Start over" returns to a blank form', async () => {
+test('"Request another review" is styled as a primary button (not outline) and returns to a blank form', async () => {
   const page: Page = await browser.newPage()
   try {
     await installMailtoInterceptor(page)
@@ -331,6 +331,30 @@ test('"Start over" returns to a blank form', async () => {
     await fillField(page, 'review-email', 'sam@samleedesign.com')
     await page.click('.review-submit')
     await page.waitForSelector('.review-confirmation', { timeout: 5000 })
+
+    const buttonText = await page.$eval('.review-start-over', (el) => el.textContent)
+    assert.equal(buttonText, 'Request another review')
+    const classList = await page.$eval('.review-start-over', (el) => el.className.split(' '))
+    // Same shared .btn.btn-primary classes as "Get a Free Quote" and the
+    // "Open My Email..." submit button — since styling here is entirely
+    // class-driven (src/index.css), matching classes is what guarantees
+    // pixel-identical fill/text-color/radius/font-weight/padding/hover, and
+    // is checkable even though the submit button isn't in the DOM at the
+    // same time (form and confirmation are mutually exclusive views).
+    assert.ok(classList.includes('btn'), 'must use the shared .btn base class')
+    assert.ok(classList.includes('btn-primary'), 'must use the same primary-button treatment as Get a Quote / the submit button')
+    assert.ok(!classList.includes('btn-outline'), 'must not use the outline treatment')
+
+    const style = await page.$eval('.review-start-over', (el) => {
+      const s = getComputedStyle(el)
+      return { bg: s.backgroundColor, color: s.color, borderRadius: s.borderRadius, fontWeight: s.fontWeight, padding: s.padding }
+    })
+    // rgb(52, 101, 115) is --color-accent-button (#346573); matches Get a
+    // Quote / the submit button exactly, since they share the same class.
+    assert.equal(style.bg, 'rgb(52, 101, 115)')
+    assert.equal(style.color, 'rgb(255, 255, 255)')
+    assert.equal(style.fontWeight, '500')
+    assert.equal(style.padding, '13.6px 29.6px')
 
     await page.click('.review-start-over')
     await page.waitForSelector('.review-form', { timeout: 5000 })

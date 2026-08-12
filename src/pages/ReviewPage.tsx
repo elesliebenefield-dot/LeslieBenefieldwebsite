@@ -250,7 +250,7 @@ export default function ReviewPage() {
                 </div>
                 <button
                   type="button"
-                  className="btn btn-outline review-start-over"
+                  className="btn btn-primary review-start-over"
                   onClick={() => {
                     setValues({ name: '', businessName: '', websiteAddress: '', email: '', message: '' })
                     setErrors({})
@@ -258,7 +258,7 @@ export default function ReviewPage() {
                     setSubmitted(false)
                   }}
                 >
-                  Start over
+                  Request another review
                 </button>
               </div>
             )}
