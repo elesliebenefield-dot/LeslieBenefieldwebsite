@@ -147,7 +147,7 @@ test('bare hostname: HTTPS fails at the TLS layer (real plain-HTTP server), auto
     assert.equal(httpsFinding.points, 0)
     assert.equal(httpsFinding.bucket, 'improve')
     assert.equal(checkStatusLabel(httpsFinding), 'Not met')
-    assert.match(httpsFinding.detail, /could not be made/)
+    assert.match(httpsFinding.detail, /couldn.t connect at all/)
     assert.match(httpsFinding.detail, /strongly recommended/)
     assert.doesNotMatch(httpsFinding.detail, /doesn.t appear to use/, 'must use the fallback-specific wording, not the ordinary unused-HTTPS wording')
 
@@ -178,7 +178,7 @@ test('a real HTTPS 404 response is never retried over HTTP — a real status cod
     assert.equal(result.status, 'unscored')
     assert.equal(result.checksCompleted, 2, 'exactly the confirmed-error-response shape: availability + https only, never the 0-of-7 fallback-failure shape')
     const availability = result.findings.find((f) => f.id === 'availability')!
-    assert.match(availability.detail, /status of 404/)
+    assert.match(availability.detail, /technical code: 404/)
     const httpsFinding = result.findings.find((f) => f.id === 'https')!
     assert.equal(httpsFinding.bucket, 'good', 'HTTPS itself connected fine — only the response status was non-success')
   } finally {
@@ -199,7 +199,7 @@ test('a real HTTPS 500 response is never retried over HTTP', async () => {
     assert.equal(result.status, 'unscored')
     assert.equal(result.checksCompleted, 2)
     const availability = result.findings.find((f) => f.id === 'availability')!
-    assert.match(availability.detail, /status of 500/)
+    assert.match(availability.detail, /technical code: 500/)
   } finally {
     server.close()
     cleanupCert()
@@ -225,7 +225,11 @@ test('a real, healthy HTTPS site (self-signed fixture) scores exactly as before 
     const httpsFinding = result.findings.find((f) => f.id === 'https')!
     assert.equal(httpsFinding.bucket, 'good')
     assert.equal(httpsFinding.points, CHECK_WEIGHTS.https)
-    assert.equal(httpsFinding.detail, 'Your website loads over a secure (HTTPS) connection.', 'the ORIGINAL, unchanged wording for a normal working HTTPS site')
+    assert.equal(
+      httpsFinding.detail,
+      'Your website loads over a secure (HTTPS) connection, which protects information traveling between a visitor’s browser and your site — for example, anything typed into a form.',
+      'the ordinary "HTTPS is working" wording for a normal site — must be distinct from the fallback-specific wording'
+    )
     assert.equal(result.checksCompleted, 7)
   } finally {
     server.close()
@@ -274,7 +278,11 @@ test('explicit http:// input: checked directly as HTTP — exactly one connectio
     assert.equal(result.finalUrl, `http://127.0.0.1:${port}/`)
     const httpsFinding = result.findings.find((f) => f.id === 'https')!
     assert.equal(httpsFinding.bucket, 'improve')
-    assert.equal(httpsFinding.detail, 'Your website doesn’t appear to use a secure (HTTPS) connection. Most hosting providers offer free SSL certificates to enable this.', 'the ORIGINAL non-fallback wording — this was never a connection failure, HTTPS was simply never tried')
+    assert.equal(
+      httpsFinding.detail,
+      'Your website doesn’t appear to use a secure (HTTPS) connection, which normally protects information traveling between a visitor’s browser and your site. Most hosting providers offer this for free — it’s worth asking about.',
+      'the ordinary non-fallback wording — this was never a connection failure, HTTPS was simply never tried'
+    )
     assert.equal(connectionCount, 1, 'exactly one request reached the server — no separate HTTPS probe happened first')
   } finally {
     server.close()

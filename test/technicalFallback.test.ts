@@ -494,7 +494,7 @@ test('static content: evaluateContactSignal produces the identical "good" findin
   assert.equal(evaluated.found, true)
   assert.equal(evaluated.points, 5)
   assert.equal(evaluated.finding.bucket, 'good')
-  assert.equal(evaluated.finding.detail, 'We found what appears to be contact information (a phone number, email address, or contact link) on your homepage.')
+  assert.equal(evaluated.finding.detail, 'We found what looks like contact information — a phone number, email address, or contact link — on your homepage. This was an automated scan of your homepage only, not every page.')
 })
 
 test('static content: evaluateContactSignal produces the identical "improve" finding/points shape when ordinary static HTML genuinely has no contact info', () => {

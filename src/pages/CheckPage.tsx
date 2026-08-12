@@ -12,26 +12,30 @@ import { mergeFallbackIntoResult } from '../lib/technicalFallbackMerge'
 type Status = 'idle' | 'loading' | 'success' | 'error'
 
 const WHAT_WE_CHECK = [
-  'Whether your homepage uses a secure (HTTPS) connection',
-  'Whether your homepage responds and roughly how long it takes',
-  'Whether your homepage has a page title',
-  'Whether your homepage has a meta description',
-  'Whether a mobile viewport setting is present',
-  'Whether visible contact information can be found',
-  'A small sample of links found on your homepage',
+  'Whether your homepage uses a secure (HTTPS) connection, which protects information visitors send to your site',
+  'Whether your homepage opens, and roughly how quickly it starts responding',
+  'Whether your homepage has a page title — shown in browser tabs, and often the clickable headline in search results',
+  'Whether your homepage has a search-result description (sometimes called a meta description)',
+  'Whether the basic setting for sizing your page on phones and tablets is present',
+  'Whether visible contact information can be found on your homepage',
+  'A small sample of links on your homepage, to see if they open correctly',
 ]
 
 const CATEGORY_ORDER: FindingBucket[] = ['good', 'improve', 'unverified', 'specialist']
 
+// Plain-language release: "Opportunities to improve" reads as an
+// invitation, not a scolding — the goal is to explain what was found,
+// why it may matter to visitors or customers, and what a reasonable
+// next step is, without alarming or blaming anyone.
 const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string }> = {
   good: {
     title: 'Looking good',
-    description: 'No action appears necessary based on this check.',
+    description: 'These parts of your website passed this check — no action needed here.',
   },
   improve: {
-    title: 'Worth improving',
+    title: 'Opportunities to improve',
     description:
-      'Improvements Leslie may be able to help with, for straightforward informational and service-business websites. Online stores, marketplace shops, and complex ecommerce sites are often better handled by their platform provider or an ecommerce specialist.',
+      'These are things you could improve. For straightforward small-business and service websites, Leslie may be able to help — but online stores, marketplaces, and complex ecommerce sites are usually better served by their platform provider or an ecommerce specialist.',
   },
   // Protocol-fallback release: this description used to be a single fixed
   // string, assuming every 'unverified' finding meant "this page needs
@@ -45,11 +49,11 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
   unverified: {
     title: 'Unable to verify automatically',
     description:
-      'This website loads some content through browser scripts, so this automated check could not verify every item. That does not necessarily mean anything is wrong.',
+      'Some parts of your homepage didn’t load in a way this automated check could read directly, so these items couldn’t be confirmed either way. That does not necessarily mean anything is wrong — it’s simply not counted as a failure.',
   },
   specialist: {
     title: 'May need your current provider or a specialist',
-    description: 'Outside the normal scope of this automated check — often hosting, security, or platform-specific.',
+    description: 'These are outside what this automated check looks at — often related to your hosting, security setup, or a specific platform.',
   },
 }
 
@@ -58,7 +62,7 @@ const CATEGORY_INFO: Record<FindingBucket, { title: string; description: string 
  *  response, so it has no basis to claim the page "loads some content
  *  through browser scripts." See the comment above CATEGORY_INFO. */
 const UNVERIFIED_NO_RESPONSE_DESCRIPTION =
-  'The automated checker could not reach this website, so this could not be verified. This may be temporary or a limitation of this checker — it does not necessarily mean anything is wrong with your website.'
+  'This automated checker wasn’t able to reach your website, so this couldn’t be checked. This may be temporary or a limitation of the checker — it does not necessarily mean anything is wrong with your website.'
 
 const SCOPE_NOTICE =
   'Designed primarily for informational and service-based small-business websites. Results may be limited for marketplace shops and complex ecommerce sites, including Etsy, Shopify, Square Online, WooCommerce, and similar platforms.'
@@ -97,27 +101,28 @@ function ScoreExplanation({ result }: { result: CheckScored }) {
   return (
     <div className="checkup-score-explanation">
       <p className="checkup-score-calc">
-        You earned {result.rawScore} of {result.possiblePoints} possible points across the checks we could verify, giving a
-        score of {result.score}/100.
+        You earned {result.rawScore} of {result.possiblePoints} possible points across the checks we were able to
+        complete, for a score of {result.score}/100.
         {result.checksCompleted < result.checksTotal &&
-          ' Checks that couldn’t be verified are left out of that possible-points total entirely — they’re not counted as failures.'}
-        {responseTimeFinding && ' Response time is measured and shown for context, but it isn’t scored.'}
+          ' The checks we couldn’t verify are left out of that points total entirely — they’re not counted against you.'}
+        {responseTimeFinding && ' Response time is measured and shown for context, but it isn’t part of the score.'}
       </p>
 
       <details className="checkup-score-disclosure">
         <summary>How this score is calculated</summary>
 
         <p className="checkup-score-rationale">
-          This score is based on seven automated technical checks, weighted by their importance within this limited
-          checkup. Checks that can’t be verified are left out rather than counted as failures.
+          This score is based on seven automated technical checks, weighted by how important each one is within this
+          limited checkup. Checks that can’t be verified are left out rather than counted as failures. “Completed”
+          below means we were able to check it — not that it passed; see the Result column for that.
         </p>
 
         <table className="checkup-score-table">
-          <caption className="sr-only">Each counted technical check, its point weight, result, and points earned</caption>
+          <caption className="sr-only">Each counted technical check, its points possible, result, and points earned</caption>
           <thead>
             <tr>
               <th scope="col">Check</th>
-              <th scope="col">Weight</th>
+              <th scope="col">Points possible</th>
               <th scope="col">Result</th>
               <th scope="col">Points earned</th>
             </tr>
@@ -141,8 +146,8 @@ function ScoreExplanation({ result }: { result: CheckScored }) {
         </table>
 
         <p className="checkup-score-thresholds-note">
-          Title and meta-description checks use basic length thresholds. Meeting a threshold does not guarantee
-          quality.
+          The page title and search-result description checks use basic length guidelines. Meeting those guidelines
+          doesn’t guarantee they’re well-written or effective.
         </p>
 
         <p className="checkup-score-visual-note">The separate Visual &amp; Usability Review is not included in this score.</p>
@@ -229,14 +234,15 @@ function VisualSection({
     <div className="checkup-visual-section">
       <h2 className="section-title checkup-results-title checkup-visual-title">Visual &amp; Usability Review</h2>
       <p className="checkup-visual-intro">
-        A real browser opens your homepage at mobile width and checks for a couple of specific, measurable issues.
-        This is a separate review from the Technical Basics Score above — the two are not combined into one score.
+        We open your homepage in a real browser, sized like a phone screen, and check for a couple of specific,
+        visible issues. This is separate from the Technical Basics Score above — the two aren’t combined into one
+        number.
       </p>
 
       {(status === 'loading' || status === 'idle') && (
         <div className="checkup-loading" role="status">
           <span className="checkup-spinner" aria-hidden="true" />
-          Rendering your website in a browser at mobile width — this can take up to a minute…
+          Opening your website in a test browser sized like a phone screen — this can take up to a minute…
         </div>
       )}
 
@@ -245,7 +251,7 @@ function VisualSection({
           <strong>The visual review couldn’t run.</strong>
           <p>
             {errorMessage ??
-              'Something went wrong on our end while rendering this page. Your Technical Basics results above are unaffected.'}
+              'Something went wrong on our end while trying to open and check your page. This doesn’t affect your Technical Basics results above — those already finished.'}
           </p>
         </div>
       )}
@@ -301,7 +307,7 @@ function ResultsReport({
               <p className="checkup-summary">{result.summary}</p>
               <p className="checkup-checks-count">
                 {result.checksCompleted} of {result.checksTotal} checks completed
-                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : '.'}
+                {result.checksCompleted < result.checksTotal ? ' — this score reflects only what could be verified.' : ' — see below for how each one did.'}
               </p>
             </div>
           </div>
@@ -358,7 +364,8 @@ function ResultsReport({
         </ul>
         <p className="checkup-disclaimer">
           This automated checkup reviews a limited set of common website basics. It is not a complete security,
-          accessibility, SEO, legal, or performance audit. Some findings may require manual review.
+          accessibility, search-engine optimization (SEO), legal, or performance review. Some findings may need a
+          person to take a closer look.
         </p>
       </div>
 

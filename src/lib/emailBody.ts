@@ -26,7 +26,7 @@ const CATEGORY_ORDER: FindingBucket[] = ['good', 'improve', 'unverified', 'speci
 
 const EMAIL_SECTION_TITLE: Record<FindingBucket, string> = {
   good: 'Looking Good',
-  improve: 'Worth Improving',
+  improve: 'Opportunities to Improve',
   unverified: 'Unable to Verify Automatically',
   specialist: 'May Need Current Provider or a Specialist',
 }
