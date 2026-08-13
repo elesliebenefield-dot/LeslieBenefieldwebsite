@@ -105,12 +105,16 @@ export default function WebsiteChecklistPage() {
             </div>
 
             <div className="checklist-groups">
+              {/* Delay grouped by grid row (2 cards per row at the 2-column
+                  breakpoint), not per-card, so each row reveals together as
+                  one beat — the lone last card (row 2, "Your online access")
+                  naturally lands on the next delay after the rows above it. */}
               {checklistGroups.map((group, i) => (
                 <div
                   key={group.title}
                   className="checklist-group"
                   data-reveal="soft"
-                  data-reveal-delay={(i % 5) + 1}
+                  data-reveal-delay={Math.floor(i / 2) + 1}
                 >
                   <h2 className="checklist-group-title">{group.title}</h2>
                   <ul className="checklist-items">

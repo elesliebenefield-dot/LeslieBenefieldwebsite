@@ -1972,11 +1972,43 @@ section[id] {
 .faq-header {
   margin-bottom: 2rem;
   max-width: 640px;
+  position: relative;
+}
+
+/* Same oversized-watermark-word treatment as .services-header/
+   .work-header on the homepage — reused verbatim (color, opacity,
+   size, position) rather than a new visual language. */
+.faq-header::before {
+  content: 'Answers';
+  position: absolute;
+  top: -1.75rem;
+  left: -0.75rem;
+  font-family: var(--font-display);
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--color-accent);
+  opacity: 0.07;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.faq-header > * {
+  position: relative;
+  z-index: 1;
 }
 
 @media (min-width: 768px) {
   .faq-header {
     margin-bottom: 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .faq-header {
+    overflow: hidden;
   }
 }
 
@@ -2002,6 +2034,19 @@ section[id] {
     transform: translateY(-3px);
     border-left-color: var(--color-accent);
   }
+}
+
+/* Resting-state emphasis for an expanded item — distinct from the
+   hover/focus-within lift above (no translateY here, so it doesn't
+   fight for space with neighboring cards just for being open), using
+   the same border-left-color/box-shadow values as hover so the two
+   states never visually conflict when both apply at once (open +
+   hovered). Reuses .faq-item's own transition list, so this already
+   animates smoothly and already goes instant under reduced motion via
+   the existing .faq-item entry in that override. */
+.faq-item[data-open='true'] {
+  border-left-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
 }
 
 @media (min-width: 768px) {
@@ -2141,11 +2186,43 @@ section[id] {
 .checklist-header {
   margin-bottom: 2rem;
   max-width: 720px;
+  position: relative;
+}
+
+/* Same oversized-watermark-word treatment as .services-header/
+   .work-header on the homepage — reused verbatim (color, opacity,
+   size, position) rather than a new visual language. */
+.checklist-header::before {
+  content: 'Ready';
+  position: absolute;
+  top: -1.75rem;
+  left: -0.75rem;
+  font-family: var(--font-display);
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--color-accent);
+  opacity: 0.07;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.checklist-header > * {
+  position: relative;
+  z-index: 1;
 }
 
 @media (min-width: 768px) {
   .checklist-header {
     margin-bottom: 3rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .checklist-header {
+    overflow: hidden;
   }
 }
 
@@ -2229,6 +2306,39 @@ section[id] {
   flex-shrink: 0;
   margin-top: 0.2rem;
   color: var(--color-accent);
+}
+
+/* Checkmarks resolve in with a short staggered fade/scale once the
+   card itself has entered view — reuses the same .revealed class the
+   existing useScrollReveal hook already toggles on .checklist-group
+   (data-reveal="soft"), so this is a second effect layered on the
+   same trigger rather than a separate observer/animation system. A
+   short base delay lets the card's own reveal settle first, so the
+   checkmarks read as a distinct second beat ("getting prepared"), not
+   simultaneous with the card arriving. Touch/no-hover devices skip the
+   opacity:0 starting state entirely (media query below), so checkmarks
+   are just always present there — no dependency on hover to be
+   readable. */
+@media (hover: hover) and (pointer: fine) {
+  .checklist-items svg {
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .checklist-items li:nth-child(1) svg { transition-delay: 0.20s; }
+  .checklist-items li:nth-child(2) svg { transition-delay: 0.25s; }
+  .checklist-items li:nth-child(3) svg { transition-delay: 0.30s; }
+  .checklist-items li:nth-child(4) svg { transition-delay: 0.35s; }
+  .checklist-items li:nth-child(5) svg { transition-delay: 0.40s; }
+  .checklist-items li:nth-child(6) svg { transition-delay: 0.45s; }
+  .checklist-items li:nth-child(7) svg { transition-delay: 0.50s; }
+  .checklist-items li:nth-child(8) svg { transition-delay: 0.55s; }
+
+  .checklist-group.revealed .checklist-items svg {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .checklist-note {
@@ -2364,6 +2474,17 @@ section[id] {
   .faq-panel-wrap,
   .faq-item[data-open='true'] .faq-panel-wrap,
   .faq-chevron {
+    transition: none;
+  }
+  /* Overrides the (hover: hover) and (pointer: fine)-gated starting
+     state above — same specificity, but this comes later in the
+     stylesheet so it wins whenever both media conditions are true at
+     once (a desktop mouse user who also has reduced-motion enabled).
+     Checkmarks must be fully visible immediately, with the "resolving
+     in" scale/fade sequencing removed entirely, not just sped up. */
+  .checklist-items svg {
+    opacity: 1;
+    transform: scale(1);
     transition: none;
   }
   /* Matches the hover/focus-within selector specificity below (both
