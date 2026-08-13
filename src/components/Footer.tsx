@@ -20,6 +20,9 @@ export default function Footer() {
       <p className="footer-text">
         Designed & Developed by Leslie © 2026
       </p>
+      <div className="footer-links">
+        <a href="/privacy-policy" className="footer-link">Privacy Policy</a>
+      </div>
       <p className="footer-contact">
         <a href="tel:8505659114" className="footer-phone">850-565-9114</a>
         {' · '}
