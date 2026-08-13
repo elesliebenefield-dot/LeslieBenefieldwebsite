@@ -921,6 +921,29 @@ section[id] {
   }
 }
 
+/* Focus-reveal thumbnail (Ashley's Pet Care only, via
+   work-card-thumb-img--focus-reveal in Work.tsx) — plays alongside the
+   card's existing lift/zoom above so both read as one interaction.
+   Base state is always sharp; touch devices (outside the hover-capable
+   media query below) never see anything but the clear image, and no
+   label/affordance is added since the reveal itself is the affordance. */
+.work-card-thumb-img--focus-reveal {
+  filter: blur(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .work-card:hover .work-card-thumb-img--focus-reveal,
+  .work-card:focus-within .work-card-thumb-img--focus-reveal {
+    animation: workThumbFocusIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes workThumbFocusIn {
+  0%   { filter: blur(8px) saturate(1.15) contrast(0.92); }
+  60%  { filter: blur(2px) saturate(1.05) contrast(0.97); }
+  100% { filter: blur(0) saturate(1) contrast(1); }
+}
+
 /* ─── Browser Chrome Mockup (Portfolio) ─────────────────── */
 .browser-mockup {
   display: flex;
@@ -1602,6 +1625,17 @@ section[id] {
   }
   .work-card, .service-card, .work-card-thumb-img {
     transition: none;
+  }
+  /* Matches the hover/focus-within selector specificity below (both
+     are 0,3,0) so this reliably wins regardless of source order — a
+     bare .work-card-thumb-img--focus-reveal override (0,1,0) here was
+     verified to lose to that rule and still animate under reduced
+     motion. */
+  .work-card:hover .work-card-thumb-img--focus-reveal,
+  .work-card:focus-within .work-card-thumb-img--focus-reveal,
+  .work-card-thumb-img--focus-reveal {
+    animation: none;
+    filter: none;
   }
   /* Defensive only — useHeroDots.ts never attaches a pointer/touch
      listener at all under reduced motion, so no ripple or burst-dot
