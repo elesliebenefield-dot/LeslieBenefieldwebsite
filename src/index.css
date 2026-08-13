@@ -438,7 +438,7 @@ section[id] {
 
 .hero-inner--centered .hero-fit-card {
   max-width: 620px;
-  padding: 1.5rem 1.75rem;
+  padding: 1.35rem 1.6rem;
 }
 
 @media (min-width: 768px) {
@@ -452,7 +452,7 @@ section[id] {
     padding: 2.25rem 2.5rem;
   }
   .hero-inner--centered .hero-fit-card {
-    padding: 1.75rem 2rem;
+    padding: 1.6rem 1.85rem;
   }
 }
 
@@ -510,49 +510,48 @@ section[id] {
 }
 
 /* ─── Hero companion card ("A great fit for") ─────────────
-   Smaller/denser than the main card by design — restrained bullet
-   groups, no badges/checkmarks/pill styling, so it reads as a calm
-   reference list rather than a sales card. */
+   Smaller/denser than the main card by design, but tuned to sit close
+   to the main card's own height: compact spacing throughout, and each
+   category rendered as one short paragraph (not a bullet list) so
+   three categories of examples fit without the card running tall. No
+   badges/checkmarks/pill styling — reads as a calm reference card. */
 .hero-fit-title {
   font-family: var(--font-display);
   font-size: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
   font-weight: 700;
   line-height: 1.2;
   color: var(--color-text);
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.5rem;
 }
 
 .hero-fit-intro {
   font-family: var(--font-body);
   font-size: 0.92rem;
   color: var(--color-text);
-  line-height: 1.6;
-  margin-bottom: 1.1rem;
+  line-height: 1.5;
+  margin-bottom: 0.9rem;
 }
 
 .hero-fit-group + .hero-fit-group {
-  margin-top: 0.9rem;
+  margin-top: 0.65rem;
 }
 
 .hero-fit-group-title {
   font-family: var(--font-body);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--color-text);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
 }
 
-.hero-fit-list {
+/* Sized/colored up from the previous bullet list (0.85rem, fully
+   muted) for better readability beside the main card's own body copy. */
+.hero-fit-group-desc {
   margin: 0;
-  padding-left: 1.1rem;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  line-height: 1.55;
-}
-
-.hero-fit-list li + li {
-  margin-top: 0.3rem;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 .hero-ctas {

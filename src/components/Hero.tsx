@@ -6,26 +6,15 @@ const DOT_COUNT = 12
 const fitGroups = [
   {
     title: 'Local & professional services',
-    items: [
-      'Medical, dental, wellness, and therapy practices',
-      'Plumbers, HVAC companies, electricians, cleaners, and other home-service businesses',
-      'Real estate professionals, notaries, security companies, and consultants',
-    ],
+    desc: 'Clinics, wellness practices, home-service businesses, real estate professionals, notaries, security companies, and consultants.',
   },
   {
     title: 'Food, retail & local business',
-    items: [
-      'Bakeries, food trucks, boutiques, salons, and small retail businesses',
-      'Makers, artists, and locally owned shops',
-    ],
+    desc: 'Bakeries, food trucks, boutiques, salons, small retail businesses, makers, artists, and locally owned shops.',
   },
   {
     title: 'Personal, creative & community work',
-    items: [
-      'Tattoo artists, massage therapists, photographers, and creators',
-      'Pet sitters and other care-based services',
-      'Nonprofits, veterans, and community organizations',
-    ],
+    desc: 'Tattoo artists, massage therapists, photographers, creators, pet sitters, nonprofits, veterans, and community organizations.',
   },
 ]
 
@@ -95,11 +84,7 @@ export default function Hero() {
             {fitGroups.map((group) => (
               <div className="hero-fit-group" key={group.title}>
                 <h3 className="hero-fit-group-title">{group.title}</h3>
-                <ul className="hero-fit-list">
-                  {group.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+                <p className="hero-fit-group-desc">{group.desc}</p>
               </div>
             ))}
           </div>
