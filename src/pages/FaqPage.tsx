@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
@@ -6,6 +6,21 @@ import { useScrollReveal } from '../hooks/useScrollReveal'
 
 const GOOGLE_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header'
+
+const ChevronIcon = () => (
+  <svg
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="faq-chevron"
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+)
 
 const faqs: { question: string; answer: ReactNode }[] = [
   {
@@ -72,6 +87,22 @@ const faqs: { question: string; answer: ReactNode }[] = [
 
 export default function FaqPage() {
   useScrollReveal()
+  // Independent disclosures, not a single-select accordion — more than
+  // one answer can be open at once. Item 0 starts open so the
+  // expand/collapse format is obvious without requiring a click first.
+  const [openItems, setOpenItems] = useState<Set<number>>(new Set([0]))
+
+  function toggle(index: number) {
+    setOpenItems((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
 
   return (
     <>
@@ -97,17 +128,39 @@ export default function FaqPage() {
             </div>
 
             <div className="faq-list">
-              {faqs.map((item, i) => (
-                <div
-                  key={item.question}
-                  className="faq-item"
-                  data-reveal="soft"
-                  data-reveal-delay={(i % 5) + 1}
-                >
-                  <h2 className="faq-question">{item.question}</h2>
-                  <p className="faq-answer">{item.answer}</p>
-                </div>
-              ))}
+              {faqs.map((item, i) => {
+                const open = openItems.has(i)
+                const buttonId = `faq-question-${i}`
+                const panelId = `faq-panel-${i}`
+                return (
+                  <div
+                    key={item.question}
+                    className="faq-item"
+                    data-open={open}
+                    data-reveal="soft"
+                    data-reveal-delay={(i % 5) + 1}
+                  >
+                    <h2 className="faq-question-heading">
+                      <button
+                        type="button"
+                        id={buttonId}
+                        className="faq-question"
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        onClick={() => toggle(i)}
+                      >
+                        <span>{item.question}</span>
+                        <ChevronIcon />
+                      </button>
+                    </h2>
+                    <div id={panelId} className="faq-panel-wrap" aria-labelledby={buttonId}>
+                      <div className="faq-panel-inner">
+                        <p className="faq-answer">{item.answer}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </section>

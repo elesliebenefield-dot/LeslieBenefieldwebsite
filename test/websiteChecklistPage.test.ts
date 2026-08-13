@@ -149,6 +149,67 @@ test('the visuals group clearly says professional photos are helpful but not req
     const access = notes.find((n) => n.title === 'Your online access')
     assert.match(visuals?.note || '', /helpful.*not required/i)
     assert.match(access?.note || '', /okay not to have/i)
+    assert.match(access?.note || '', /don't send passwords by email/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('desktop/tablet 2-column widths: the fifth "Your online access" card is centered under the two rows above it, at the same width as the other cards', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    for (const width of [700, 1000, 1440]) {
+      await page.setViewport({ width, height: 1200 })
+      await page.goto(`${baseUrl}/website-checklist.html`, { waitUntil: 'load' })
+      const layout = await page.evaluate(() => {
+        const groups = Array.from(document.querySelectorAll('.checklist-group'))
+        const last = groups[groups.length - 1]
+        const first = groups[0]
+        const container = document.querySelector('.checklist-groups')!
+        const containerRect = container.getBoundingClientRect()
+        const lastRect = last.getBoundingClientRect()
+        const firstRect = first.getBoundingClientRect()
+        return {
+          widthsMatch: Math.abs(lastRect.width - firstRect.width) < 2,
+          centered: Math.abs(containerRect.x + containerRect.width / 2 - (lastRect.x + lastRect.width / 2)) < 2,
+        }
+      })
+      assert.ok(layout.widthsMatch, `expected the last card's width to match the first card's at ${width}px`)
+      assert.ok(layout.centered, `expected the last card to be horizontally centered at ${width}px`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('mobile (390px): checklist groups stay in a single natural column, unaffected by the desktop centering rule', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 390, height: 1600 })
+    await page.goto(`${baseUrl}/website-checklist.html`, { waitUntil: 'load' })
+    const xPositions = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.checklist-group')).map((g) => Math.round(g.getBoundingClientRect().x))
+    )
+    const uniqueX = new Set(xPositions)
+    assert.equal(uniqueX.size, 1, `expected all cards to share one x position (single column), got ${JSON.stringify(xPositions)}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('checklist cards lift on hover, consistent with service/portfolio cards (pointer devices only)', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1280, height: 900 })
+    await page.goto(`${baseUrl}/website-checklist.html`, { waitUntil: 'load' })
+    const box = await page.$eval('.checklist-group', (el) => {
+      const r = el.getBoundingClientRect()
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    await page.mouse.move(box.x, box.y)
+    await new Promise((r) => setTimeout(r, 550))
+    const transform = await page.$eval('.checklist-group', (el) => getComputedStyle(el).transform)
+    assert.notEqual(transform, 'none')
   } finally {
     await page.close()
   }

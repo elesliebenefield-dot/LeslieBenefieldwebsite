@@ -74,7 +74,7 @@ const checklistGroups = [
       'Social accounts',
       'Any other relevant account access',
     ],
-    note: "It's okay not to have all of this yet, or not to have access — I can help you sort it out together.",
+    note: "It's okay not to have all of this yet, or not to have access — I can help you sort it out together. Please don't send passwords by email; we'll handle account access safely when it's needed.",
   },
 ]
 

@@ -180,6 +180,133 @@ test('the rush-project question does not promise rush availability', async () =>
   }
 })
 
+test('accordion: only the first item is open on load, the rest start collapsed', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    const states = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.faq-question')).map((btn) => btn.getAttribute('aria-expanded'))
+    )
+    assert.equal(states[0], 'true')
+    assert.ok(
+      states.slice(1).every((s) => s === 'false'),
+      `expected every item after the first to start collapsed, got ${JSON.stringify(states)}`
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('accordion: clicking a question toggles aria-expanded and the panel visibility, independently of other items', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    await page.click('#faq-question-1')
+    await new Promise((r) => setTimeout(r, 450))
+    const item1Expanded = await page.$eval('#faq-question-1', (el) => el.getAttribute('aria-expanded'))
+    const item1PanelVisible = await page.$eval('#faq-panel-1', (el) => getComputedStyle(el).visibility)
+    assert.equal(item1Expanded, 'true')
+    assert.equal(item1PanelVisible, 'visible')
+    // item 0 (open by default) is untouched by toggling item 1
+    const item0Expanded = await page.$eval('#faq-question-0', (el) => el.getAttribute('aria-expanded'))
+    assert.equal(item0Expanded, 'true')
+
+    // toggling item 1 again closes it
+    await page.click('#faq-question-1')
+    await new Promise((r) => setTimeout(r, 450))
+    const item1ExpandedAfter = await page.$eval('#faq-question-1', (el) => el.getAttribute('aria-expanded'))
+    const item1PanelVisibleAfter = await page.$eval('#faq-panel-1', (el) => getComputedStyle(el).visibility)
+    assert.equal(item1ExpandedAfter, 'false')
+    assert.equal(item1PanelVisibleAfter, 'hidden')
+  } finally {
+    await page.close()
+  }
+})
+
+test('accordion: keyboard Enter and Space both toggle a focused question button', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    await page.focus('#faq-question-2')
+    await page.keyboard.press('Enter')
+    await new Promise((r) => setTimeout(r, 450))
+    assert.equal(await page.$eval('#faq-question-2', (el) => el.getAttribute('aria-expanded')), 'true')
+
+    await page.keyboard.press('Space')
+    await new Promise((r) => setTimeout(r, 450))
+    assert.equal(await page.$eval('#faq-question-2', (el) => el.getAttribute('aria-expanded')), 'false')
+  } finally {
+    await page.close()
+  }
+})
+
+test('accordion: closing the first item removes its Services & Pricing link from the tab order; reopening restores it', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    await page.click('#faq-question-0')
+    await new Promise((r) => setTimeout(r, 450))
+    const hiddenVisibility = await page.$eval('#faq-panel-0', (el) => getComputedStyle(el).visibility)
+    assert.equal(hiddenVisibility, 'hidden', 'closed panel should be visibility:hidden, removing its link from the tab order')
+
+    await page.click('#faq-question-0')
+    await new Promise((r) => setTimeout(r, 450))
+    const reopenedVisibility = await page.$eval('#faq-panel-0', (el) => getComputedStyle(el).visibility)
+    const linkStillWorks = await page.$eval('#faq-panel-0 a', (el) => el.getAttribute('href'))
+    assert.equal(reopenedVisibility, 'visible')
+    assert.equal(linkStillWorks, '/services')
+  } finally {
+    await page.close()
+  }
+})
+
+test('accordion: the chevron rotates (transform changes) when its item is expanded', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    const closedTransform = await page.$eval('#faq-question-1 .faq-chevron', (el) => getComputedStyle(el).transform)
+    await page.click('#faq-question-1')
+    await new Promise((r) => setTimeout(r, 450))
+    const openTransform = await page.$eval('#faq-question-1 .faq-chevron', (el) => getComputedStyle(el).transform)
+    assert.notEqual(openTransform, closedTransform)
+  } finally {
+    await page.close()
+  }
+})
+
+test('accordion under prefers-reduced-motion: still opens/closes, but with zero transition duration', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    const panelDuration = await page.$eval('#faq-panel-1', (el) => getComputedStyle(el).transitionDuration)
+    const chevronDuration = await page.$eval('#faq-question-1 .faq-chevron', (el) => getComputedStyle(el).transitionDuration)
+    assert.equal(panelDuration, '0s')
+    assert.equal(chevronDuration, '0s')
+
+    await page.click('#faq-question-1')
+    await new Promise((r) => setTimeout(r, 50))
+    assert.equal(await page.$eval('#faq-question-1', (el) => el.getAttribute('aria-expanded')), 'true')
+    assert.equal(await page.$eval('#faq-panel-1', (el) => getComputedStyle(el).visibility), 'visible')
+  } finally {
+    await page.close()
+  }
+})
+
+test('FAQ cards lift on hover/focus, consistent with service/portfolio cards (pointer devices only)', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1280, height: 900 })
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    await page.focus('#faq-question-3')
+    await new Promise((r) => setTimeout(r, 550))
+    const transform = await page.$eval('.faq-item:nth-child(4)', (el) => getComputedStyle(el).transform)
+    assert.notEqual(transform, 'none')
+  } finally {
+    await page.close()
+  }
+})
+
 test('CTA card has the right heading and both buttons point to the right destinations', async () => {
   const page: Page = await browser.newPage()
   try {

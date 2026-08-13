@@ -1989,23 +1989,100 @@ section[id] {
 .faq-item {
   background-color: var(--color-bg);
   border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
+  padding: 0.25rem 1.5rem;
   border: 1px solid var(--color-border);
   border-left: 5px solid var(--color-pop);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-item:hover,
+  .faq-item:focus-within {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+    border-left-color: var(--color-accent);
+  }
 }
 
 @media (min-width: 768px) {
   .faq-item {
-    padding: 1.5rem 1.75rem;
+    padding: 0.25rem 1.75rem;
   }
 }
 
+/* h2 is now just a semantic wrapper around the question button — no
+   spacing/typography of its own, all of that lives on .faq-question
+   (the button) so the heading level survives the switch to an
+   accordion without changing the visible layout. */
+.faq-question-heading {
+  margin: 0;
+}
+
 .faq-question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 0;
+  background: none;
+  border: none;
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-text);
-  margin-bottom: 0.5rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .faq-question {
+    padding: 1.25rem 0;
+  }
+}
+
+.faq-question:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* Sea-glass chevron — rotates to indicate state; color alone (not
+   shape) changing would fail for colorblind visitors, so the rotation
+   is the actual state signal, matching the button's own aria-expanded. */
+.faq-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-accent);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-question[aria-expanded='true'] .faq-chevron {
+  transform: rotate(180deg);
+}
+
+/* The 0fr/1fr grid-rows technique animates height without a JS-measured
+   pixel value. visibility is paired with it (delayed on open, immediate
+   on close) so a collapsed answer's content — including the /services
+   link in the first item — is removed from tab order while hidden,
+   not just visually clipped. */
+.faq-panel-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.35s;
+}
+
+.faq-item[data-open='true'] .faq-panel-wrap {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s;
+}
+
+.faq-panel-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .faq-answer {
@@ -2013,6 +2090,13 @@ section[id] {
   font-size: 0.92rem;
   color: var(--color-text-muted);
   line-height: 1.7;
+  padding-bottom: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .faq-answer {
+    padding-bottom: 1.5rem;
+  }
 }
 
 .faq-answer a {
@@ -2075,6 +2159,23 @@ section[id] {
   .checklist-groups {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  /* Five groups in a 2-column grid leaves the last one alone on its own
+     row — by default that means stranded on the left with an empty gap
+     to its right. Spans it across both columns, then centers its
+     content at the same width a normal single-column card would have
+     (container width minus one gap, halved), so it reads as
+     intentionally placed rather than a leftover. Scoped to this
+     min-width block only, so below 640px (.checklist-groups back to a
+     single column) the mobile stack is untouched. nth-child(odd) also
+     means this self-adjusts if a group is ever added/removed: it only
+     fires when the last card would otherwise be alone. */
+  .checklist-group:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 100%;
+    max-width: calc(50% - 0.75rem);
+  }
 }
 
 .checklist-group {
@@ -2084,6 +2185,15 @@ section[id] {
   border: 1px solid var(--color-border);
   border-left: 5px solid var(--color-pop);
   box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .checklist-group:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+    border-left-color: var(--color-accent);
+  }
 }
 
 .checklist-group-title {
@@ -2244,7 +2354,16 @@ section[id] {
   .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
     animation: none;
   }
-  .work-card, .service-card, .work-card-thumb-img, .pricing-card {
+  .work-card, .service-card, .work-card-thumb-img, .pricing-card, .checklist-group, .faq-item {
+    transition: none;
+  }
+  /* The accordion still opens/closes (grid-template-rows/visibility
+     still change, just instantly) — only the animated movement is
+     removed, matching "answers must open and close without animated
+     movement" rather than not opening/closing at all. */
+  .faq-panel-wrap,
+  .faq-item[data-open='true'] .faq-panel-wrap,
+  .faq-chevron {
     transition: none;
   }
   /* Matches the hover/focus-within selector specificity below (both
