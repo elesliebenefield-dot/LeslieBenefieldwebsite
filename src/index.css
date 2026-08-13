@@ -391,15 +391,54 @@ section[id] {
   justify-content: center;
 }
 
-.hero-inner--centered .hero-text {
-  text-align: left;
+/* Wrapper around BOTH the main Hero card and the companion "great fit"
+   card. Stacked/centered on mobile; becomes a side-by-side row once
+   there's comfortable room for both cards at their intended widths (see
+   the min-width: 1080px block below — matches the site's own
+   --max-width so the row layout only kicks in once there's genuinely
+   enough space for it). This is also the element measured by
+   useHeroDots.ts for the clip-path hole, so the ripple/dot layer stays
+   behind the whole two-card composition, gap included, not just one card. */
+.hero-cards {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
   max-width: 620px;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1080px) {
+  .hero-cards {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* Shared card treatment — same background/blur, corner radius, and
+   shadow for both the main Hero card and its companion, so they read as
+   one coordinated visual system. Sizing/padding differ per card below. */
+.hero-inner--centered .hero-text,
+.hero-inner--centered .hero-fit-card {
+  text-align: left;
   background: rgba(253, 252, 250, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 1.75rem 2rem;
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 44px rgba(31, 51, 71, 0.10), 0 3px 12px rgba(31, 51, 71, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.hero-inner--centered .hero-text {
+  max-width: 620px;
+  padding: 1.75rem 2rem;
+}
+
+.hero-inner--centered .hero-fit-card {
+  max-width: 620px;
+  padding: 1.5rem 1.75rem;
 }
 
 @media (min-width: 768px) {
@@ -411,6 +450,22 @@ section[id] {
 @media (min-width: 768px) {
   .hero-inner--centered .hero-text {
     padding: 2.25rem 2.5rem;
+  }
+  .hero-inner--centered .hero-fit-card {
+    padding: 1.75rem 2rem;
+  }
+}
+
+@media (min-width: 1080px) {
+  .hero-inner--centered .hero-fit-card {
+    /* Wide enough for the "Who I Love to Work With" eyebrow to sit on
+       one line, matching the main card's single-line eyebrow instead
+       of an uneven two-line wrap. */
+    max-width: 360px;
+    flex-shrink: 0;
+  }
+  .hero-inner--centered .hero-text {
+    flex-shrink: 0;
   }
 }
 
@@ -454,20 +509,50 @@ section[id] {
   margin-bottom: 1.5rem;
 }
 
-/* Understated by design: smaller than .hero-copy, muted color, no pill/
-   badge/checklist styling — reads as a natural example list rather than
-   a restrictive claim of "only these businesses." */
-.hero-fit {
-  font-family: var(--font-body);
-  font-size: 0.92rem;
-  color: var(--color-text-muted);
-  line-height: 1.7;
-  margin-bottom: 1.5rem;
+/* ─── Hero companion card ("A great fit for") ─────────────
+   Smaller/denser than the main card by design — restrained bullet
+   groups, no badges/checkmarks/pill styling, so it reads as a calm
+   reference list rather than a sales card. */
+.hero-fit-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin-bottom: 0.6rem;
 }
 
-.hero-fit-label {
-  font-weight: 600;
+.hero-fit-intro {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
   color: var(--color-text);
+  line-height: 1.6;
+  margin-bottom: 1.1rem;
+}
+
+.hero-fit-group + .hero-fit-group {
+  margin-top: 0.9rem;
+}
+
+.hero-fit-group-title {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  margin-bottom: 0.35rem;
+}
+
+.hero-fit-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.hero-fit-list li + li {
+  margin-top: 0.3rem;
 }
 
 .hero-ctas {
@@ -1619,8 +1704,12 @@ section[id] {
 .hero-eyebrow  { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.10s both; }
 .hero-headline { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
 .hero-copy     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both; }
-.hero-fit      { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.30s both; }
 .hero-ctas     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both; }
+/* Whole companion card fades up as one unit (its own eyebrow reuses
+   .hero-eyebrow above and animates in sync with the main card's) rather
+   than staggering each internal line — keeps a denser card calm instead
+   of turning every bullet into its own animation beat. */
+.hero-fit-card { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.30s both; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:active,
@@ -1637,7 +1726,7 @@ section[id] {
     transition: none;
     will-change: auto;
   }
-  .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit, .hero-ctas {
+  .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
     animation: none;
   }
   .work-card, .service-card, .work-card-thumb-img {
