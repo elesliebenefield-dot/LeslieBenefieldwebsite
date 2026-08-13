@@ -45,6 +45,12 @@ export default function Hero() {
             tech language — just thoughtful design, clear communication, and
             a website you'll feel good sharing.
           </p>
+          <p className="hero-fit">
+            <span className="hero-fit-label">A great fit for:</span> clinics,
+            bakeries, pet sitters, home-service businesses, real estate
+            professionals, security companies, tattoo artists, food trucks,
+            notaries, massage therapists, makers, and creators.
+          </p>
           <div className="hero-ctas">
             <a href="#work" className="btn btn-primary">
               See My Work
