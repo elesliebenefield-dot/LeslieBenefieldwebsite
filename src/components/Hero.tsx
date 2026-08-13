@@ -60,10 +60,11 @@ export default function Hero() {
               trustworthy, and like them.
             </h1>
             <p className="hero-copy">
-              I work directly with small businesses, service providers,
-              nonprofits, creators, and women-owned businesses. No confusing
-              tech language — just thoughtful design, clear communication, and
-              a website you'll feel good sharing.
+              As someone who has led teams and worked directly with customers
+              for years, I know how quickly people decide whether a business
+              feels trustworthy. Every website is built with clear
+              communication, thoughtful design, and one-on-one support—so
+              your business is easy to understand and ready to share.
             </p>
             <div className="hero-ctas">
               <a href="#work" className="btn btn-primary">
