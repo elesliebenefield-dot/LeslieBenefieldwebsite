@@ -141,11 +141,12 @@ export default function PrivacyPolicyPage() {
               </div>
 
               <div className="privacy-section">
-                <h2 className="privacy-section-title">Children's Privacy</h2>
+                <h2 className="privacy-section-title">Adults Only</h2>
                 <p className="privacy-section-body">
-                  This website is not directed to children under 13, and I do not knowingly
-                  collect personal information from children under 13. If you believe a child
-                  has shared personal information with me, please contact me so I can remove it.
+                  This website and my services are intended for adults age 18 or older. I do
+                  not knowingly collect personal information from anyone under 18. If you
+                  believe someone under 18 has shared personal information with me, please
+                  contact me so I can remove it.
                 </p>
               </div>
 

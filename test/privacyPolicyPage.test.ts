@@ -132,7 +132,7 @@ test('every required policy topic is present as its own section', async () => {
       'Sharing Your Information',
       'Data Security',
       'Your Choices',
-      "Children's Privacy",
+      'Adults Only',
       'Changes to This Policy',
       'Contact',
     ])
@@ -214,12 +214,13 @@ test('is appropriately cautious: no compliance guarantee, explicitly not legal a
   }
 })
 
-test('children\'s privacy section states the under-13 policy', async () => {
+test('"Adults Only" section states the under-18 policy', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/privacy-policy.html`, { waitUntil: 'load' })
     const text = await page.evaluate(() => document.querySelector('.privacy-body')?.textContent || '')
-    assert.match(text, /not directed to children under 13/i)
+    assert.match(text, /intended for adults age 18 or older/i)
+    assert.match(text, /do not knowingly collect personal information from anyone under 18/i)
   } finally {
     await page.close()
   }
