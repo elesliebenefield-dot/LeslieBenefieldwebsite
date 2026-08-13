@@ -12,6 +12,7 @@ export default defineConfig({
         services: fileURLToPath(new URL('./services.html', import.meta.url)),
         faq: fileURLToPath(new URL('./faq.html', import.meta.url)),
         websiteChecklist: fileURLToPath(new URL('./website-checklist.html', import.meta.url)),
+        privacyPolicy: fileURLToPath(new URL('./privacy-policy.html', import.meta.url)),
       },
     },
   },
