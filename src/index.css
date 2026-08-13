@@ -515,14 +515,19 @@ section[id] {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
   transform: scale(1);
   opacity: 0.85;
-  animation: heroRippleExpand 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: heroRippleExpand 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
 
+/* Max diameter 20px * scale(5) = 100px, down from 160px (scale(8)) — about
+   37.5% smaller, per feedback that the ring read as a "spotlight" rather
+   than a small water-reacts-to-you moment. Opacity now fades out by 40%
+   of the animation instead of 55%, so the ring reads as light/playful
+   rather than lingering at full visual weight for most of its life. */
 @keyframes heroRippleExpand {
   0%   { transform: scale(1);   opacity: 0.85; }
-  55%  { opacity: 0.4; }
-  100% { transform: scale(8);   opacity: 0; }
+  40%  { opacity: 0.3; }
+  100% { transform: scale(5);   opacity: 0; }
 }
 
 /* A small brighter-dot cluster that drifts outward with each ripple —
