@@ -339,16 +339,28 @@ section[id] {
 }
 
 
-/* The full nav row (logo + 7 links + contact button, all non-wrapping)
-   needs ~1055px of width to lay out without crowding — below that, the
+/* The full nav row (logo + 8 links + contact button, all non-wrapping)
+   needs ~1260px of width to lay out without crowding — below that, the
    hamburger menu takes over. This must stay >= that natural content
    width or the row overflows the viewport at intermediate/tablet widths
-   before the hamburger breakpoint kicks in. Raised from 960px (measured
-   at 950px for 6 links) to 1080px after adding the "Services & Pricing"
-   link — 1080 also happens to match --max-width, but the choice is
-   driven by the measured ~1055px content width plus safety margin, not
-   the variable. */
-@media (max-width: 1080px) {
+   before the hamburger breakpoint kicks in.
+
+   The 1260px figure isn't perfectly stable: right around the `load`
+   event, the nav can still be rendering with a fallback font (Syne/Lora
+   haven't finished loading yet), which measures a few dozen pixels
+   wider than the final webfont — confirmed directly by comparing
+   scrollWidth right after `load` vs. after `document.fonts.ready` at a
+   viewport just past the breakpoint (1px overflow -> 0px). A tight
+   breakpoint can intermittently overflow during that fallback-font
+   window depending on network timing, so this carries a large margin
+   (140px, not the usual ~25-40px) specifically to absorb that race
+   rather than the link row's own steady-state width.
+
+   History: 768px -> 960px (6 links) -> 1080px (7 links, after
+   "Services & Pricing") -> 1400px (8 links, ~1260px steady-state, after
+   adding "FAQ" and "Website Checklist"). See test/navOverflow.test.ts
+   for the boundary check. */
+@media (max-width: 1400px) {
   .nav-links {
     display: none;
   }
@@ -1853,6 +1865,493 @@ section[id] {
   text-align: center;
 }
 
+/* ─── Shared standalone-page utilities ──────────────────────
+   Used by /faq and /website-checklist (added together in the same PR,
+   so sharing one small set of classes between just these two is
+   reasonable) — deliberately NOT reused by /services, which keeps its
+   own .pricing-back/.pricing-cta*, matching this codebase's existing
+   per-page namespace convention. */
+.page-back {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  margin-bottom: 1.75rem;
+  transition: color 0.2s;
+}
+
+.page-back:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.page-back:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.page-cta {
+  position: relative;
+  padding: 0 1.5rem 3rem;
+  text-align: center;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .page-cta {
+    padding: 0 1.5rem 5.5rem;
+  }
+  .page-cta-inner {
+    padding: 3rem 3rem 3.5rem;
+  }
+}
+
+.page-cta-inner {
+  max-width: 580px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+}
+
+.page-cta-inner .section-title {
+  text-align: center;
+}
+
+.page-cta-inner .section-subtitle {
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+
+.page-cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.page-cta-buttons .btn {
+  width: 100%;
+  text-align: center;
+}
+
+/* ─── /faq ───────────────────────────────────────────────── */
+.faq {
+  background: transparent;
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .faq {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+  .faq-inner {
+    padding: 3rem 3.5rem 3.5rem;
+  }
+}
+
+.faq-inner {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.faq-header {
+  margin-bottom: 2rem;
+  max-width: 640px;
+  position: relative;
+}
+
+/* Same oversized-watermark-word treatment as .services-header/
+   .work-header on the homepage — reused verbatim (color, opacity,
+   size, position) rather than a new visual language. */
+.faq-header::before {
+  content: 'Answers';
+  position: absolute;
+  top: -1.75rem;
+  left: -0.75rem;
+  font-family: var(--font-display);
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--color-accent);
+  opacity: 0.07;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.faq-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .faq-header {
+    margin-bottom: 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .faq-header {
+    overflow: hidden;
+  }
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.faq-item {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 0.25rem 1.5rem;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-pop);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .faq-item:hover,
+  .faq-item:focus-within {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+    border-left-color: var(--color-accent);
+  }
+}
+
+/* Resting-state emphasis for an expanded item — distinct from the
+   hover/focus-within lift above (no translateY here, so it doesn't
+   fight for space with neighboring cards just for being open), using
+   the same border-left-color/box-shadow values as hover so the two
+   states never visually conflict when both apply at once (open +
+   hovered). Reuses .faq-item's own transition list, so this already
+   animates smoothly and already goes instant under reduced motion via
+   the existing .faq-item entry in that override. */
+.faq-item[data-open='true'] {
+  border-left-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
+}
+
+@media (min-width: 768px) {
+  .faq-item {
+    padding: 0.25rem 1.75rem;
+  }
+}
+
+/* h2 is now just a semantic wrapper around the question button — no
+   spacing/typography of its own, all of that lives on .faq-question
+   (the button) so the heading level survives the switch to an
+   accordion without changing the visible layout. */
+.faq-question-heading {
+  margin: 0;
+}
+
+.faq-question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 0;
+  background: none;
+  border: none;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .faq-question {
+    padding: 1.25rem 0;
+  }
+}
+
+.faq-question:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* Sea-glass chevron — rotates to indicate state; color alone (not
+   shape) changing would fail for colorblind visitors, so the rotation
+   is the actual state signal, matching the button's own aria-expanded. */
+.faq-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--color-accent);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-question[aria-expanded='true'] .faq-chevron {
+  transform: rotate(180deg);
+}
+
+/* The 0fr/1fr grid-rows technique animates height without a JS-measured
+   pixel value. visibility is paired with it (delayed on open, immediate
+   on close) so a collapsed answer's content — including the /services
+   link in the first item — is removed from tab order while hidden,
+   not just visually clipped. */
+.faq-panel-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.35s;
+}
+
+.faq-item[data-open='true'] .faq-panel-wrap {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s;
+}
+
+.faq-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.faq-answer {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  padding-bottom: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .faq-answer {
+    padding-bottom: 1.5rem;
+  }
+}
+
+.faq-answer a {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.faq-answer a:hover {
+  color: var(--color-accent-hover);
+  text-decoration-color: currentColor;
+}
+
+/* ─── /website-checklist ─────────────────────────────────── */
+.checklist {
+  background: transparent;
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .checklist {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+  .checklist-inner {
+    padding: 3rem 3.5rem 3.5rem;
+  }
+}
+
+.checklist-inner {
+  position: relative;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.checklist-header {
+  margin-bottom: 2rem;
+  max-width: 720px;
+  position: relative;
+}
+
+/* Same oversized-watermark-word treatment as .services-header/
+   .work-header on the homepage — reused verbatim (color, opacity,
+   size, position) rather than a new visual language. */
+.checklist-header::before {
+  content: 'Ready';
+  position: absolute;
+  top: -1.75rem;
+  left: -0.75rem;
+  font-family: var(--font-display);
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--color-accent);
+  opacity: 0.07;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.checklist-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .checklist-header {
+    margin-bottom: 3rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .checklist-header {
+    overflow: hidden;
+  }
+}
+
+.checklist-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .checklist-groups {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Five groups in a 2-column grid leaves the last one alone on its own
+     row — by default that means stranded on the left with an empty gap
+     to its right. Spans it across both columns, then centers its
+     content at the same width a normal single-column card would have
+     (container width minus one gap, halved), so it reads as
+     intentionally placed rather than a leftover. Scoped to this
+     min-width block only, so below 640px (.checklist-groups back to a
+     single column) the mobile stack is untouched. nth-child(odd) also
+     means this self-adjusts if a group is ever added/removed: it only
+     fires when the last card would otherwise be alone. */
+  .checklist-group:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: 100%;
+    max-width: calc(50% - 0.75rem);
+  }
+}
+
+.checklist-group {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-pop);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .checklist-group:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+    border-left-color: var(--color-accent);
+  }
+}
+
+.checklist-group-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+}
+
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.checklist-items li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.checklist-items svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  color: var(--color-accent);
+}
+
+/* Checkmarks resolve in with a short staggered fade/scale once the
+   card itself has entered view — reuses the same .revealed class the
+   existing useScrollReveal hook already toggles on .checklist-group
+   (data-reveal="soft"), so this is a second effect layered on the
+   same trigger rather than a separate observer/animation system. A
+   short base delay lets the card's own reveal settle first, so the
+   checkmarks read as a distinct second beat ("getting prepared"), not
+   simultaneous with the card arriving. Touch/no-hover devices skip the
+   opacity:0 starting state entirely (media query below), so checkmarks
+   are just always present there — no dependency on hover to be
+   readable. */
+@media (hover: hover) and (pointer: fine) {
+  .checklist-items svg {
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .checklist-items li:nth-child(1) svg { transition-delay: 0.20s; }
+  .checklist-items li:nth-child(2) svg { transition-delay: 0.25s; }
+  .checklist-items li:nth-child(3) svg { transition-delay: 0.30s; }
+  .checklist-items li:nth-child(4) svg { transition-delay: 0.35s; }
+  .checklist-items li:nth-child(5) svg { transition-delay: 0.40s; }
+  .checklist-items li:nth-child(6) svg { transition-delay: 0.45s; }
+  .checklist-items li:nth-child(7) svg { transition-delay: 0.50s; }
+  .checklist-items li:nth-child(8) svg { transition-delay: 0.55s; }
+
+  .checklist-group.revealed .checklist-items svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.checklist-note {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
 /* ─── Motion & Interaction ───────────────────────────────── */
 
 [data-reveal] {
@@ -1965,7 +2464,27 @@ section[id] {
   .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
     animation: none;
   }
-  .work-card, .service-card, .work-card-thumb-img, .pricing-card {
+  .work-card, .service-card, .work-card-thumb-img, .pricing-card, .checklist-group, .faq-item {
+    transition: none;
+  }
+  /* The accordion still opens/closes (grid-template-rows/visibility
+     still change, just instantly) — only the animated movement is
+     removed, matching "answers must open and close without animated
+     movement" rather than not opening/closing at all. */
+  .faq-panel-wrap,
+  .faq-item[data-open='true'] .faq-panel-wrap,
+  .faq-chevron {
+    transition: none;
+  }
+  /* Overrides the (hover: hover) and (pointer: fine)-gated starting
+     state above — same specificity, but this comes later in the
+     stylesheet so it wins whenever both media conditions are true at
+     once (a desktop mouse user who also has reduced-motion enabled).
+     Checkmarks must be fully visible immediately, with the "resolving
+     in" scale/fade sequencing removed entirely, not just sped up. */
+  .checklist-items svg {
+    opacity: 1;
+    transform: scale(1);
     transition: none;
   }
   /* Matches the hover/focus-within selector specificity below (both

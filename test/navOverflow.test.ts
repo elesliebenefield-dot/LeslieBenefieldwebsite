@@ -6,11 +6,16 @@
 // one breakpoint (see src/index.css) so the hamburger stays active
 // until the full row genuinely fits.
 //
-// The breakpoint value has moved twice as links were added: 768px -> 960px
-// (6 links, ~950px natural width) -> 1080px (7 links, after adding
-// "Services & Pricing", ~1055px natural width). Each time, this file's
-// boundary-specific test and sweep values were re-measured and updated to
-// match — see the current @media (max-width: 1080px) block in src/index.css.
+// The breakpoint value has moved three times as links were added: 768px ->
+// 960px (6 links, ~950px natural width) -> 1080px (7 links, after adding
+// "Services & Pricing", ~1055px natural width) -> 1400px (8 links, after
+// adding "FAQ" and "Website Checklist" — steady-state natural width is
+// ~1260px, but the breakpoint carries a much larger margin than usual to
+// absorb a fallback-font-width race near the `load` event; see the
+// comment on the @media block in src/index.css for details). Each time,
+// this file's boundary-specific test and sweep values were re-measured
+// and updated to match — see the current @media (max-width: 1400px)
+// block in src/index.css.
 //
 // This test only ever exercised the shared Nav component and page-level
 // layout via /check.html as a rendering host — nothing checker-specific —
@@ -90,10 +95,11 @@ test('/check has no horizontal overflow anywhere across the affected intermediat
   const page: Page = await browser.newPage()
   try {
     // Sweeps from the narrow end up through desktop widths, including the
-    // former 960/961px boundary (now safely inside hamburger territory)
-    // and the current 1080/1081px breakpoint boundary, so a regression
-    // anywhere in or near either window is caught.
-    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 960, 961, 1000, 1024, 1055, 1079, 1080, 1081, 1082, 1100, 1200, 1440]
+    // two former breakpoint boundaries (960/961px and 1080/1081px, now
+    // safely inside hamburger territory) and the current 1400/1401px
+    // breakpoint boundary, so a regression anywhere near any of them is
+    // caught.
+    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 960, 961, 1000, 1024, 1055, 1079, 1080, 1081, 1082, 1100, 1200, 1260, 1300, 1399, 1400, 1401, 1402, 1440]
     for (const width of widths) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
@@ -123,10 +129,10 @@ test('/check has no horizontal overflow at 320px (narrowest common real device w
   }
 })
 
-test('/check specifically at the new nav breakpoint boundary (1080/1081px) has no overflow on either side', async () => {
+test('/check specifically at the new nav breakpoint boundary (1400/1401px) has no overflow on either side', async () => {
   const page: Page = await browser.newPage()
   try {
-    for (const width of [1078, 1079, 1080, 1081, 1082, 1083]) {
+    for (const width of [1398, 1399, 1400, 1401, 1402, 1403]) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
     }

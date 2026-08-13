@@ -24,6 +24,8 @@ export default function Nav({ variant = 'home' }: NavProps) {
           <li><a href="/services">Services & Pricing</a></li>
           <li><a href={sectionHref('#work')}>Portfolio</a></li>
           <li><a href={sectionHref('#about')}>About</a></li>
+          <li><a href="/faq">FAQ</a></li>
+          <li><a href="/website-checklist">Website Checklist</a></li>
           <li><a href="/check">Free Website Review</a></li>
           <li><a href={sectionHref('#contact')}>Contact</a></li>
         </ul>
@@ -54,6 +56,8 @@ export default function Nav({ variant = 'home' }: NavProps) {
         <a href={sectionHref('#work')} onClick={close}>Portfolio</a>
         <a href={sectionHref('#about')} onClick={close}>About</a>
         <a href={sectionHref('#process')} onClick={close}>Process</a>
+        <a href="/faq" onClick={close}>FAQ</a>
+        <a href="/website-checklist" onClick={close}>Website Checklist</a>
         <a href="/check" onClick={close}>Free Website Review</a>
         <a href={sectionHref('#contact')} onClick={close}>Contact</a>
       </div>
