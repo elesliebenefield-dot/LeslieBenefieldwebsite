@@ -22,6 +22,7 @@ export default function Nav({ variant = 'home' }: NavProps) {
         <ul className="nav-links">
           <li><a href={sectionHref('#hero')}>Home</a></li>
           <li><a href={sectionHref('#services')}>Services</a></li>
+          <li><a href="/services">Services & Pricing</a></li>
           <li><a href={sectionHref('#work')}>Portfolio</a></li>
           <li><a href={sectionHref('#about')}>About</a></li>
           <li><a href="/check">Free Website Review</a></li>
@@ -51,6 +52,7 @@ export default function Nav({ variant = 'home' }: NavProps) {
       <div className="nav-mobile" aria-hidden={!open} style={{ display: open ? 'flex' : 'none' }}>
         <a href={sectionHref('#hero')} onClick={close}>Home</a>
         <a href={sectionHref('#services')} onClick={close}>Services</a>
+        <a href="/services" onClick={close}>Services & Pricing</a>
         <a href={sectionHref('#work')} onClick={close}>Portfolio</a>
         <a href={sectionHref('#about')} onClick={close}>About</a>
         <a href={sectionHref('#process')} onClick={close}>Process</a>

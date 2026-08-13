@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         check: fileURLToPath(new URL('./check.html', import.meta.url)),
+        services: fileURLToPath(new URL('./services.html', import.meta.url)),
       },
     },
   },

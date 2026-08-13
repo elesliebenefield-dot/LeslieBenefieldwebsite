@@ -339,12 +339,16 @@ section[id] {
 }
 
 
-/* The full nav row (logo + 6 links + contact button, all non-wrapping)
-   needs ~950px of width to lay out without crowding — below that, the
+/* The full nav row (logo + 7 links + contact button, all non-wrapping)
+   needs ~1055px of width to lay out without crowding — below that, the
    hamburger menu takes over. This must stay >= that natural content
    width or the row overflows the viewport at intermediate/tablet widths
-   before the hamburger breakpoint kicks in. */
-@media (max-width: 960px) {
+   before the hamburger breakpoint kicks in. Raised from 960px (measured
+   at 950px for 6 links) to 1080px after adding the "Services & Pricing"
+   link — 1080 also happens to match --max-width, but the choice is
+   driven by the measured ~1055px content width plus safety margin, not
+   the variable. */
+@media (max-width: 1080px) {
   .nav-links {
     display: none;
   }
@@ -1616,6 +1620,235 @@ section[id] {
 }
 
 
+/* ─── /services (Services & Pricing page) ──────────────────
+   Own namespace (not a reuse of .services-, .review-, or .contact- classes) so this
+   standalone page can evolve independently of the homepage Services and
+   Contact sections, even though it deliberately mirrors their visual
+   language: same frosted-card treatment, same section-label/section-title/
+   section-subtitle utilities, same .service-card-style numbered corner
+   watermark and hover lift. */
+.pricing {
+  background: transparent;
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .pricing {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+  .pricing-inner {
+    padding: 3rem 3.5rem 3.5rem;
+  }
+}
+
+.pricing-inner {
+  position: relative;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.pricing-back {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  margin-bottom: 1.75rem;
+  transition: color 0.2s;
+}
+
+.pricing-back:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.pricing-back:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.pricing-header {
+  margin-bottom: 2rem;
+  max-width: 720px;
+}
+
+@media (min-width: 768px) {
+  .pricing-header {
+    margin-bottom: 3rem;
+  }
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 560px) {
+  .pricing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .pricing-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pricing-card {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-pop);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-left-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.pricing-card::after {
+  content: attr(data-num);
+  position: absolute;
+  bottom: -2rem;
+  right: -0.25rem;
+  font-family: var(--font-display);
+  font-size: 7.5rem;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  color: var(--color-dark);
+  opacity: 0.045;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pricing-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+    border-left-color: var(--color-accent);
+  }
+}
+
+.pricing-card-title {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.4rem;
+}
+
+.pricing-card-price {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  margin-bottom: 0.6rem;
+}
+
+.pricing-card-desc {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+/* ─── Payment & Project Terms ───────────────────────────── */
+.pricing-payment {
+  background: transparent;
+  padding: 0 1.5rem 3rem;
+}
+
+@media (min-width: 768px) {
+  .pricing-payment {
+    padding: 0 1.5rem 4.5rem;
+  }
+  .pricing-payment-inner {
+    padding: 2.5rem 3.5rem;
+  }
+}
+
+.pricing-payment-inner {
+  max-width: 780px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 1.75rem 1.5rem;
+}
+
+.pricing-payment-inner .section-subtitle {
+  max-width: none;
+}
+
+/* ─── Final CTA ─────────────────────────────────────────── */
+.pricing-cta {
+  position: relative;
+  padding: 0 1.5rem 3rem;
+  text-align: center;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .pricing-cta {
+    padding: 0 1.5rem 5.5rem;
+  }
+  .pricing-cta-inner {
+    padding: 3rem 3rem 3.5rem;
+  }
+}
+
+.pricing-cta-inner {
+  max-width: 580px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+}
+
+.pricing-cta-inner .section-title {
+  text-align: center;
+}
+
+.pricing-cta-inner .section-subtitle {
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+
+.pricing-cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.pricing-cta-buttons .btn {
+  width: 100%;
+  text-align: center;
+}
+
 /* ─── Motion & Interaction ───────────────────────────────── */
 
 [data-reveal] {
@@ -1728,7 +1961,7 @@ section[id] {
   .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
     animation: none;
   }
-  .work-card, .service-card, .work-card-thumb-img {
+  .work-card, .service-card, .work-card-thumb-img, .pricing-card {
     transition: none;
   }
   /* Matches the hover/focus-within selector specificity below (both
