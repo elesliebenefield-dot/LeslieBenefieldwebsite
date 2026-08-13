@@ -391,15 +391,54 @@ section[id] {
   justify-content: center;
 }
 
-.hero-inner--centered .hero-text {
-  text-align: left;
+/* Wrapper around BOTH the main Hero card and the companion "great fit"
+   card. Stacked/centered on mobile; becomes a side-by-side row once
+   there's comfortable room for both cards at their intended widths (see
+   the min-width: 1080px block below — matches the site's own
+   --max-width so the row layout only kicks in once there's genuinely
+   enough space for it). This is also the element measured by
+   useHeroDots.ts for the clip-path hole, so the ripple/dot layer stays
+   behind the whole two-card composition, gap included, not just one card. */
+.hero-cards {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
   max-width: 620px;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1080px) {
+  .hero-cards {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    width: auto;
+    max-width: none;
+  }
+}
+
+/* Shared card treatment — same background/blur, corner radius, and
+   shadow for both the main Hero card and its companion, so they read as
+   one coordinated visual system. Sizing/padding differ per card below. */
+.hero-inner--centered .hero-text,
+.hero-inner--centered .hero-fit-card {
+  text-align: left;
   background: rgba(253, 252, 250, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 1.75rem 2rem;
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 44px rgba(31, 51, 71, 0.10), 0 3px 12px rgba(31, 51, 71, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.hero-inner--centered .hero-text {
+  max-width: 620px;
+  padding: 1.75rem 2rem;
+}
+
+.hero-inner--centered .hero-fit-card {
+  max-width: 620px;
+  padding: 1.35rem 1.6rem;
 }
 
 @media (min-width: 768px) {
@@ -411,6 +450,22 @@ section[id] {
 @media (min-width: 768px) {
   .hero-inner--centered .hero-text {
     padding: 2.25rem 2.5rem;
+  }
+  .hero-inner--centered .hero-fit-card {
+    padding: 1.6rem 1.85rem;
+  }
+}
+
+@media (min-width: 1080px) {
+  .hero-inner--centered .hero-fit-card {
+    /* Wide enough for the "Who I Love to Work With" eyebrow to sit on
+       one line, matching the main card's single-line eyebrow instead
+       of an uneven two-line wrap. */
+    max-width: 360px;
+    flex-shrink: 0;
+  }
+  .hero-inner--centered .hero-text {
+    flex-shrink: 0;
   }
 }
 
@@ -454,11 +509,147 @@ section[id] {
   margin-bottom: 1.5rem;
 }
 
+/* ─── Hero companion card ("A great fit for") ─────────────
+   Smaller/denser than the main card by design, but tuned to sit close
+   to the main card's own height: compact spacing throughout, and each
+   category rendered as one short paragraph (not a bullet list) so
+   three categories of examples fit without the card running tall. No
+   badges/checkmarks/pill styling — reads as a calm reference card. */
+.hero-fit-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+.hero-fit-intro {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--color-text);
+  line-height: 1.5;
+  margin-bottom: 0.9rem;
+}
+
+.hero-fit-group + .hero-fit-group {
+  margin-top: 0.65rem;
+}
+
+.hero-fit-group-title {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  margin-bottom: 0.2rem;
+}
+
+/* Sized/colored up from the previous bullet list (0.85rem, fully
+   muted) for better readability beside the main card's own body copy. */
+.hero-fit-group-desc {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .hero-ctas {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-start;
   flex-wrap: wrap;
+}
+
+/* ─── Hero "sea glass" ripple effect ──────────────────────────
+   Purely decorative, aria-hidden, pointer-events:none — sits between the
+   beach background (z-index -1, outside .hero) and the card (.hero-text,
+   z-index 1 via .hero-inner). .hero-fx is clipped with an SVG clip-path
+   (id="heroCardHole", path kept in sync with the card's live measured
+   rect by useHeroDots.ts) that cuts a hole exactly where the card is —
+   so no dot, ripple, or burst can ever be SEEN over the card regardless
+   of where it spawns or how large a ripple grows; this is a visual
+   guarantee, not a "we positioned things carefully" convention. Pointer/
+   touch listeners are attached to .hero itself, never to this layer,
+   which is the other half of why it can stay pointer-events:none
+   unconditionally. */
+.hero-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  clip-path: url(#heroCardHole);
+}
+
+.hero-dots,
+.hero-ripples {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(199, 235, 222, 0.95), rgba(77, 163, 168, 0.4) 65%, transparent 100%);
+}
+
+.hero-dot:nth-child(3n)   { width: 6px;  height: 6px; }
+.hero-dot:nth-child(3n+1) { width: 10px; height: 10px; }
+.hero-dot:nth-child(5n)   { width: 13px; height: 13px; }
+
+/* One ring per ripple — a fixed-size element animated purely via
+   transform: scale() + opacity (compositor-only, no layout/paint churn)
+   so this stays cheap even if ripples fire in quick succession. Each
+   element removes itself on 'animationend' (see useHeroDots.ts). */
+.hero-ripple-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(199, 235, 222, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  transform: scale(1);
+  opacity: 0.85;
+  animation: heroRippleExpand 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Max diameter 20px * scale(5) = 100px, down from 160px (scale(8)) — about
+   37.5% smaller, per feedback that the ring read as a "spotlight" rather
+   than a small water-reacts-to-you moment. Opacity now fades out by 40%
+   of the animation instead of 55%, so the ring reads as light/playful
+   rather than lingering at full visual weight for most of its life. */
+@keyframes heroRippleExpand {
+  0%   { transform: scale(1);   opacity: 0.85; }
+  40%  { opacity: 0.3; }
+  100% { transform: scale(5);   opacity: 0; }
+}
+
+/* A small brighter-dot cluster that drifts outward with each ripple —
+   --dx/--dy are set per-spawn in useHeroDots.ts. */
+.hero-burst-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(143, 207, 192, 0.65) 70%, transparent 100%);
+  transform: translate(0, 0);
+  opacity: 0.95;
+  animation: heroBurstDrift 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes heroBurstDrift {
+  0%   { transform: translate(0, 0); opacity: 0.95; }
+  100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
 }
 
 /* ─── Services ───────────────────────────────────────────── */
@@ -794,9 +985,10 @@ section[id] {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .work-card:hover {
+  .work-card:hover,
+  .work-card:focus-within {
     box-shadow: var(--shadow-lg);
-    transform: translateY(-5px);
+    transform: translateY(-6px);
     border-top-color: var(--color-accent);
   }
 }
@@ -823,9 +1015,33 @@ section[id] {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .work-card:hover .work-card-thumb-img {
-    transform: scale(1.02);
+  .work-card:hover .work-card-thumb-img,
+  .work-card:focus-within .work-card-thumb-img {
+    transform: scale(1.06);
   }
+}
+
+/* Focus-reveal thumbnail (Ashley's Pet Care only, via
+   work-card-thumb-img--focus-reveal in Work.tsx) — plays alongside the
+   card's existing lift/zoom above so both read as one interaction.
+   Base state is always sharp; touch devices (outside the hover-capable
+   media query below) never see anything but the clear image, and no
+   label/affordance is added since the reveal itself is the affordance. */
+.work-card-thumb-img--focus-reveal {
+  filter: blur(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .work-card:hover .work-card-thumb-img--focus-reveal,
+  .work-card:focus-within .work-card-thumb-img--focus-reveal {
+    animation: workThumbFocusIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes workThumbFocusIn {
+  0%   { filter: blur(8px) saturate(1.15) contrast(0.92); }
+  60%  { filter: blur(2px) saturate(1.05) contrast(0.97); }
+  100% { filter: blur(0) saturate(1) contrast(1); }
 }
 
 /* ─── Browser Chrome Mockup (Portfolio) ─────────────────── */
@@ -931,6 +1147,16 @@ section[id] {
     background-color: var(--color-accent);
     color: #fff;
     transform: translateY(-1px);
+  }
+
+  /* A quiet cue that the whole card leads somewhere, without adding a
+     second/duplicate "View project"-style label next to the existing,
+     more specific link text (View Preview / Visit Website / View on
+     Google Play) — hovering anywhere on the card highlights the link
+     that's already there, rather than introducing a new one. */
+  .work-card:hover .work-card-link,
+  .work-card:focus-within .work-card-link {
+    border-color: var(--color-accent);
   }
 }
 
@@ -1201,6 +1427,19 @@ section[id] {
   }
 }
 
+.process-marker {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+@media (min-width: 768px) {
+  .process-marker {
+    margin-bottom: 1.25rem;
+  }
+}
+
 .process-number {
   font-family: var(--font-display);
   font-size: 2.25rem;
@@ -1209,14 +1448,31 @@ section[id] {
   opacity: 0.4;
   line-height: 1;
   letter-spacing: -0.02em;
-  margin-bottom: 1.1rem;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
   .process-number {
     font-size: 3rem;
-    margin-bottom: 1.25rem;
   }
+}
+
+/* Purely decorative, non-interactive — grows from the number toward the
+   edge of the card as this step's own scroll-reveal fires, echoing the
+   card's fade/rise rather than adding a separate motion of its own. */
+.process-connector {
+  flex: 1 1 auto;
+  height: 2px;
+  min-width: 0;
+  background: linear-gradient(90deg, var(--color-pop), rgba(228, 189, 198, 0));
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+  pointer-events: none;
+}
+
+.process-step.revealed .process-connector {
+  transform: scaleX(1);
 }
 
 .process-title {
@@ -1409,6 +1665,30 @@ section[id] {
 [data-reveal="soft"][data-reveal-delay="4"] { transition-delay: 0.16s; }
 [data-reveal="soft"][data-reveal-delay="5"] { transition-delay: 0.20s; }
 
+/* About's two-column split: a quiet horizontal reveal instead of the rise
+   used everywhere else — the photo drifts in from the left, the bio text
+   from the right, so the two halves feel like they're settling toward
+   each other rather than just fading up in place. */
+[data-reveal="side-left"] {
+  transform: translateX(-18px);
+  transition:
+    opacity   1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal="side-right"] {
+  transform: translateX(18px);
+  transition:
+    opacity   1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-reveal="side-left"].revealed,
+[data-reveal="side-right"].revealed {
+  transform: translateX(0);
+  will-change: auto;
+}
+
 [data-reveal-delay="1"] { transition-delay: 0.06s; }
 [data-reveal-delay="2"] { transition-delay: 0.12s; }
 [data-reveal-delay="3"] { transition-delay: 0.18s; }
@@ -1424,6 +1704,11 @@ section[id] {
 .hero-headline { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
 .hero-copy     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both; }
 .hero-ctas     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both; }
+/* Whole companion card fades up as one unit (its own eyebrow reuses
+   .hero-eyebrow above and animates in sync with the main card's) rather
+   than staggering each internal line — keeps a denser card calm instead
+   of turning every bullet into its own animation beat. */
+.hero-fit-card { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.30s both; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:active,
@@ -1440,11 +1725,34 @@ section[id] {
     transition: none;
     will-change: auto;
   }
-  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas {
+  .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
     animation: none;
   }
   .work-card, .service-card, .work-card-thumb-img {
     transition: none;
+  }
+  /* Matches the hover/focus-within selector specificity below (both
+     are 0,3,0) so this reliably wins regardless of source order — a
+     bare .work-card-thumb-img--focus-reveal override (0,1,0) here was
+     verified to lose to that rule and still animate under reduced
+     motion. */
+  .work-card:hover .work-card-thumb-img--focus-reveal,
+  .work-card:focus-within .work-card-thumb-img--focus-reveal,
+  .work-card-thumb-img--focus-reveal {
+    animation: none;
+    filter: none;
+  }
+  /* Defensive only — useHeroDots.ts never attaches a pointer/touch
+     listener at all under reduced motion, so no ripple or burst-dot
+     element is ever created in the first place. */
+  .hero-ripple-ring,
+  .hero-burst-dot {
+    animation: none;
+    display: none;
+  }
+  .process-connector {
+    transition: none;
+    transform: scaleX(1);
   }
 }
 

@@ -9,6 +9,7 @@ const projects = [
     imgAlt: "Ashley's Pet Care website screenshot",
     isIcon: false,
     thumbPosition: 'center 18%',
+    focusReveal: true,
     status: 'Client Project',
     title: "Ashley's Pet Care",
     desc: 'A custom website for a local pet care business focused on building trust, showcasing services, and making it easy for clients to get in touch.',
@@ -86,7 +87,11 @@ export default function Work() {
                     <img
                       src={p.img}
                       alt={p.imgAlt}
-                      className="work-card-thumb-img"
+                      className={
+                        p.focusReveal
+                          ? 'work-card-thumb-img work-card-thumb-img--focus-reveal'
+                          : 'work-card-thumb-img'
+                      }
                       style={{ objectPosition: p.thumbPosition }}
                     />
                   </BrowserChrome>

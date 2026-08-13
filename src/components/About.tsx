@@ -4,7 +4,7 @@ export default function About() {
   return (
     <section id="about" className="about">
       <div className="about-inner">
-        <div className="about-photo" data-reveal>
+        <div className="about-photo" data-reveal="side-left">
           <img
             src={lesliePhoto}
             alt="Leslie Benefield"
@@ -12,7 +12,7 @@ export default function About() {
           />
         </div>
         <div className="about-content">
-          <div className="about-body" data-reveal>
+          <div className="about-body" data-reveal="side-right">
             <p className="section-label">About</p>
             <h2 className="section-title">Hi, I'm Leslie.</h2>
             <p>
