@@ -89,6 +89,12 @@ export default function ServicesPage() {
               to you. Larger projects may use a custom payment schedule, agreed on in writing
               before work begins. Barter arrangements may be considered on a case-by-case basis.
             </p>
+            <p className="section-subtitle">
+              Rush projects: if you need a website or update completed on a short timeline, a
+              rush fee may apply to reserve dedicated time. Rush availability depends on my
+              current schedule, and any additional fee will be clearly included in your written
+              quote before work begins.
+            </p>
           </div>
         </section>
 

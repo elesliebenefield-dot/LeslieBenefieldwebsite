@@ -339,16 +339,28 @@ section[id] {
 }
 
 
-/* The full nav row (logo + 7 links + contact button, all non-wrapping)
-   needs ~1055px of width to lay out without crowding — below that, the
+/* The full nav row (logo + 8 links + contact button, all non-wrapping)
+   needs ~1260px of width to lay out without crowding — below that, the
    hamburger menu takes over. This must stay >= that natural content
    width or the row overflows the viewport at intermediate/tablet widths
-   before the hamburger breakpoint kicks in. Raised from 960px (measured
-   at 950px for 6 links) to 1080px after adding the "Services & Pricing"
-   link — 1080 also happens to match --max-width, but the choice is
-   driven by the measured ~1055px content width plus safety margin, not
-   the variable. */
-@media (max-width: 1080px) {
+   before the hamburger breakpoint kicks in.
+
+   The 1260px figure isn't perfectly stable: right around the `load`
+   event, the nav can still be rendering with a fallback font (Syne/Lora
+   haven't finished loading yet), which measures a few dozen pixels
+   wider than the final webfont — confirmed directly by comparing
+   scrollWidth right after `load` vs. after `document.fonts.ready` at a
+   viewport just past the breakpoint (1px overflow -> 0px). A tight
+   breakpoint can intermittently overflow during that fallback-font
+   window depending on network timing, so this carries a large margin
+   (140px, not the usual ~25-40px) specifically to absorb that race
+   rather than the link row's own steady-state width.
+
+   History: 768px -> 960px (6 links) -> 1080px (7 links, after
+   "Services & Pricing") -> 1400px (8 links, ~1260px steady-state, after
+   adding "FAQ" and "Website Checklist"). See test/navOverflow.test.ts
+   for the boundary check. */
+@media (max-width: 1400px) {
   .nav-links {
     display: none;
   }
@@ -1797,6 +1809,10 @@ section[id] {
   max-width: none;
 }
 
+.pricing-payment-inner .section-subtitle + .section-subtitle {
+  margin-top: 1rem;
+}
+
 /* ─── Final CTA ─────────────────────────────────────────── */
 .pricing-cta {
   position: relative;
@@ -1847,6 +1863,273 @@ section[id] {
 .pricing-cta-buttons .btn {
   width: 100%;
   text-align: center;
+}
+
+/* ─── Shared standalone-page utilities ──────────────────────
+   Used by /faq and /website-checklist (added together in the same PR,
+   so sharing one small set of classes between just these two is
+   reasonable) — deliberately NOT reused by /services, which keeps its
+   own .pricing-back/.pricing-cta*, matching this codebase's existing
+   per-page namespace convention. */
+.page-back {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  margin-bottom: 1.75rem;
+  transition: color 0.2s;
+}
+
+.page-back:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.page-back:focus-visible {
+  outline: 2.5px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.page-cta {
+  position: relative;
+  padding: 0 1.5rem 3rem;
+  text-align: center;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .page-cta {
+    padding: 0 1.5rem 5.5rem;
+  }
+  .page-cta-inner {
+    padding: 3rem 3rem 3.5rem;
+  }
+}
+
+.page-cta-inner {
+  max-width: 580px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+}
+
+.page-cta-inner .section-title {
+  text-align: center;
+}
+
+.page-cta-inner .section-subtitle {
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+
+.page-cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.page-cta-buttons .btn {
+  width: 100%;
+  text-align: center;
+}
+
+/* ─── /faq ───────────────────────────────────────────────── */
+.faq {
+  background: transparent;
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .faq {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+  .faq-inner {
+    padding: 3rem 3.5rem 3.5rem;
+  }
+}
+
+.faq-inner {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.faq-header {
+  margin-bottom: 2rem;
+  max-width: 640px;
+}
+
+@media (min-width: 768px) {
+  .faq-header {
+    margin-bottom: 2.5rem;
+  }
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.faq-item {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-pop);
+}
+
+@media (min-width: 768px) {
+  .faq-item {
+    padding: 1.5rem 1.75rem;
+  }
+}
+
+.faq-question {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+.faq-answer {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.faq-answer a {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.faq-answer a:hover {
+  color: var(--color-accent-hover);
+  text-decoration-color: currentColor;
+}
+
+/* ─── /website-checklist ─────────────────────────────────── */
+.checklist {
+  background: transparent;
+  padding: 3rem 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .checklist {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+  .checklist-inner {
+    padding: 3rem 3.5rem 3.5rem;
+  }
+}
+
+.checklist-inner {
+  position: relative;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.checklist-header {
+  margin-bottom: 2rem;
+  max-width: 720px;
+}
+
+@media (min-width: 768px) {
+  .checklist-header {
+    margin-bottom: 3rem;
+  }
+}
+
+.checklist-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .checklist-groups {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.checklist-group {
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-pop);
+  box-shadow: var(--shadow-sm);
+}
+
+.checklist-group-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+}
+
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.checklist-items li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.checklist-items svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  color: var(--color-accent);
+}
+
+.checklist-note {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.6;
 }
 
 /* ─── Motion & Interaction ───────────────────────────────── */

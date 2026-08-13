@@ -10,6 +10,8 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         check: fileURLToPath(new URL('./check.html', import.meta.url)),
         services: fileURLToPath(new URL('./services.html', import.meta.url)),
+        faq: fileURLToPath(new URL('./faq.html', import.meta.url)),
+        websiteChecklist: fileURLToPath(new URL('./website-checklist.html', import.meta.url)),
       },
     },
   },
