@@ -461,22 +461,30 @@ section[id] {
   flex-wrap: wrap;
 }
 
-/* ─── Hero "sea glass" dots ───────────────────────────────────
-   Purely decorative, aria-hidden, pointer-events:none on both layers —
-   sits between the beach background (z-index -1, outside .hero) and the
-   card (.hero-text, z-index 1 via .hero-inner), so it can never sit on
-   top of or intercept clicks/keyboard focus on the card, its text, or its
-   buttons. Positions are computed at runtime by useHeroDots.ts, which
-   measures the card's own rect and only ever places dots in the margin
-   space around it — never guessed via fixed percentages, so this holds
-   at any viewport width. Pointer/touch listeners are attached to .hero
-   itself, never to these layers, which is the other half of why they can
-   stay pointer-events:none unconditionally. */
-.hero-dots {
+/* ─── Hero "sea glass" ripple effect ──────────────────────────
+   Purely decorative, aria-hidden, pointer-events:none — sits between the
+   beach background (z-index -1, outside .hero) and the card (.hero-text,
+   z-index 1 via .hero-inner). .hero-fx is clipped with an SVG clip-path
+   (id="heroCardHole", path kept in sync with the card's live measured
+   rect by useHeroDots.ts) that cuts a hole exactly where the card is —
+   so no dot, ripple, or burst can ever be SEEN over the card regardless
+   of where it spawns or how large a ripple grows; this is a visual
+   guarantee, not a "we positioned things carefully" convention. Pointer/
+   touch listeners are attached to .hero itself, never to this layer,
+   which is the other half of why it can stay pointer-events:none
+   unconditionally. */
+.hero-fx {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  clip-path: url(#heroCardHole);
+}
+
+.hero-dots,
+.hero-ripples {
+  position: absolute;
+  inset: 0;
 }
 
 .hero-dot {
@@ -485,29 +493,58 @@ section[id] {
   height: 8px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(199, 235, 222, 0.95), rgba(77, 163, 168, 0.4) 65%, transparent 100%);
-  transform: translate(0px, 0px);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform, opacity;
 }
 
 .hero-dot:nth-child(3n)   { width: 6px;  height: 6px; }
 .hero-dot:nth-child(3n+1) { width: 10px; height: 10px; }
 .hero-dot:nth-child(5n)   { width: 13px; height: 13px; }
 
-.hero-dot-lines {
+/* One ring per ripple — a fixed-size element animated purely via
+   transform: scale() + opacity (compositor-only, no layout/paint churn)
+   so this stays cheap even if ripples fire in quick succession. Each
+   element removes itself on 'animationend' (see useHeroDots.ts). */
+.hero-ripple-ring {
   position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: visible;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(199, 235, 222, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  transform: scale(1);
+  opacity: 0.85;
+  animation: heroRippleExpand 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
 
-.hero-dot-lines line {
-  stroke: rgba(143, 207, 192, 0.9);
-  stroke-width: 1;
-  transition: opacity 0.5s ease-out;
+@keyframes heroRippleExpand {
+  0%   { transform: scale(1);   opacity: 0.85; }
+  55%  { opacity: 0.4; }
+  100% { transform: scale(8);   opacity: 0; }
+}
+
+/* A small brighter-dot cluster that drifts outward with each ripple —
+   --dx/--dy are set per-spawn in useHeroDots.ts. */
+.hero-burst-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(143, 207, 192, 0.65) 70%, transparent 100%);
+  transform: translate(0, 0);
+  opacity: 0.95;
+  animation: heroBurstDrift 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes heroBurstDrift {
+  0%   { transform: translate(0, 0); opacity: 0.95; }
+  100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
 }
 
 /* ─── Services ───────────────────────────────────────────── */
@@ -1561,11 +1598,13 @@ section[id] {
   .work-card, .service-card, .work-card-thumb-img {
     transition: none;
   }
-  .hero-dot {
-    transition: none;
-  }
-  .hero-dot-lines line {
-    transition: none;
+  /* Defensive only — useHeroDots.ts never attaches a pointer/touch
+     listener at all under reduced motion, so no ripple or burst-dot
+     element is ever created in the first place. */
+  .hero-ripple-ring,
+  .hero-burst-dot {
+    animation: none;
+    display: none;
   }
   .process-connector {
     transition: none;
