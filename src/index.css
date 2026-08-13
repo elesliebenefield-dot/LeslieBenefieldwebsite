@@ -461,45 +461,53 @@ section[id] {
   flex-wrap: wrap;
 }
 
-/* ─── Hero "ocean light" dots ────────────────────────────────
-   Purely decorative, aria-hidden, pointer-events:none — sits between the
-   beach background (z-index -1, outside .hero) and the card (.hero-inner,
-   z-index 1), so it can never sit on top of or intercept clicks on the
-   card, its text, or its buttons. The container gets a small pointer-
-   driven nudge from useHeroParallax.ts (desktop, hover-capable, non-
-   reduced-motion only); each dot independently runs its own slow ambient
-   drift so touch/non-hover devices still see gentle, calm movement. */
+/* ─── Hero "sea glass" dots ───────────────────────────────────
+   Purely decorative, aria-hidden, pointer-events:none on both layers —
+   sits between the beach background (z-index -1, outside .hero) and the
+   card (.hero-text, z-index 1 via .hero-inner), so it can never sit on
+   top of or intercept clicks/keyboard focus on the card, its text, or its
+   buttons. Positions are computed at runtime by useHeroDots.ts, which
+   measures the card's own rect and only ever places dots in the margin
+   space around it — never guessed via fixed percentages, so this holds
+   at any viewport width. Pointer/touch listeners are attached to .hero
+   itself, never to these layers, which is the other half of why they can
+   stay pointer-events:none unconditionally. */
 .hero-dots {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
 }
 
 .hero-dot {
   position: absolute;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.85), rgba(77, 163, 168, 0.28) 65%, transparent 100%);
-  filter: blur(0.5px);
-  animation: heroDotDrift 24s ease-in-out infinite alternate;
+  background: radial-gradient(circle, rgba(199, 235, 222, 0.95), rgba(77, 163, 168, 0.4) 65%, transparent 100%);
+  transform: translate(0px, 0px);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
 }
 
-.hero-dot--1  { width: 10px; height: 10px; top: 14%;  left: 10%;  opacity: 0.55; animation-duration: 21s; }
-.hero-dot--2  { width: 16px; height: 16px; top: 22%;  left: 84%;  opacity: 0.5;  animation-duration: 27s; animation-delay: -3s; }
-.hero-dot--3  { width: 8px;  height: 8px;  top: 68%;  left: 6%;   opacity: 0.6;  animation-duration: 19s; animation-delay: -8s; }
-.hero-dot--4  { width: 13px; height: 13px; top: 78%;  left: 90%;  opacity: 0.45; animation-duration: 25s; animation-delay: -12s; }
-.hero-dot--5  { width: 7px;  height: 7px;  top: 8%;   left: 45%;  opacity: 0.5;  animation-duration: 23s; animation-delay: -5s; }
-.hero-dot--6  { width: 11px; height: 11px; top: 88%;  left: 40%;  opacity: 0.5;  animation-duration: 26s; animation-delay: -16s; }
-.hero-dot--7  { width: 9px;  height: 9px;  top: 40%;  left: 4%;   opacity: 0.4;  animation-duration: 22s; animation-delay: -9s; }
-.hero-dot--8  { width: 14px; height: 14px; top: 46%;  left: 94%;  opacity: 0.4;  animation-duration: 28s; animation-delay: -18s; }
-.hero-dot--9  { width: 6px;  height: 6px;  top: 4%;   left: 74%;  opacity: 0.55; animation-duration: 20s; animation-delay: -2s; }
-.hero-dot--10 { width: 12px; height: 12px; top: 62%;  left: 55%;  opacity: 0.35; animation-duration: 29s; animation-delay: -21s; }
+.hero-dot:nth-child(3n)   { width: 6px;  height: 6px; }
+.hero-dot:nth-child(3n+1) { width: 10px; height: 10px; }
+.hero-dot:nth-child(5n)   { width: 13px; height: 13px; }
 
-@keyframes heroDotDrift {
-  from { transform: translate(0, 0); }
-  to   { transform: translate(7px, -9px); }
+.hero-dot-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.hero-dot-lines line {
+  stroke: rgba(143, 207, 192, 0.9);
+  stroke-width: 1;
+  transition: opacity 0.5s ease-out;
 }
 
 /* ─── Services ───────────────────────────────────────────── */
@@ -1553,11 +1561,11 @@ section[id] {
   .work-card, .service-card, .work-card-thumb-img {
     transition: none;
   }
-  .hero-dots {
+  .hero-dot {
     transition: none;
   }
-  .hero-dot {
-    animation: none;
+  .hero-dot-lines line {
+    transition: none;
   }
   .process-connector {
     transition: none;
