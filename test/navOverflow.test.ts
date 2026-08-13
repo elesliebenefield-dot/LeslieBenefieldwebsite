@@ -1,10 +1,16 @@
 // Regression tests for the /check tablet/intermediate-width horizontal
-// overflow bug: the shared Nav component's full desktop row (logo + 6 links
-// + contact button) needed ~950px to lay out without crowding, but the
-// hamburger-menu breakpoint was 768px — leaving a 769-949px window where
+// overflow bug: the shared Nav component's full desktop row (logo + N links
+// + contact button) needs to lay out without crowding, but the
+// hamburger-menu breakpoint was 768px — leaving a window where
 // the full row rendered and overflowed the viewport. Fixed by raising that
-// one breakpoint to 960px (see src/index.css) so the hamburger stays active
+// one breakpoint (see src/index.css) so the hamburger stays active
 // until the full row genuinely fits.
+//
+// The breakpoint value has moved twice as links were added: 768px -> 960px
+// (6 links, ~950px natural width) -> 1080px (7 links, after adding
+// "Services & Pricing", ~1055px natural width). Each time, this file's
+// boundary-specific test and sweep values were re-measured and updated to
+// match — see the current @media (max-width: 1080px) block in src/index.css.
 //
 // This test only ever exercised the shared Nav component and page-level
 // layout via /check.html as a rendering host — nothing checker-specific —
@@ -83,11 +89,11 @@ async function overflowAt(page: Page, width: number): Promise<number> {
 test('/check has no horizontal overflow anywhere across the affected intermediate-width range (340px-1440px)', async () => {
   const page: Page = await browser.newPage()
   try {
-    // The originally-affected range was empirically found to be exactly
-    // 769-949px (scrollWidth pinned at 950px throughout); this sweeps a
-    // superset of that with a 20px step, plus the exact former boundary
-    // values, so a regression anywhere in or near that window is caught.
-    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 949, 950, 960, 961, 1000, 1024, 1200, 1440]
+    // Sweeps from the narrow end up through desktop widths, including the
+    // former 960/961px boundary (now safely inside hamburger territory)
+    // and the current 1080/1081px breakpoint boundary, so a regression
+    // anywhere in or near either window is caught.
+    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 960, 961, 1000, 1024, 1055, 1079, 1080, 1081, 1082, 1100, 1200, 1440]
     for (const width of widths) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
@@ -117,10 +123,10 @@ test('/check has no horizontal overflow at 320px (narrowest common real device w
   }
 })
 
-test('/check specifically at the new nav breakpoint boundary (960/961px) has no overflow on either side', async () => {
+test('/check specifically at the new nav breakpoint boundary (1080/1081px) has no overflow on either side', async () => {
   const page: Page = await browser.newPage()
   try {
-    for (const width of [958, 959, 960, 961, 962, 963]) {
+    for (const width of [1078, 1079, 1080, 1081, 1082, 1083]) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
     }
