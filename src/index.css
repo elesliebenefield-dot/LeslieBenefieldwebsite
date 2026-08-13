@@ -1797,6 +1797,10 @@ section[id] {
   max-width: none;
 }
 
+.pricing-payment-inner .section-subtitle + .section-subtitle {
+  margin-top: 1rem;
+}
+
 /* ─── Final CTA ─────────────────────────────────────────── */
 .pricing-cta {
   position: relative;

@@ -165,6 +165,28 @@ test('payment section is present with the correct heading', async () => {
   }
 })
 
+test('payment section states a rush-project policy that never promises availability and adds no price/hourly-rate change', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
+    const paragraphs = await page.$$eval('.pricing-payment-inner .section-subtitle', (els) => els.map((e) => e.textContent || ''))
+    const rushParagraph = paragraphs.find((p) => /rush/i.test(p))
+    assert.ok(rushParagraph, 'expected a paragraph mentioning rush projects')
+    assert.match(rushParagraph!, /rush fee may apply/i)
+    assert.match(rushParagraph!, /depends on my current schedule/i)
+    assert.match(rushParagraph!, /included in your written quote/i)
+    // Must not promise availability ("I offer" / "available") and must not
+    // introduce an hourly rate or change the listed starting prices.
+    assert.ok(!/\bi offer rush\b|\bguaranteed\b/i.test(rushParagraph!), 'must not promise rush availability')
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    assert.ok(!/\$\s*\d+(\.\d+)?\s*\/\s*(hour|hr)\b/i.test(bodyText), 'page must not display an hourly rate')
+    const prices = await page.$$eval('.pricing-card-price', (els) => els.map((e) => e.textContent?.trim() || ''))
+    assert.deepEqual(prices, ['Complimentary', 'Starting at $750', 'Starting at $1,500', 'Starting at $800', 'Custom quote'])
+  } finally {
+    await page.close()
+  }
+})
+
 test('final CTA has the correct heading and both buttons point to the right destinations', async () => {
   const page: Page = await browser.newPage()
   try {
