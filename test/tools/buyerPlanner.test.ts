@@ -588,7 +588,7 @@ test('step 5 has no name or email input fields', async () => {
 
 // ── Result actions ────────────────────────────────────────────────────────────
 
-test('result actions bar has Copy Summary, Print Summary, Review / Edit Answers, and Start Over buttons', async () => {
+test('result actions bar has Copy Summary, Email Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
@@ -596,10 +596,11 @@ test('result actions bar has Copy Summary, Print Summary, Review / Edit Answers,
     const buttons = await page.$$eval('.result-action-btn', els =>
       els.map(el => el.textContent?.trim() ?? '')
     )
-    assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary button must exist')
-    assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary button must exist')
-    assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers button must exist')
-    assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over button must exist')
+    assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must exist')
+    assert.ok(buttons.some(t => /email summary/i.test(t)), 'Email Summary must exist')
+    assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary must exist')
+    assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers must exist')
+    assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over must exist')
   } finally {
     await page.close()
   }
@@ -793,4 +794,186 @@ test('tools-buyer.html links the existing favicon.svg', async () => {
 test('tools-seller.html links the existing favicon.svg', async () => {
   const html = await readFile(path.join(ROOT, 'tools-seller.html'), 'utf-8')
   assert.match(html, /favicon\.svg/, 'tools-seller.html must link favicon.svg')
+})
+
+// ── Email Summary ─────────────────────────────────────────────────────────────
+
+test('buyer Email Summary mailto has a blank recipient', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    assert.ok(href.startsWith('mailto:?'), `recipient must be blank; got: ${href.slice(0, 40)}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('buyer Email Summary mailto has the correct encoded subject', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    const subjectMatch = href.match(/[?&]subject=([^&]*)/)
+    const subject = decodeURIComponent(subjectMatch?.[1] ?? '')
+    assert.equal(subject, 'My Buyer Readiness Planning Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('buyer Email Summary mailto body includes the complete planning summary and disclaimer', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    const bodyMatch = href.match(/[?&]body=(.*)$/)
+    const body = decodeURIComponent(bodyMatch?.[1] ?? '')
+    assert.match(body, /BUYER READINESS PLANNER/)
+    assert.match(body, /informational and discussion purposes only/)
+    assert.match(body, /does not constitute real estate/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('buyer Email Summary live region announces the email was opened', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    const statusBefore = await page.$eval('.result-copy-status', el => el.textContent || '')
+    assert.equal(statusBefore.trim(), '', 'status should be empty before email click')
+
+    await page.click('.result-email-action')
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.result-copy-status')
+      return el && el.textContent && el.textContent.includes('email application was opened')
+    }, { timeout: 3000 })
+
+    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
+    assert.match(status, /email application was opened/i)
+    assert.match(status, /Review the recipient/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('buyer Email Summary is inside result-actions which carries the no-print class', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const actionsHasNoPrint = await page.$eval('.result-actions', el => el.classList.contains('no-print'))
+    assert.equal(actionsHasNoPrint, true, 'result-actions (containing Email Summary) must have no-print')
+  } finally {
+    await page.close()
+  }
+})
+
+test('buyer Email Summary is not visible in print media', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    await page.emulateMediaType('print')
+    const visible = await page.$eval('.result-email-action', el =>
+      window.getComputedStyle(el.closest('.result-actions')!).display !== 'none'
+    )
+    assert.equal(visible, false, 'result-actions (including Email Summary) must be hidden in print')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+async function checkOverflow(w: number, h: number, url: string): Promise<number> {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: w, height: h })
+    await page.goto(url, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    return await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  } finally {
+    await page.close()
+  }
+}
+
+test('no horizontal overflow on step 1 at 320px', async () => {
+  const ovf = await checkOverflow(320, 568, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 320px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 375px', async () => {
+  const ovf = await checkOverflow(375, 667, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 375px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 430px', async () => {
+  const ovf = await checkOverflow(430, 932, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 430px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 768px (tablet)', async () => {
+  const ovf = await checkOverflow(768, 1024, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 768px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on results at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 320px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('action buttons stay within viewport at 320px — no button extends past right edge', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const maxRight = await page.$$eval('.result-action-btn', (btns) =>
+      Math.max(...btns.map(b => b.getBoundingClientRect().right))
+    )
+    assert.ok(maxRight <= 320, `action button right edge (${maxRight.toFixed(1)}px) must not exceed 320px viewport`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('navigation buttons stay within viewport at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const navRight = await page.evaluate(() =>
+      document.querySelector('.tool-nav')?.getBoundingClientRect().right ?? 0
+    )
+    assert.ok(navRight <= 320, `nav right edge (${navRight.toFixed(1)}px) must not exceed 320px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('all action buttons meet 44px minimum touch target height', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const minHeight = await page.$$eval('.result-action-btn', btns =>
+      Math.min(...btns.map(b => b.getBoundingClientRect().height))
+    )
+    assert.ok(minHeight >= 44, `all action buttons must be at least 44px tall; smallest was ${minHeight.toFixed(1)}px`)
+  } finally {
+    await page.close()
+  }
 })

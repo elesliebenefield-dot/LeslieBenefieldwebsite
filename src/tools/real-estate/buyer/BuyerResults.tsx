@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ResultSection } from '../../core/types'
 import type { BuyerAnswers } from './buyerTypes'
 import { buildBuyerSummaryText } from './buyerSummary'
+import { buildMailtoHref } from '../../core/buildMailtoHref'
 
 export { buildBuyerSummaryText }
 
@@ -13,7 +14,13 @@ interface Props {
 }
 
 export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: Props) {
-  const [copyStatus, setCopyStatus] = useState<'' | 'copied' | 'failed'>('')
+  const [copyStatus, setCopyStatus] = useState<'' | 'copied' | 'failed' | 'emailed'>('')
+
+  const emailHref = buildMailtoHref(
+    '',
+    'My Buyer Readiness Planning Summary',
+    buildBuyerSummaryText(sections, answers.agentQuestions),
+  )
 
   async function handleCopy() {
     const text = buildBuyerSummaryText(sections, answers.agentQuestions)
@@ -24,6 +31,11 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
     } catch {
       setCopyStatus('failed')
     }
+  }
+
+  function handleEmailClick() {
+    setCopyStatus('emailed')
+    setTimeout(() => setCopyStatus(''), 5000)
   }
 
   return (
@@ -40,6 +52,14 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
         <button type="button" className="result-action-btn" onClick={handleCopy}>
           Copy Summary
         </button>
+        <a
+          href={emailHref}
+          className="result-action-btn result-email-action"
+          title="Opens your email application with the summary pre-filled"
+          onClick={handleEmailClick}
+        >
+          Email Summary
+        </a>
         <button type="button" className="result-action-btn" onClick={() => window.print()}>
           Print Summary
         </button>
@@ -53,10 +73,11 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          className={`result-copy-status${copyStatus === 'copied' ? ' success' : copyStatus === 'failed' ? ' failed' : ''}`}
+          className={`result-copy-status${copyStatus === 'copied' || copyStatus === 'emailed' ? ' success' : copyStatus === 'failed' ? ' failed' : ''}`}
         >
           {copyStatus === 'copied' && 'Copied to clipboard.'}
           {copyStatus === 'failed' && "Copy failed — use your device's select-all and copy instead."}
+          {copyStatus === 'emailed' && 'Your email application was opened. Review the recipient and summary before sending.'}
         </div>
       </div>
 

@@ -579,7 +579,7 @@ test('step 5 has no name or email input fields', async () => {
 
 // ── Result actions ────────────────────────────────────────────────────────────
 
-test('result actions bar has Copy Summary, Print Summary, Review / Edit Answers, and Start Over buttons', async () => {
+test('result actions bar has Copy Summary, Email Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
@@ -587,10 +587,11 @@ test('result actions bar has Copy Summary, Print Summary, Review / Edit Answers,
     const buttons = await page.$$eval('.result-action-btn', els =>
       els.map(el => el.textContent?.trim() ?? '')
     )
-    assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary button must exist')
-    assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary button must exist')
-    assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers button must exist')
-    assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over button must exist')
+    assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must exist')
+    assert.ok(buttons.some(t => /email summary/i.test(t)), 'Email Summary must exist')
+    assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary must exist')
+    assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers must exist')
+    assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over must exist')
   } finally {
     await page.close()
   }
@@ -708,6 +709,66 @@ test('result-actions and tool-sales-cta are hidden in print media', async () => 
 
     assert.equal(actionsVisible, false, 'result-actions must be hidden in print')
     assert.equal(ctaVisible, false, 'tool-sales-cta must be hidden in print')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Email Summary ─────────────────────────────────────────────────────────────
+
+test('seller Email Summary mailto has a blank recipient', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    assert.ok(href.startsWith('mailto:?'), `recipient must be blank; got: ${href.slice(0, 40)}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller Email Summary mailto has the correct encoded subject', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    const subjectMatch = href.match(/[?&]subject=([^&]*)/)
+    const subject = decodeURIComponent(subjectMatch?.[1] ?? '')
+    assert.equal(subject, 'My Seller Readiness Planning Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller Email Summary mailto body includes the complete planning summary and disclaimer', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
+    const bodyMatch = href.match(/[?&]body=(.*)$/)
+    const body = decodeURIComponent(bodyMatch?.[1] ?? '')
+    assert.match(body, /SELLER READINESS PLANNER/)
+    assert.match(body, /informational and discussion purposes only/)
+    assert.match(body, /does not constitute real estate/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller Email Summary live region announces the email was opened', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await completeAllSteps(page)
+
+    await page.click('.result-email-action')
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.result-copy-status')
+      return el && el.textContent && el.textContent.includes('email application was opened')
+    }, { timeout: 3000 })
+
+    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
+    assert.match(status, /email application was opened/i)
   } finally {
     await page.close()
   }

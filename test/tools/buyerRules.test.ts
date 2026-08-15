@@ -12,6 +12,7 @@ import { evaluateRules } from '../../src/tools/core/evaluateRules.ts'
 import { BUYER_RULES, SECTION_ORDER, SECTION_TITLES } from '../../src/tools/real-estate/buyer/buyerRules.ts'
 import { EMPTY_BUYER_ANSWERS, type BuyerAnswers } from '../../src/tools/real-estate/buyer/buyerTypes.ts'
 import { buildBuyerSummaryText } from '../../src/tools/real-estate/buyer/buyerSummary.ts'
+import { buildMailtoHref } from '../../src/tools/core/buildMailtoHref.ts'
 
 const ROOT = path.resolve(import.meta.dirname, '../..')
 
@@ -470,6 +471,44 @@ test('buildBuyerSummaryText items without detail do not include a blank indent l
   const labelIdx = lines.findIndex(l => l === '• Connect with a licensed real estate agent')
   assert.ok(labelIdx !== -1, 'label line must exist')
   assert.ok(lines[labelIdx + 1] !== '  ', 'no blank indent line should follow a label with no detail')
+})
+
+// ── buildMailtoHref ───────────────────────────────────────────────────────────
+
+test('buildMailtoHref produces a mailto: URI', () => {
+  const href = buildMailtoHref('', 'Test Subject', 'Test body')
+  assert.match(href, /^mailto:/, 'must start with mailto:')
+})
+
+test('buildMailtoHref with blank recipient produces mailto:? (no recipient)', () => {
+  const href = buildMailtoHref('', 'Subject', 'Body')
+  assert.ok(href.startsWith('mailto:?'), `expected mailto:? but got: ${href.slice(0, 30)}`)
+})
+
+test('buildMailtoHref with a recipient includes it before the ?', () => {
+  const href = buildMailtoHref('agent@example.com', 'Subject', 'Body')
+  assert.ok(href.startsWith('mailto:agent@example.com?'), 'recipient must appear before query string')
+})
+
+test('buildMailtoHref encodes the subject correctly', () => {
+  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', 'body')
+  assert.match(href, /subject=My%20Buyer%20Readiness%20Planning%20Summary/)
+})
+
+test('buildMailtoHref encodes the body correctly', () => {
+  const href = buildMailtoHref('', 'subject', 'Hello & goodbye')
+  assert.match(href, /body=Hello%20%26%20goodbye/)
+})
+
+test('buildMailtoHref buyer mailto includes complete summary and disclaimer', () => {
+  const sections = evaluate(answers({ stage: 'actively', financingStatus: 'preapproved' }))
+  const summaryText = buildBuyerSummaryText(sections, '')
+  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
+  const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
+  const body = decodeURIComponent(bodyEncoded)
+  assert.match(body, /BUYER READINESS PLANNER/)
+  assert.match(body, /informational and discussion purposes only/)
+  assert.match(body, /does not constitute real estate/)
 })
 
 // ── test infrastructure ───────────────────────────────────────────────────────

@@ -566,6 +566,7 @@ body {
   white-space: nowrap;
   min-height: 44px;
   line-height: 1;
+  text-decoration: none;
 }
 
 .result-action-btn:hover {
