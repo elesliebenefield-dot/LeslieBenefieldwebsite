@@ -1,0 +1,30 @@
+import type { ResultSection } from '../../core/types'
+
+export function buildBuyerSummaryText(sections: ResultSection[], agentQuestions: string): string {
+  const lines: string[] = [
+    'BUYER READINESS PLANNER — Planning Summary',
+    '='.repeat(43),
+    '',
+  ]
+  for (const section of sections) {
+    lines.push(section.title)
+    lines.push('-'.repeat(section.title.length))
+    for (const item of section.items) {
+      lines.push(`• ${item.label}`)
+      if (item.detail) {
+        lines.push(`  ${item.detail}`)
+      }
+    }
+    lines.push('')
+  }
+  if (agentQuestions.trim()) {
+    lines.push('Your Written Questions')
+    lines.push('-'.repeat(21))
+    lines.push(agentQuestions.trim())
+    lines.push('')
+  }
+  lines.push('='.repeat(43))
+  lines.push('This planning summary is for informational and discussion purposes only.')
+  lines.push('It does not constitute real estate, legal, financial, or tax advice.')
+  return lines.join('\n')
+}

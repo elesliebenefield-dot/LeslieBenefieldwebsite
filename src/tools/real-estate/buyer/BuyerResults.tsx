@@ -1,25 +1,25 @@
 import { useState } from 'react'
 import type { ResultSection } from '../../core/types'
-import type { SellerAnswers } from './sellerTypes'
-import { buildSummaryText } from './sellerSummary'
+import type { BuyerAnswers } from './buyerTypes'
+import { buildBuyerSummaryText } from './buyerSummary'
 
-export { buildSummaryText }
+export { buildBuyerSummaryText }
 
-export const SELLER_SHARE_TITLE = 'My Seller Readiness Planning Summary'
+export const BUYER_SHARE_TITLE = 'My Buyer Readiness Planning Summary'
 
 interface Props {
   sections: ResultSection[]
-  answers: SellerAnswers
+  answers: BuyerAnswers
   onStartOver: () => void
   onEditAnswers: () => void
 }
 
-export function SellerResults({ sections, answers, onStartOver, onEditAnswers }: Props) {
+export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: Props) {
   const [copyStatus, setCopyStatus] = useState<'' | 'copied' | 'failed' | 'share-error'>('')
   const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
   async function handleCopy() {
-    const text = buildSummaryText(sections, answers.agentQuestions)
+    const text = buildBuyerSummaryText(sections, answers.agentQuestions)
     try {
       await navigator.clipboard.writeText(text)
       setCopyStatus('copied')
@@ -30,9 +30,9 @@ export function SellerResults({ sections, answers, onStartOver, onEditAnswers }:
   }
 
   async function handleShare() {
-    const text = buildSummaryText(sections, answers.agentQuestions)
+    const text = buildBuyerSummaryText(sections, answers.agentQuestions)
     try {
-      await navigator.share({ title: SELLER_SHARE_TITLE, text })
+      await navigator.share({ title: BUYER_SHARE_TITLE, text })
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError') {
         setCopyStatus('share-error')
@@ -141,7 +141,7 @@ export function SellerResults({ sections, answers, onStartOver, onEditAnswers }:
         </p>
         <p>
           Results are based solely on the information you entered and are not a
-          prediction, valuation, or professional assessment of your property or situation.
+          prediction, valuation, or professional assessment of your situation.
         </p>
         <p>
           Interactive demo by{' '}

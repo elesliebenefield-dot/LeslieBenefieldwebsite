@@ -566,6 +566,7 @@ body {
   white-space: nowrap;
   min-height: 44px;
   line-height: 1;
+  text-decoration: none;
 }
 
 .result-action-btn:hover {
@@ -580,6 +581,14 @@ body {
 
 .result-action-btn--ghost {
   color: var(--color-text-muted);
+}
+
+.result-share-hint {
+  width: 100%;
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
 }
 
 .result-copy-status {

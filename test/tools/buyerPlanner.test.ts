@@ -1,17 +1,16 @@
-// Browser integration tests for the Seller Readiness Planner
-// (tools-seller.html). Verifies multi-step navigation, validation,
-// results display, Start Over flow, accessibility, and overflow.
+// Browser integration tests for the Buyer Readiness Planner (tools-buyer.html).
+// Verifies multi-step navigation, validation, results display, Start Over flow,
+// accessibility, and overflow.
 //
-// Runs against the production build (dist/) via a lightweight static
-// HTTP server and Puppeteer. No live network access beyond Google Fonts
-// (which the browser loads but tests do not depend on for assertions).
+// Runs against the production build (dist/) via a lightweight static HTTP server
+// and Puppeteer. No live network access beyond Google Fonts (not asserted on).
 //
-// Run with: node --test test/tools/sellerPlanner.test.ts
+// Run with: node --test test/tools/buyerPlanner.test.ts
 
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer, type Server } from 'node:http'
-import { readFile } from 'node:fs/promises'
+import { readFile, access } from 'node:fs/promises'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
@@ -35,10 +34,17 @@ let server: Server
 let baseUrl: string
 
 before(async () => {
-  execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
+  // Skip build if dist/tools-buyer.html already exists — another concurrent test
+  // file (e.g. sellerPlanner.test.ts) will have already built the full project.
+  // Running concurrent vite builds against the same dist/ causes race conditions.
+  const buyerEntry = path.join(DIST, 'tools-buyer.html')
+  const alreadyBuilt = await access(buyerEntry).then(() => true).catch(() => false)
+  if (!alreadyBuilt) {
+    execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
+  }
 
   server = createServer(async (req, res) => {
-    const urlPath = req.url || '/tools-seller.html'
+    const urlPath = req.url || '/tools-buyer.html'
     const filePath = path.join(DIST, decodeURIComponent(urlPath.split('?')[0]))
     try {
       const data = await readFile(filePath)
@@ -65,7 +71,9 @@ after(async () => {
 
 async function openPage(): Promise<Page> {
   const page = await browser.newPage()
-  await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+  await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+  // Wait for React to mount — progress label is the first element rendered by BuyerPlanner
+  await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
   return page
 }
 
@@ -82,33 +90,30 @@ async function toggleCheckbox(page: Page, name: string, value: string) {
 /** Fill all required answers on step 1. */
 async function fillStep1(page: Page) {
   await pickRadio(page, 'timeframe', '3to6')
-  await pickRadio(page, 'stage', 'preparing')
-  await pickRadio(page, 'coordination', 'sellOnly')
+  await pickRadio(page, 'stage', 'actively')
+  await pickRadio(page, 'purchaseType', 'firstHome')
 }
 
 /** Fill all required answers on step 2. */
 async function fillStep2(page: Page) {
-  await pickRadio(page, 'propertyType', 'singleFamily')
-  await pickRadio(page, 'occupancy', 'ownerOccupied')
+  await pickRadio(page, 'hasTargetArea', 'yes')
 }
 
 /** Fill all required answers on step 3. */
 async function fillStep3(page: Page) {
-  await pickRadio(page, 'knownRepairs', 'noneAware')
-  await pickRadio(page, 'declutterStatus', 'done')
-  await pickRadio(page, 'recentImprovements', 'none')
-  await pickRadio(page, 'accessArrangement', 'straightforward')
-  await pickRadio(page, 'prepQuestions', 'no')
+  await pickRadio(page, 'financingStatus', 'preapproved')
 }
 
 /** Fill all required answers on step 4. */
 async function fillStep4(page: Page) {
-  await pickRadio(page, 'hoaInvolvement', 'no')
-  await pickRadio(page, 'multipleOwners', 'one')
-  await pickRadio(page, 'timingComplications', 'open')
+  await pickRadio(page, 'housingTiming', 'flexible')
+  await pickRadio(page, 'mustSellFirst', 'no')
+  await pickRadio(page, 'showingAvailability', 'flexible')
+  await pickRadio(page, 'otherDecisionMakers', 'no')
+  await pickRadio(page, 'movingFlexibility', 'flexible')
 }
 
-/** Click Next button. */
+/** Click the Next / submit button. */
 async function clickNext(page: Page) {
   await page.click('.tool-nav-next')
 }
@@ -133,18 +138,18 @@ test('page renders the header and step 1 questions', async () => {
   const page = await openPage()
   try {
     const headerTitle = await page.$eval('.tool-header-title', el => el.textContent)
-    assert.equal(headerTitle, 'Seller Readiness Planner')
+    assert.equal(headerTitle, 'Buyer Readiness Planner')
 
     const brand = await page.$eval('.tool-header-brand', el => el.textContent)
     assert.match(brand!, /Your Real Estate Agent/i)
 
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(progressLabel, 'Selling Plans')
+    assert.equal(progressLabel, 'Buying Plans')
 
     const body = await page.evaluate(() => document.body.textContent || '')
-    assert.match(body, /When are you hoping to list/)
-    assert.match(body, /Where are you in the selling process/)
-    assert.match(body, /Does your home sale need to coordinate/)
+    assert.match(body, /When are you hoping to purchase/)
+    assert.match(body, /Where are you in the buying process/)
+    assert.match(body, /what best describes what you.re planning to purchase/i)
   } finally {
     await page.close()
   }
@@ -166,14 +171,14 @@ test('privacy note appears on step 1 and mentions browser storage', async () => 
 test('selecting a radio card marks it selected and deselects others in the group', async () => {
   const page = await openPage()
   try {
-    await pickRadio(page, 'timeframe', 'asap')
-    let checked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="asap"]') as HTMLInputElement)?.checked)
+    await pickRadio(page, 'timeframe', 'within3')
+    let checked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="within3"]') as HTMLInputElement)?.checked)
     assert.equal(checked, true)
 
     await pickRadio(page, 'timeframe', '3to6')
     checked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="3to6"]') as HTMLInputElement)?.checked)
     assert.equal(checked, true)
-    const prevChecked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="asap"]') as HTMLInputElement)?.checked)
+    const prevChecked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="within3"]') as HTMLInputElement)?.checked)
     assert.equal(prevChecked, false)
   } finally {
     await page.close()
@@ -189,7 +194,7 @@ test('clicking Next on step 1 with no answers shows error banner and stays on st
     const banner = await page.$('.tool-error-banner')
     assert.ok(banner, 'error banner should appear')
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(progressLabel, 'Selling Plans', 'should still be on step 1')
+    assert.equal(progressLabel, 'Buying Plans', 'should still be on step 1')
   } finally {
     await page.close()
   }
@@ -198,8 +203,8 @@ test('clicking Next on step 1 with no answers shows error banner and stays on st
 test('clicking Next with only some required step-1 fields shows error banner', async () => {
   const page = await openPage()
   try {
-    await pickRadio(page, 'timeframe', 'asap')
-    // stage and coordination not filled
+    await pickRadio(page, 'timeframe', '3to6')
+    // stage and purchaseType not filled
     await clickNext(page)
     const banner = await page.$('.tool-error-banner')
     assert.ok(banner, 'error banner should appear when not all required fields are filled')
@@ -211,18 +216,30 @@ test('clicking Next with only some required step-1 fields shows error banner', a
 test('filling all step-1 required fields clears error banner on Next', async () => {
   const page = await openPage()
   try {
-    // Trigger error first
     await clickNext(page)
     assert.ok(await page.$('.tool-error-banner'), 'error should initially appear')
 
-    // Fill all required fields
     await fillStep1(page)
     await clickNext(page)
 
-    // Should advance to step 2 — no error banner, progress says Property Basics
     assert.ok(!(await page.$('.tool-error-banner')), 'error banner should be gone after valid submission')
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(progressLabel, 'Property Basics')
+    assert.equal(progressLabel, 'Search Preferences')
+  } finally {
+    await page.close()
+  }
+})
+
+test('clicking Next on step 2 with no hasTargetArea selection shows error banner', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page)
+    await clickNext(page)
+    await clickNext(page) // try to advance step 2 without required field
+    const banner = await page.$('.tool-error-banner')
+    assert.ok(banner, 'error banner should appear on step 2 without hasTargetArea')
+    const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
+    assert.equal(progressLabel, 'Search Preferences')
   } finally {
     await page.close()
   }
@@ -234,11 +251,11 @@ test('progress bar label and count advance with each step', async () => {
   const page = await openPage()
   try {
     const expectedLabels = [
-      'Selling Plans',
-      'Property Basics',
-      'Property Preparation',
-      'Information to Gather',
-      'Priorities & Next Steps',
+      'Buying Plans',
+      'Search Preferences',
+      'Financing Status',
+      'Timing & Coordination',
+      'Priorities & Questions',
     ]
 
     for (let i = 0; i < 4; i++) {
@@ -247,7 +264,6 @@ test('progress bar label and count advance with each step', async () => {
       assert.equal(label, expectedLabels[i])
       assert.match(count!, new RegExp(`${i + 1} of 5`))
 
-      // Fill required answers for current step and advance
       if (i === 0) await fillStep1(page)
       if (i === 1) await fillStep2(page)
       if (i === 2) await fillStep3(page)
@@ -255,9 +271,8 @@ test('progress bar label and count advance with each step', async () => {
       await clickNext(page)
     }
 
-    // Step 5
     const label = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(label, 'Priorities & Next Steps')
+    assert.equal(label, 'Priorities & Questions')
     const count = await page.$eval('.tool-progress-count', el => el.textContent)
     assert.match(count!, /5 of 5/)
   } finally {
@@ -284,14 +299,14 @@ test('Back button is disabled on step 1 and enabled on step 2+', async () => {
 test('Back button on step 2 returns to step 1 and preserves answers', async () => {
   const page = await openPage()
   try {
-    await pickRadio(page, 'timeframe', 'asap')
+    await pickRadio(page, 'timeframe', 'within3')
     await pickRadio(page, 'stage', 'ready')
-    await pickRadio(page, 'coordination', 'sellOnly')
+    await pickRadio(page, 'purchaseType', 'firstHome')
     await clickNext(page)
 
     await page.click('.tool-nav-back')
 
-    const timeframeChecked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="asap"]') as HTMLInputElement)?.checked)
+    const timeframeChecked = await page.evaluate(() => (document.querySelector('input[name="timeframe"][value="within3"]') as HTMLInputElement)?.checked)
     assert.equal(timeframeChecked, true, 'timeframe selection should be preserved after Back')
     const stageChecked = await page.evaluate(() => (document.querySelector('input[name="stage"][value="ready"]') as HTMLInputElement)?.checked)
     assert.equal(stageChecked, true, 'stage selection should be preserved after Back')
@@ -336,7 +351,6 @@ test('nextStep section always appears in results', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
-
     const body = await page.evaluate(() => document.body.textContent || '')
     assert.match(body, /Suggested Next Step/i)
   } finally {
@@ -348,7 +362,6 @@ test('results include disclaimer with real estate advice text and Websites by Le
   const page = await openPage()
   try {
     await completeAllSteps(page)
-
     const disclaimer = await page.$eval('.tool-disclaimer', el => el.textContent || '')
     assert.match(disclaimer, /informational/i)
     assert.match(disclaimer, /real estate/i)
@@ -372,29 +385,48 @@ test('results never display score, value, price, or verdict language', async () 
   }
 })
 
-test('HOA items appear in results when hoaInvolvement is yes', async () => {
+test('results do not display credit score, income, or debt-to-income language', async () => {
   const page = await openPage()
   try {
-    await pickRadio(page, 'timeframe', '3to6')
-    await pickRadio(page, 'stage', 'exploring')
-    await pickRadio(page, 'coordination', 'sellOnly')
-    await clickNext(page)
+    await completeAllSteps(page)
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.ok(!/credit score/i.test(body), 'results must not mention credit score')
+    assert.ok(!/debt.to.income/i.test(body), 'results must not mention debt-to-income')
+    assert.ok(!/\bincome\b/i.test(body), 'results must not mention income')
+  } finally {
+    await page.close()
+  }
+})
 
-    await fillStep2(page)
+test('lender not-started result item appears when financingStatus is notSpoken', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await pickRadio(page, 'financingStatus', 'notSpoken')
     await clickNext(page)
-
-    await fillStep3(page)
-    await clickNext(page)
-
-    await pickRadio(page, 'hoaInvolvement', 'yes')
-    await pickRadio(page, 'multipleOwners', 'one')
-    await pickRadio(page, 'timingComplications', 'open')
-    await clickNext(page)
-
-    await clickNext(page) // step 5 — no required fields
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
 
     const body = await page.evaluate(() => document.body.textContent || '')
-    assert.match(body, /HOA information/i)
+    assert.match(body, /Connect with a lender/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('cash purchase item appears when financingStatus is noFinancing', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await pickRadio(page, 'financingStatus', 'noFinancing')
+    await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Cash purchase/i)
   } finally {
     await page.close()
   }
@@ -439,7 +471,7 @@ test('confirming Start Over resets to step 1 with blank answers', async () => {
     await page.click('.tool-confirm-proceed')
 
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(progressLabel, 'Selling Plans')
+    assert.equal(progressLabel, 'Buying Plans')
 
     const anyChecked = await page.evaluate(() =>
       Array.from(document.querySelectorAll('input[type="radio"]')).some(el => (el as HTMLInputElement).checked)
@@ -456,7 +488,7 @@ test('no horizontal overflow on step 1 at mobile width (390px)', async () => {
   const page = await openPage()
   try {
     await page.setViewport({ width: 390, height: 844 })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 0, `expected no horizontal overflow at 390px, got ${overflow}px`)
   } finally {
@@ -468,7 +500,7 @@ test('no horizontal overflow on results at desktop width (1280px)', async () => 
   const page = await openPage()
   try {
     await page.setViewport({ width: 1280, height: 900 })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await completeAllSteps(page)
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 0, `expected no horizontal overflow at 1280px on results, got ${overflow}px`)
@@ -484,7 +516,6 @@ test('all question groups use fieldset and legend elements', async () => {
   try {
     const fieldsets = await page.$$eval('fieldset', els => els.length)
     assert.ok(fieldsets >= 3, `expected at least 3 fieldsets on step 1, got ${fieldsets}`)
-
     const legends = await page.$$eval('legend', els => els.length)
     assert.ok(legends >= 3, `expected at least 3 legends on step 1, got ${legends}`)
   } finally {
@@ -531,28 +562,6 @@ test('EHO symbol and Equal Housing Opportunity text do not appear anywhere on pa
     const body = await page.evaluate(() => document.body.textContent || '')
     assert.ok(!/Equal Housing Opportunity/i.test(body), 'EHO text must not appear')
     assert.ok(!/⊜/.test(body), 'EHO symbol must not appear')
-  } finally {
-    await page.close()
-  }
-})
-
-// ── Step 4 ownership options ──────────────────────────────────────────────────
-
-test('step 4 ownership options use One owner / Multiple owners / I need to confirm labels', async () => {
-  const page = await openPage()
-  try {
-    await fillStep1(page); await clickNext(page)
-    await fillStep2(page); await clickNext(page)
-    await fillStep3(page); await clickNext(page)
-
-    const labels = await page.$$eval('input[name="multipleOwners"]', els =>
-      els.map(el => el.closest('label')?.querySelector('.option-card-label')?.textContent?.trim() ?? '')
-    )
-    assert.ok(labels.includes('One owner'), 'must have "One owner" option')
-    assert.ok(labels.includes('Multiple owners'), 'must have "Multiple owners" option')
-    assert.ok(labels.includes('I need to confirm'), 'must have "I need to confirm" option')
-    assert.ok(!labels.some(l => /^yes$/i.test(l)), 'old "yes" option must not appear')
-    assert.ok(!labels.some(l => /^no$/i.test(l)), 'old "no" option must not appear')
   } finally {
     await page.close()
   }
@@ -605,7 +614,7 @@ test('Copy Summary button updates live region with feedback', async () => {
         configurable: true,
       })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await completeAllSteps(page)
 
     const statusBefore = await page.$eval('.result-copy-status', el => el.textContent || '')
@@ -627,16 +636,15 @@ test('Copy Summary button updates live region with feedback', async () => {
 test('Review / Edit Answers returns to step 1 with prior answers preserved', async () => {
   const page = await openPage()
   try {
-    await pickRadio(page, 'timeframe', 'asap')
+    await pickRadio(page, 'timeframe', 'within3')
     await pickRadio(page, 'stage', 'ready')
-    await pickRadio(page, 'coordination', 'sellOnly')
+    await pickRadio(page, 'purchaseType', 'firstHome')
     await clickNext(page)
     await fillStep2(page); await clickNext(page)
     await fillStep3(page); await clickNext(page)
     await fillStep4(page); await clickNext(page)
     await clickNext(page) // step 5
 
-    // Click Review / Edit Answers
     const buttons = await page.$$('.result-action-btn')
     for (const btn of buttons) {
       const text = await btn.evaluate(el => el.textContent || '')
@@ -647,10 +655,10 @@ test('Review / Edit Answers returns to step 1 with prior answers preserved', asy
     }
 
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
-    assert.equal(progressLabel, 'Selling Plans', 'should return to step 1')
+    assert.equal(progressLabel, 'Buying Plans', 'should return to step 1')
 
     const timeframeChecked = await page.evaluate(() =>
-      (document.querySelector('input[name="timeframe"][value="asap"]') as HTMLInputElement)?.checked
+      (document.querySelector('input[name="timeframe"][value="within3"]') as HTMLInputElement)?.checked
     )
     assert.equal(timeframeChecked, true, 'prior timeframe answer should be preserved')
   } finally {
@@ -681,7 +689,7 @@ test('sales CTA appears on results screen targeting real estate professionals', 
   }
 })
 
-test('seller CTA button shows "Email Leslie →" and has accessible title', async () => {
+test('buyer CTA button shows "Email Leslie →" and has accessible title', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
@@ -729,9 +737,83 @@ test('result-actions and tool-sales-cta are hidden in print media', async () => 
   }
 })
 
+// ── Timeframe options and guidance ────────────────────────────────────────────
+
+test('step 1 timeframe options contain exactly the five expected values', async () => {
+  const page = await openPage()
+  try {
+    const values = await page.$$eval('input[name="timeframe"]', els =>
+      els.map(el => (el as HTMLInputElement).value).sort()
+    )
+    assert.deepEqual(values, ['3to6', '6to12', 'moreThan12', 'unsure', 'within3'])
+  } finally {
+    await page.close()
+  }
+})
+
+test('"exploring" is absent from the timeframe radio inputs', async () => {
+  const page = await openPage()
+  try {
+    const exploringInput = await page.$('input[name="timeframe"][value="exploring"]')
+    assert.equal(exploringInput, null, '"exploring" must not exist as a timeframe radio option')
+  } finally {
+    await page.close()
+  }
+})
+
+test('within3 timeframe produces a near-term timing result in the planning summary', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'within3')
+    await pickRadio(page, 'stage', 'actively')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Near-term purchase timeline/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('moreThan12 timeframe produces an early planning result in the planning summary', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'moreThan12')
+    await pickRadio(page, 'stage', 'justExploring')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Early planning steps for a future purchase/i)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Favicon and HTML hygiene ──────────────────────────────────────────────────
+
+test('tools-buyer.html links the existing favicon.svg', async () => {
+  const html = await readFile(path.join(ROOT, 'tools-buyer.html'), 'utf-8')
+  assert.match(html, /favicon\.svg/, 'tools-buyer.html must link favicon.svg')
+})
+
+test('tools-seller.html links the existing favicon.svg', async () => {
+  const html = await readFile(path.join(ROOT, 'tools-seller.html'), 'utf-8')
+  assert.match(html, /favicon\.svg/, 'tools-seller.html must link favicon.svg')
+})
+
 // ── Share Summary ─────────────────────────────────────────────────────────────
 
-test('seller native share: Share Summary button is visible and labeled correctly when share is supported', async () => {
+test('native share: Share Summary button is visible and labeled correctly when share is supported', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -740,7 +822,7 @@ test('seller native share: Share Summary button is visible and labeled correctly
         configurable: true, writable: true,
       })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
     const text = await page.$eval('.result-share-action', el => el.textContent?.trim() ?? '')
@@ -752,7 +834,7 @@ test('seller native share: Share Summary button is visible and labeled correctly
   }
 })
 
-test('seller native share: navigator.share receives the seller planning summary title and complete text', async () => {
+test('native share: navigator.share receives the buyer planning summary title and complete text', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -763,7 +845,7 @@ test('seller native share: navigator.share receives the seller planning summary 
       })
       ;(window as unknown as Record<string, unknown>).__shareCalls = () => [...calls]
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
@@ -777,8 +859,8 @@ test('seller native share: navigator.share receives the seller planning summary 
       () => (window as unknown as { __shareCalls: () => Array<{ title: string; text: string }> }).__shareCalls()
     )
     assert.equal(calls.length, 1)
-    assert.equal(calls[0].title, 'My Seller Readiness Planning Summary')
-    assert.match(calls[0].text, /SELLER READINESS PLANNER/)
+    assert.equal(calls[0].title, 'My Buyer Readiness Planning Summary')
+    assert.match(calls[0].text, /BUYER READINESS PLANNER/)
     assert.match(calls[0].text, /informational and discussion purposes only/)
     assert.match(calls[0].text, /Suggested Next Step/)
   } finally {
@@ -786,7 +868,53 @@ test('seller native share: navigator.share receives the seller planning summary 
   }
 })
 
-test('seller native share: AbortError is handled quietly with no error status', async () => {
+test('native share: share text equals what Copy Summary produces', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { text?: string }) => {
+          ;(window as unknown as Record<string, unknown>).__shareText = data.text ?? ''
+          return undefined
+        },
+        configurable: true, writable: true,
+      })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => !!((window as unknown as Record<string, unknown>).__shareText as string),
+      { timeout: 3000 }
+    )
+    const shareText = await page.evaluate(
+      () => (window as unknown as Record<string, unknown>).__shareText as string
+    )
+
+    await page.click('.result-action-btn') // Copy Summary is the first button
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+
+    assert.equal(shareText, written[0], 'share text must be identical to Copy Summary text')
+  } finally {
+    await page.close()
+  }
+})
+
+test('native share: AbortError is handled quietly with no error status', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -795,7 +923,7 @@ test('seller native share: AbortError is handled quietly with no error status', 
         configurable: true, writable: true,
       })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
@@ -809,7 +937,7 @@ test('seller native share: AbortError is handled quietly with no error status', 
   }
 })
 
-test('seller native share: Share Summary is not visible in print media', async () => {
+test('native share: no status message appears when share succeeds', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -818,7 +946,30 @@ test('seller native share: Share Summary is not visible in print media', async (
         configurable: true, writable: true,
       })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+
+    await new Promise(r => setTimeout(r, 800))
+    const status = await page.$eval('.result-copy-status', el => el.textContent?.trim() ?? '')
+    assert.equal(status, '', 'no status message should appear when native share succeeds')
+  } finally {
+    await page.close()
+  }
+})
+
+test('native share: Share Summary is not visible in print media', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async () => undefined,
+        configurable: true, writable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
     await page.emulateMediaType('print')
@@ -831,13 +982,13 @@ test('seller native share: Share Summary is not visible in print media', async (
   }
 })
 
-test('seller desktop: Share Summary button is not rendered when navigator.share is unavailable', async () => {
+test('desktop: Share Summary button is not rendered when navigator.share is unavailable', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
@@ -848,13 +999,32 @@ test('seller desktop: Share Summary button is not rendered when navigator.share 
   }
 })
 
-test('seller desktop: email helper text is displayed when navigator.share is unavailable', async () => {
+test('desktop: Copy Summary is displayed when navigator.share is unavailable', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    const buttons = await page.$$eval('.result-action-btn', els =>
+      els.map(el => el.textContent?.trim() ?? '')
+    )
+    assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must be present on desktop')
+  } finally {
+    await page.close()
+  }
+})
+
+test('desktop: email helper text is displayed when navigator.share is unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
@@ -866,7 +1036,28 @@ test('seller desktop: email helper text is displayed when navigator.share is una
   }
 })
 
-test('seller desktop: Copy Summary places complete report on clipboard', async () => {
+test('desktop: no mailto navigation occurs when navigator.share is unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    let navigated = false
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    page.on('request', req => { if (req.url().startsWith('mailto:')) navigated = true })
+
+    // No Share Summary button to click — verify no navigation happened after 500ms
+    await new Promise(r => setTimeout(r, 500))
+    assert.equal(navigated, false, 'no mailto navigation should occur on desktop')
+  } finally {
+    await page.close()
+  }
+})
+
+test('desktop: Copy Summary places complete report on clipboard', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -878,7 +1069,7 @@ test('seller desktop: Copy Summary places complete report on clipboard', async (
       })
       ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
@@ -892,7 +1083,7 @@ test('seller desktop: Copy Summary places complete report on clipboard', async (
       () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
     )
     assert.ok(written.length >= 1)
-    assert.match(written[0], /SELLER READINESS PLANNER/)
+    assert.match(written[0], /BUYER READINESS PLANNER/)
     assert.match(written[0], /Suggested Next Step/)
     assert.match(written[0], /informational and discussion purposes only/)
   } finally {
@@ -900,13 +1091,40 @@ test('seller desktop: Copy Summary places complete report on clipboard', async (
   }
 })
 
-test('seller desktop: email helper text is hidden in print media', async () => {
+test('desktop: Copy Summary live region shows "Complete summary copied to clipboard."', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async () => undefined },
+        configurable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-action-btn')
+    await page.waitForFunction(
+      () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Complete summary'),
+      { timeout: 3000 }
+    )
+
+    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
+    assert.match(status, /Complete summary copied to clipboard/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('desktop: email helper text is hidden in print media', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
     })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
     await page.emulateMediaType('print')
@@ -915,6 +1133,98 @@ test('seller desktop: email helper text is hidden in print media', async () => {
       window.getComputedStyle(el.closest('.result-actions')!).display !== 'none'
     )
     assert.equal(visible, false, 'result-actions (containing email hint) must be hidden in print')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+async function checkOverflow(w: number, h: number, url: string): Promise<number> {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: w, height: h })
+    await page.goto(url, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    return await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  } finally {
+    await page.close()
+  }
+}
+
+test('no horizontal overflow on step 1 at 320px', async () => {
+  const ovf = await checkOverflow(320, 568, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 320px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 375px', async () => {
+  const ovf = await checkOverflow(375, 667, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 375px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 430px', async () => {
+  const ovf = await checkOverflow(430, 932, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 430px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on step 1 at 768px (tablet)', async () => {
+  const ovf = await checkOverflow(768, 1024, `${baseUrl}/tools-buyer.html`)
+  assert.ok(ovf <= 0, `expected no overflow at 768px, got ${ovf}px`)
+})
+
+test('no horizontal overflow on results at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 320px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('action buttons stay within viewport at 320px — no button extends past right edge', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const maxRight = await page.$$eval('.result-action-btn', (btns) =>
+      Math.max(...btns.map(b => b.getBoundingClientRect().right))
+    )
+    assert.ok(maxRight <= 320, `action button right edge (${maxRight.toFixed(1)}px) must not exceed 320px viewport`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('navigation buttons stay within viewport at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const navRight = await page.evaluate(() =>
+      document.querySelector('.tool-nav')?.getBoundingClientRect().right ?? 0
+    )
+    assert.ok(navRight <= 320, `nav right edge (${navRight.toFixed(1)}px) must not exceed 320px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('all action buttons meet 44px minimum touch target height', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const minHeight = await page.$$eval('.result-action-btn', btns =>
+      Math.min(...btns.map(b => b.getBoundingClientRect().height))
+    )
+    assert.ok(minHeight >= 44, `all action buttons must be at least 44px tall; smallest was ${minHeight.toFixed(1)}px`)
   } finally {
     await page.close()
   }

@@ -14,6 +14,7 @@ export default defineConfig({
         websiteChecklist: fileURLToPath(new URL('./website-checklist.html', import.meta.url)),
         privacyPolicy: fileURLToPath(new URL('./privacy-policy.html', import.meta.url)),
         toolsSeller: fileURLToPath(new URL('./tools-seller.html', import.meta.url)),
+        toolsBuyer: fileURLToPath(new URL('./tools-buyer.html', import.meta.url)),
       },
     },
   },
