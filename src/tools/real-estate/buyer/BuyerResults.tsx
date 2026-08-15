@@ -6,6 +6,10 @@ import { buildMailtoHref } from '../../core/buildMailtoHref'
 
 export { buildBuyerSummaryText }
 
+// Short fallback body: summary has already been copied; visitor should paste it.
+export const BUYER_SHARE_TITLE = 'My Buyer Readiness Planning Summary'
+export const BUYER_FALLBACK_SHORT_BODY = "My complete planning summary has been copied to my clipboard. I'll paste it below:"
+
 interface Props {
   sections: ResultSection[]
   answers: BuyerAnswers
@@ -14,13 +18,7 @@ interface Props {
 }
 
 export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: Props) {
-  const [copyStatus, setCopyStatus] = useState<'' | 'copied' | 'failed' | 'emailed'>('')
-
-  const emailHref = buildMailtoHref(
-    '',
-    'My Buyer Readiness Planning Summary',
-    buildBuyerSummaryText(sections, answers.agentQuestions),
-  )
+  const [copyStatus, setCopyStatus] = useState<'' | 'copied' | 'failed' | 'fallback-copied' | 'clipboard-failed' | 'share-error'>('')
 
   async function handleCopy() {
     const text = buildBuyerSummaryText(sections, answers.agentQuestions)
@@ -33,10 +31,39 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
     }
   }
 
-  function handleEmailClick() {
-    setCopyStatus('emailed')
-    setTimeout(() => setCopyStatus(''), 5000)
+  async function handleShare() {
+    const text = buildBuyerSummaryText(sections, answers.agentQuestions)
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: BUYER_SHARE_TITLE, text })
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          setCopyStatus('share-error')
+          setTimeout(() => setCopyStatus(''), 6000)
+        }
+        // AbortError (user cancelled): quiet, no status message
+      }
+      return
+    }
+
+    // Fallback: copy summary to clipboard, then open a short mailto URL.
+    // The mailto body instructs the visitor to paste the copied summary.
+    // This keeps the mailto URL well under 2000 chars regardless of summary length.
+    const fallbackHref = buildMailtoHref('', BUYER_SHARE_TITLE, BUYER_FALLBACK_SHORT_BODY)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyStatus('fallback-copied')
+      setTimeout(() => setCopyStatus(''), 8000)
+      window.location.href = fallbackHref
+    } catch {
+      // Clipboard failed: do not open email; report would be lost otherwise.
+      setCopyStatus('clipboard-failed')
+    }
   }
+
+  const isSuccess = copyStatus === 'copied' || copyStatus === 'fallback-copied'
+  const isError = copyStatus === 'failed' || copyStatus === 'clipboard-failed' || copyStatus === 'share-error'
 
   return (
     <div>
@@ -52,14 +79,14 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
         <button type="button" className="result-action-btn" onClick={handleCopy}>
           Copy Summary
         </button>
-        <a
-          href={emailHref}
-          className="result-action-btn result-email-action"
-          title="Opens your email application with the summary pre-filled"
-          onClick={handleEmailClick}
+        <button
+          type="button"
+          className="result-action-btn result-share-action"
+          title="Shares or emails the complete planning summary"
+          onClick={handleShare}
         >
-          Email Summary
-        </a>
+          Share / Email Summary
+        </button>
         <button type="button" className="result-action-btn" onClick={() => window.print()}>
           Print Summary
         </button>
@@ -73,11 +100,13 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
           role="status"
           aria-live="polite"
           aria-atomic="true"
-          className={`result-copy-status${copyStatus === 'copied' || copyStatus === 'emailed' ? ' success' : copyStatus === 'failed' ? ' failed' : ''}`}
+          className={`result-copy-status${isSuccess ? ' success' : isError ? ' failed' : ''}`}
         >
           {copyStatus === 'copied' && 'Copied to clipboard.'}
           {copyStatus === 'failed' && "Copy failed — use your device's select-all and copy instead."}
-          {copyStatus === 'emailed' && 'Your email application was opened. Review the recipient and summary before sending.'}
+          {copyStatus === 'fallback-copied' && 'Your complete summary was copied. Paste it into the email message that just opened.'}
+          {copyStatus === 'clipboard-failed' && 'Copying failed — use Copy Summary first, then paste into a new email.'}
+          {copyStatus === 'share-error' && 'Sharing failed. Use Copy Summary to copy your summary and share it manually.'}
         </div>
       </div>
 

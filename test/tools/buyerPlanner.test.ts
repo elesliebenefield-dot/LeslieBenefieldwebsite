@@ -588,7 +588,7 @@ test('step 5 has no name or email input fields', async () => {
 
 // ── Result actions ────────────────────────────────────────────────────────────
 
-test('result actions bar has Copy Summary, Email Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
+test('result actions bar has Copy Summary, Share / Email Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
@@ -597,7 +597,7 @@ test('result actions bar has Copy Summary, Email Summary, Print Summary, Review 
       els.map(el => el.textContent?.trim() ?? '')
     )
     assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must exist')
-    assert.ok(buttons.some(t => /email summary/i.test(t)), 'Email Summary must exist')
+    assert.ok(buttons.some(t => /share\s*\/\s*email summary/i.test(t)), 'Share / Email Summary must exist')
     assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary must exist')
     assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers must exist')
     assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over must exist')
@@ -812,91 +812,300 @@ test('tools-seller.html links the existing favicon.svg', async () => {
   assert.match(html, /favicon\.svg/, 'tools-seller.html must link favicon.svg')
 })
 
-// ── Email Summary ─────────────────────────────────────────────────────────────
+// ── Share / Email Summary ─────────────────────────────────────────────────────
 
-test('buyer Email Summary mailto has a blank recipient', async () => {
+test('Share / Email Summary button exists with correct text and accessible title', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
-    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
-    assert.ok(href.startsWith('mailto:?'), `recipient must be blank; got: ${href.slice(0, 40)}`)
+    const text = await page.$eval('.result-share-action', el => el.textContent?.trim() ?? '')
+    assert.equal(text, 'Share / Email Summary')
+    const title = await page.$eval('.result-share-action', el => el.getAttribute('title') || '')
+    assert.match(title, /share|email/i)
   } finally {
     await page.close()
   }
 })
 
-test('buyer Email Summary mailto has the correct encoded subject', async () => {
-  const page = await openPage()
-  try {
-    await completeAllSteps(page)
-    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
-    const subjectMatch = href.match(/[?&]subject=([^&]*)/)
-    const subject = decodeURIComponent(subjectMatch?.[1] ?? '')
-    assert.equal(subject, 'My Buyer Readiness Planning Summary')
-  } finally {
-    await page.close()
-  }
-})
-
-test('buyer Email Summary mailto body includes the complete planning summary and disclaimer', async () => {
-  const page = await openPage()
-  try {
-    await completeAllSteps(page)
-    const href = await page.$eval('.result-email-action', el => el.getAttribute('href') || '')
-    const bodyMatch = href.match(/[?&]body=(.*)$/)
-    const body = decodeURIComponent(bodyMatch?.[1] ?? '')
-    assert.match(body, /BUYER READINESS PLANNER/)
-    assert.match(body, /informational and discussion purposes only/)
-    assert.match(body, /does not constitute real estate/)
-  } finally {
-    await page.close()
-  }
-})
-
-test('buyer Email Summary live region announces the email was opened', async () => {
+test('native share: navigator.share receives the buyer planning summary title and complete text', async () => {
   const page = await browser.newPage()
   try {
+    await page.evaluateOnNewDocument(() => {
+      const calls: Array<{ title?: string; text?: string }> = []
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { title?: string; text?: string }) => { calls.push(data); return undefined },
+        configurable: true, writable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__shareCalls = () => [...calls]
+    })
     await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
-    const statusBefore = await page.$eval('.result-copy-status', el => el.textContent || '')
-    assert.equal(statusBefore.trim(), '', 'status should be empty before email click')
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as Record<string, unknown>).__shareCalls as () => unknown[])().length > 0,
+      { timeout: 3000 }
+    )
 
-    await page.click('.result-email-action')
-    await page.waitForFunction(() => {
-      const el = document.querySelector('.result-copy-status')
-      return el && el.textContent && el.textContent.includes('email application was opened')
-    }, { timeout: 3000 })
+    const calls = await page.evaluate(
+      () => (window as unknown as { __shareCalls: () => Array<{ title: string; text: string }> }).__shareCalls()
+    )
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0].title, 'My Buyer Readiness Planning Summary')
+    assert.match(calls[0].text, /BUYER READINESS PLANNER/)
+    assert.match(calls[0].text, /informational and discussion purposes only/)
+    assert.match(calls[0].text, /Suggested Next Step/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('native share: share text equals what Copy Summary would produce', async () => {
+  const page = await browser.newPage()
+  try {
+    let shareText = ''
+    let copyText = ''
+
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { text?: string }) => {
+          ;(window as unknown as Record<string, unknown>).__shareText = data.text ?? ''
+          return undefined
+        },
+        configurable: true, writable: true,
+      })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    // Capture share text
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => !!((window as unknown as Record<string, unknown>).__shareText as string),
+      { timeout: 3000 }
+    )
+    shareText = await page.evaluate(
+      () => (window as unknown as Record<string, unknown>).__shareText as string
+    )
+
+    // Capture Copy Summary text using the stubbed clipboard
+    await page.click('.result-action-btn') // Copy Summary is the first button
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    copyText = written[0]
+
+    assert.equal(shareText, copyText, 'share text must be identical to Copy Summary text')
+  } finally {
+    await page.close()
+  }
+})
+
+test('native share: AbortError is handled quietly with no error status', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async () => { const e = new DOMException('Aborted', 'AbortError'); throw e },
+        configurable: true, writable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+
+    // Wait 800ms and verify no error or paste message appeared
+    await new Promise(r => setTimeout(r, 800))
+    const status = await page.$eval('.result-copy-status', el => el.textContent?.trim() ?? '')
+    assert.equal(status, '', 'AbortError must not produce any status message')
+  } finally {
+    await page.close()
+  }
+})
+
+test('native share: no fallback paste instruction shown when native share succeeds', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async () => undefined,
+        configurable: true, writable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+
+    // Verify fallback paste message never appears
+    let fallbackShown = false
+    try {
+      await page.waitForFunction(
+        () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Paste it'),
+        { timeout: 1000 }
+      )
+      fallbackShown = true
+    } catch { /* timeout — message never appeared, which is correct */ }
+    assert.equal(fallbackShown, false, 'no paste instruction should appear when native share succeeds')
+  } finally {
+    await page.close()
+  }
+})
+
+test('fallback: clipboard receives the exact complete buyer summary when navigator.share is unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    assert.ok(written.length >= 1, 'clipboard.writeText must have been called')
+    assert.match(written[0], /BUYER READINESS PLANNER/)
+    assert.match(written[0], /Suggested Next Step/)
+    assert.match(written[0], /informational and discussion purposes only/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('fallback: clipboard text for Share / Email Summary matches Copy Summary text', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    // Share (fallback path writes to clipboard)
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length >= 1,
+      { timeout: 3000 }
+    )
+
+    // Copy Summary writes to clipboard again
+    await page.click('.result-action-btn') // first button = Copy Summary
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length >= 2,
+      { timeout: 3000 }
+    )
+
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    assert.equal(written[0], written[1], 'Share fallback clipboard text must equal Copy Summary clipboard text')
+  } finally {
+    await page.close()
+  }
+})
+
+test('fallback: live region tells visitor to paste the copied summary', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async () => undefined },
+        configurable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Paste it'),
+      { timeout: 3000 }
+    )
 
     const status = await page.$eval('.result-copy-status', el => el.textContent || '')
-    assert.match(status, /email application was opened/i)
-    assert.match(status, /Review the recipient/i)
+    assert.match(status, /Your complete summary was copied/i)
+    assert.match(status, /Paste it into the email/i)
   } finally {
     await page.close()
   }
 })
 
-test('buyer Email Summary is inside result-actions which carries the no-print class', async () => {
-  const page = await openPage()
+test('fallback: clipboard failure shows error message and does not show paste instruction', async () => {
+  const page = await browser.newPage()
   try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async () => Promise.reject(new Error('Permission denied')) },
+        configurable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
-    const actionsHasNoPrint = await page.$eval('.result-actions', el => el.classList.contains('no-print'))
-    assert.equal(actionsHasNoPrint, true, 'result-actions (containing Email Summary) must have no-print')
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Copying failed'),
+      { timeout: 3000 }
+    )
+
+    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
+    assert.match(status, /Copying failed/i)
+    assert.match(status, /Copy Summary/i)
+    assert.ok(!/Paste it into the email/.test(status), 'paste instruction must not appear on clipboard failure')
   } finally {
     await page.close()
   }
 })
 
-test('buyer Email Summary is not visible in print media', async () => {
+test('Share / Email Summary is not visible in print media', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
     await page.emulateMediaType('print')
-    const visible = await page.$eval('.result-email-action', el =>
+    const visible = await page.$eval('.result-share-action', el =>
       window.getComputedStyle(el.closest('.result-actions')!).display !== 'none'
     )
-    assert.equal(visible, false, 'result-actions (including Email Summary) must be hidden in print')
+    assert.equal(visible, false, 'result-actions (containing Share / Email Summary) must be hidden in print')
   } finally {
     await page.close()
   }

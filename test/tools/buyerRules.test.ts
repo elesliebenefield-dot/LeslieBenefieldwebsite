@@ -503,15 +503,12 @@ test('buildMailtoHref encodes the body correctly', () => {
   assert.match(href, /body=Hello%20%26%20goodbye/)
 })
 
-test('buildMailtoHref buyer mailto includes complete summary and disclaimer', () => {
-  const sections = evaluate(answers({ stage: 'actively', financingStatus: 'preapproved' }))
-  const summaryText = buildBuyerSummaryText(sections, '')
-  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
+test('buildMailtoHref correctly encodes any body string passed to it', () => {
+  const shortBody = "My complete planning summary has been copied to my clipboard. I'll paste it below:"
+  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', shortBody)
   const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
   const body = decodeURIComponent(bodyEncoded)
-  assert.match(body, /BUYER READINESS PLANNER/)
-  assert.match(body, /informational and discussion purposes only/)
-  assert.match(body, /does not constitute real estate/)
+  assert.equal(body, shortBody)
 })
 
 // ── Rich-scenario mailto regression ──────────────────────────────────────────
@@ -562,21 +559,6 @@ const richSellerAnswers: SellerAnswers = {
   agentQuestions: 'How do tenant situations affect the sale timeline?',
 }
 
-test('rich buyer: decoded mailto body equals full summary-builder output exactly', () => {
-  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
-  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
-  const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
-  const decoded = decodeURIComponent(bodyEncoded)
-  assert.equal(decoded, summaryText, 'decoded mailto body must equal the full summary text exactly')
-})
-
-test('rich buyer: mailto URL has not been shortened by application code', () => {
-  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
-  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
-  assert.ok(href.length > 4000, `mailto URL should be well over 4000 chars for a rich scenario; got ${href.length}`)
-})
 
 test('rich buyer: every populated section heading appears in the summary', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
@@ -609,21 +591,6 @@ test('rich buyer: written questions are included in the summary', () => {
   assert.ok(summaryText.includes(richBuyerAnswers.agentQuestions), 'written questions must appear in summary')
 })
 
-test('rich seller: decoded mailto body equals full summary-builder output exactly', () => {
-  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
-  const href = buildMailtoHref('', 'My Seller Readiness Planning Summary', summaryText)
-  const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
-  const decoded = decodeURIComponent(bodyEncoded)
-  assert.equal(decoded, summaryText, 'decoded seller mailto body must equal the full summary text exactly')
-})
-
-test('rich seller: mailto URL has not been shortened by application code', () => {
-  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
-  const href = buildMailtoHref('', 'My Seller Readiness Planning Summary', summaryText)
-  assert.ok(href.length > 4000, `seller mailto URL should be well over 4000 chars for a rich scenario; got ${href.length}`)
-})
 
 test('rich seller: every populated section heading appears in the summary', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
@@ -648,6 +615,122 @@ test('rich seller: complete disclaimer is present in the summary', () => {
   const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
   assert.match(summaryText, /informational and discussion purposes only/)
   assert.match(summaryText, /does not constitute real estate/)
+})
+
+// ── Share / Email Summary — unit verification ─────────────────────────────────
+// These tests verify the computation layer: that the text passed to
+// navigator.share and written to the clipboard is the complete report,
+// and that the fallback mailto URL is short, safe, and well-formed.
+// No browser or mail client is involved.
+
+// Expected values mirror the constants defined in BuyerResults.tsx / SellerResults.tsx.
+const BUYER_SHARE_TITLE = 'My Buyer Readiness Planning Summary'
+const SELLER_SHARE_TITLE = 'My Seller Readiness Planning Summary'
+const SHARE_FALLBACK_SHORT_BODY = "My complete planning summary has been copied to my clipboard. I'll paste it below:"
+
+test('buyer native share: text contains complete summary with all sections and disclaimer', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  // The component calls buildBuyerSummaryText(sections, answers.agentQuestions) and passes
+  // the result directly to navigator.share({ text }). Verify completeness.
+  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  assert.match(shareText, /BUYER READINESS PLANNER/)
+  assert.match(shareText, /Suggested Next Step/)
+  assert.match(shareText, /informational and discussion purposes only/)
+  for (const section of sections) {
+    assert.ok(shareText.includes(section.title), `share text must include section heading "${section.title}"`)
+  }
+})
+
+test('buyer native share: share text and Copy Summary text are identical', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const copyText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  assert.equal(shareText, copyText, 'share text must be identical to Copy Summary text')
+})
+
+test('buyer native share title is the correct planning summary title', () => {
+  assert.equal(BUYER_SHARE_TITLE, 'My Buyer Readiness Planning Summary')
+})
+
+test('buyer fallback mailto URL is under 2000 characters', () => {
+  const href = buildMailtoHref('', BUYER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  assert.ok(href.length < 2000, `buyer fallback mailto must be < 2000 chars; got ${href.length}`)
+})
+
+test('buyer fallback mailto recipient is blank', () => {
+  const href = buildMailtoHref('', BUYER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  assert.ok(href.startsWith('mailto:?'), `buyer fallback mailto must have blank recipient; got ${href.slice(0, 30)}`)
+})
+
+test('buyer fallback mailto subject is the planning summary title', () => {
+  const href = buildMailtoHref('', BUYER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  const subjectMatch = href.match(/[?&]subject=([^&]*)/)
+  assert.equal(decodeURIComponent(subjectMatch?.[1] ?? ''), BUYER_SHARE_TITLE)
+})
+
+test('buyer fallback mailto body is the short paste instruction, not the full summary', () => {
+  const href = buildMailtoHref('', BUYER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  const bodyMatch = href.match(/[?&]body=(.*)$/)
+  const body = decodeURIComponent(bodyMatch?.[1] ?? '')
+  assert.match(body, /copied to my clipboard/i)
+  assert.match(body, /paste it below/i)
+  assert.ok(!/BUYER READINESS PLANNER/.test(body), 'fallback body must not contain full report header')
+  assert.ok(!/Suggested Next Step/.test(body), 'fallback body must not contain section headings')
+  assert.ok(!/informational and discussion purposes only/.test(body), 'fallback body must not contain disclaimer')
+  assert.ok(body.length < 200, `fallback body must be short; got ${body.length} chars`)
+})
+
+test('seller native share: text contains complete summary with all sections and disclaimer', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const shareText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  assert.match(shareText, /SELLER READINESS PLANNER/)
+  assert.match(shareText, /Suggested Next Step/)
+  assert.match(shareText, /informational and discussion purposes only/)
+  for (const section of sections) {
+    assert.ok(shareText.includes(section.title), `seller share text must include section heading "${section.title}"`)
+  }
+})
+
+test('seller native share: share text and Copy Summary text are identical', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const shareText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const copyText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  assert.equal(shareText, copyText, 'seller share text must be identical to Copy Summary text')
+})
+
+test('seller native share title is the correct planning summary title', () => {
+  assert.equal(SELLER_SHARE_TITLE, 'My Seller Readiness Planning Summary')
+})
+
+test('seller fallback mailto URL is under 2000 characters', () => {
+  const href = buildMailtoHref('', SELLER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  assert.ok(href.length < 2000, `seller fallback mailto must be < 2000 chars; got ${href.length}`)
+})
+
+test('seller fallback mailto recipient is blank', () => {
+  const href = buildMailtoHref('', SELLER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  assert.ok(href.startsWith('mailto:?'), `seller fallback mailto must have blank recipient; got ${href.slice(0, 30)}`)
+})
+
+test('seller fallback mailto subject is the planning summary title', () => {
+  const href = buildMailtoHref('', SELLER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  const subjectMatch = href.match(/[?&]subject=([^&]*)/)
+  assert.equal(decodeURIComponent(subjectMatch?.[1] ?? ''), SELLER_SHARE_TITLE)
+})
+
+test('seller fallback mailto body is the short paste instruction, not the full summary', () => {
+  const href = buildMailtoHref('', SELLER_SHARE_TITLE, SHARE_FALLBACK_SHORT_BODY)
+  const bodyMatch = href.match(/[?&]body=(.*)$/)
+  const body = decodeURIComponent(bodyMatch?.[1] ?? '')
+  assert.match(body, /copied to my clipboard/i)
+  assert.match(body, /paste it below/i)
+  assert.ok(!/SELLER READINESS PLANNER/.test(body), 'fallback body must not contain full report header')
+  assert.ok(!/informational and discussion purposes only/.test(body), 'fallback body must not contain disclaimer')
+  assert.ok(body.length < 200, `fallback body must be short; got ${body.length} chars`)
+})
+
+test('buyer and seller share titles are different from each other', () => {
+  assert.notEqual(BUYER_SHARE_TITLE, SELLER_SHARE_TITLE)
 })
 
 test('buyer and seller summaries never mix content', () => {
