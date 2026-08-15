@@ -80,6 +80,13 @@ export function SellerPlanner() {
     scrollTop()
   }, [scrollTop])
 
+  const handleEditAnswers = useCallback(() => {
+    setShowResults(false)
+    setStep(1)
+    setShowErrors(false)
+    scrollTop()
+  }, [scrollTop])
+
   const results = showResults
     ? evaluateRules(SELLER_RULES, answers, [...SECTION_ORDER], SECTION_TITLES)
     : []
@@ -87,16 +94,10 @@ export function SellerPlanner() {
   return (
     <div className="tool-page">
       <header className="tool-header">
-        <a
-          href="https://websitesbyleslie.com"
-          className="tool-header-brand"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Websites by Leslie
-        </a>
+        <span className="tool-header-brand">Your Real Estate Agent</span>
         <span className="tool-header-sep" aria-hidden="true">›</span>
         <span className="tool-header-title">Seller Readiness Planner</span>
+        <span className="tool-header-demo no-print">Interactive demo · Websites by Leslie</span>
       </header>
 
       {!showResults && (
@@ -109,7 +110,12 @@ export function SellerPlanner() {
 
       <main className="tool-content" ref={contentRef}>
         {showResults ? (
-          <SellerResults sections={results} onStartOver={handleStartOver} />
+          <SellerResults
+            sections={results}
+            answers={answers}
+            onStartOver={handleStartOver}
+            onEditAnswers={handleEditAnswers}
+          />
         ) : (
           <>
             {showErrors && (

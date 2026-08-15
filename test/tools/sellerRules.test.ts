@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import { evaluateRules } from '../../src/tools/core/evaluateRules.ts'
 import { SELLER_RULES, SECTION_ORDER, SECTION_TITLES } from '../../src/tools/real-estate/seller/sellerRules.ts'
 import { EMPTY_SELLER_ANSWERS, type SellerAnswers } from '../../src/tools/real-estate/seller/sellerTypes.ts'
+import { buildSummaryText } from '../../src/tools/real-estate/seller/sellerSummary.ts'
 
 function answers(overrides: Partial<SellerAnswers> = {}): SellerAnswers {
   return { ...EMPTY_SELLER_ANSWERS, ...overrides }
@@ -99,10 +100,10 @@ test('none selected in documentsAvailable produces no doc items', () => {
   assert.ok(!ids.includes('doc-permits'))
 })
 
-test('owner-alignment fires for yes and possibly, not for no', () => {
-  assert.ok(itemIds(answers({ multipleOwners: 'yes' }), 'infoToGather').includes('owner-alignment'))
-  assert.ok(itemIds(answers({ multipleOwners: 'possibly' }), 'infoToGather').includes('owner-alignment'))
-  assert.ok(!itemIds(answers({ multipleOwners: 'no' }), 'infoToGather').includes('owner-alignment'))
+test('owner-alignment fires for multiple and needToConfirm, not for one', () => {
+  assert.ok(itemIds(answers({ multipleOwners: 'multiple' }), 'infoToGather').includes('owner-alignment'))
+  assert.ok(itemIds(answers({ multipleOwners: 'needToConfirm' }), 'infoToGather').includes('owner-alignment'))
+  assert.ok(!itemIds(answers({ multipleOwners: 'one' }), 'infoToGather').includes('owner-alignment'))
 })
 
 test('improvement-docs fires only for yesMajor', () => {
@@ -270,7 +271,7 @@ test('evaluateRules does not mutate the answers object', () => {
 test('evaluateRules returns a stable empty array when no rules match', () => {
   const a = answers({
     hoaInvolvement: 'no',
-    multipleOwners: 'no',
+    multipleOwners: 'one',
     recentImprovements: 'none',
     knownRepairs: 'noneAware',
     declutterStatus: 'done',
@@ -288,4 +289,89 @@ test('evaluateRules returns a stable empty array when no rules match', () => {
   assert.ok(Array.isArray(sections))
   const infoSection = sections.find(s => s.id === 'infoToGather')
   assert.equal(infoSection, undefined, 'infoToGather should not appear when nothing triggers it')
+})
+
+// ── no duplicate guidance across sections ─────────────────────────────────────
+
+test('hoa-confirm only appears in infoToGather, never in agentTopics', () => {
+  const a = answers({ hoaInvolvement: 'notSure' })
+  const secs = evaluate(a)
+  const infoIds = secs.find(s => s.id === 'infoToGather')?.items.map(i => i.id) ?? []
+  const agentIds = secs.find(s => s.id === 'agentTopics')?.items.map(i => i.id) ?? []
+  assert.ok(infoIds.includes('hoa-confirm'), 'hoa-confirm must appear in infoToGather')
+  assert.ok(!agentIds.includes('agent-hoa-confirm'), 'agent-hoa-confirm must not exist')
+})
+
+test('prep-questions guidance only appears in prepTopics, never in agentTopics', () => {
+  const a = answers({ prepQuestions: 'yes' })
+  const secs = evaluate(a)
+  const prepIds = secs.find(s => s.id === 'prepTopics')?.items.map(i => i.id) ?? []
+  const agentIds = secs.find(s => s.id === 'agentTopics')?.items.map(i => i.id) ?? []
+  assert.ok(prepIds.includes('prep-questions'), 'prep-questions must appear in prepTopics')
+  assert.ok(!agentIds.includes('agent-prep-list'), 'agent-prep-list must not exist')
+})
+
+// ── HOA guidance does not overclaim ──────────────────────────────────────────
+
+test('hoa-confirm detail does not claim specific documents definitively confirm HOA status', () => {
+  const hoaRule = SELLER_RULES.find(r => r.item.id === 'hoa-confirm')
+  assert.ok(hoaRule, 'hoa-confirm rule must exist')
+  const detail = hoaRule!.item.detail ?? ''
+  assert.ok(!/mortgage statement/i.test(detail), 'detail must not claim mortgage statement confirms HOA')
+  assert.ok(!/county.*record/i.test(detail) || /ask your agent/i.test(detail),
+    'if county records are mentioned, must include advice to ask agent')
+  assert.ok(!/definitively/i.test(detail), 'detail must not use language like "definitively"')
+})
+
+// ── buildSummaryText ──────────────────────────────────────────────────────────
+
+test('buildSummaryText includes the standard header line', () => {
+  const text = buildSummaryText([], '')
+  assert.match(text, /SELLER READINESS PLANNER/)
+})
+
+test('buildSummaryText includes each section title and item label', () => {
+  const sections = [
+    {
+      id: 'infoToGather',
+      title: 'Information to Gather',
+      items: [{ id: 'hoa-docs', label: 'HOA information', detail: 'Contact your HOA.' }],
+    },
+  ]
+  const text = buildSummaryText(sections, '')
+  assert.match(text, /Information to Gather/)
+  assert.match(text, /• HOA information/)
+  assert.match(text, /Contact your HOA\./)
+})
+
+test('buildSummaryText includes written questions when non-empty', () => {
+  const text = buildSummaryText([], 'What is the showing timeline?')
+  assert.match(text, /Your Written Questions/)
+  assert.match(text, /What is the showing timeline\?/)
+})
+
+test('buildSummaryText omits written questions block when agentQuestions is blank', () => {
+  const text = buildSummaryText([], '   ')
+  assert.ok(!/Your Written Questions/.test(text), 'written questions block must be absent for blank input')
+})
+
+test('buildSummaryText includes the disclaimer footer', () => {
+  const text = buildSummaryText([], '')
+  assert.match(text, /informational and discussion purposes only/)
+  assert.match(text, /does not constitute real estate/)
+})
+
+test('buildSummaryText items without detail do not include a blank indent line', () => {
+  const sections = [
+    {
+      id: 'nextStep',
+      title: 'Suggested Next Step',
+      items: [{ id: 'next-general', label: 'Connect with an agent' }],
+    },
+  ]
+  const text = buildSummaryText(sections, '')
+  const lines = text.split('\n')
+  const labelIdx = lines.findIndex(l => l === '• Connect with an agent')
+  assert.ok(labelIdx !== -1, 'label line must exist')
+  assert.ok(lines[labelIdx + 1] !== '  ', 'no blank indent line should follow a label with no detail')
 })

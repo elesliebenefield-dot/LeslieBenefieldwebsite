@@ -16,13 +16,11 @@ export interface SellerAnswers {
   // Step 4: Information to Gather
   hoaInvolvement: string   // 'yes' | 'no' | 'notSure' | ''
   documentsAvailable: string[] // multi-select: 'surveys' | 'permits' | 'warranties' | 'hoa' | 'taxRecords' | 'none'
-  multipleOwners: string   // 'yes' | 'no' | 'possibly' | ''
+  multipleOwners: string   // 'one' | 'multiple' | 'needToConfirm' | ''
   timingComplications: string // 'yes' | 'flexible' | 'open' | ''
   // Step 5: Priorities & Next Steps
   priorities: string[]     // multi-select: 'timing' | 'process' | 'preparation' | 'coordination' | 'disruption' | 'listing'
   agentQuestions: string   // optional free text
-  name: string             // optional, demo only
-  email: string            // optional, demo only
 }
 
 export const EMPTY_SELLER_ANSWERS: SellerAnswers = {
@@ -43,6 +41,4 @@ export const EMPTY_SELLER_ANSWERS: SellerAnswers = {
   timingComplications: '',
   priorities: [],
   agentQuestions: '',
-  name: '',
-  email: '',
 }

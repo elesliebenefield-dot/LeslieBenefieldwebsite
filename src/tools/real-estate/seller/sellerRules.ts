@@ -30,7 +30,7 @@ export const SELLER_RULES: Rule<SellerAnswers>[] = [
     item: {
       id: 'hoa-confirm',
       label: 'Confirm HOA status',
-      detail: "You're unsure whether your property has an HOA. Your deed, mortgage statement, or county property records can help confirm this before listing.",
+      detail: "If you're unsure, gather any HOA notices, closing paperwork, or property documents you already have, and ask your agent which records can confirm the property's HOA status.",
     },
   },
   {
@@ -79,12 +79,12 @@ export const SELLER_RULES: Rule<SellerAnswers>[] = [
     },
   },
   {
-    condition: a => a.multipleOwners === 'yes' || a.multipleOwners === 'possibly',
+    condition: a => a.multipleOwners === 'multiple' || a.multipleOwners === 'needToConfirm',
     sectionId: 'infoToGather',
     item: {
       id: 'owner-alignment',
       label: 'Owner alignment',
-      detail: 'You noted multiple owners. Confirming that all owners are aligned on timing, expectations, and decision-making before listing will keep the process moving smoothly.',
+      detail: 'You noted multiple owners or need to confirm ownership. Confirming that all owners are aligned on timing, expectations, and decision-making before listing will keep the process moving smoothly.',
     },
   },
   {
@@ -239,6 +239,9 @@ export const SELLER_RULES: Rule<SellerAnswers>[] = [
   },
 
   // ── agentTopics ───────────────────────────────────────────────────────────
+  // Note: hoaInvolvement=notSure and prepQuestions=yes are handled in their
+  // primary sections (infoToGather and prepTopics respectively) to avoid
+  // duplicated guidance.
 
   {
     condition: a => a.knownRepairs === 'notSure',
@@ -250,30 +253,12 @@ export const SELLER_RULES: Rule<SellerAnswers>[] = [
     },
   },
   {
-    condition: a => a.hoaInvolvement === 'notSure',
-    sectionId: 'agentTopics',
-    item: {
-      id: 'agent-hoa-confirm',
-      label: 'HOA status',
-      detail: "You're unsure whether there's an HOA. Your agent may be able to help you identify the right resources to confirm this.",
-    },
-  },
-  {
     condition: a => a.accessArrangement === 'haveQuestions',
     sectionId: 'agentTopics',
     item: {
       id: 'agent-access-questions',
       label: 'Showing access arrangements',
       detail: 'You have questions about access for showings. These are very common and easy to address once you discuss your specific situation with an agent.',
-    },
-  },
-  {
-    condition: a => a.prepQuestions === 'yes',
-    sectionId: 'agentTopics',
-    item: {
-      id: 'agent-prep-list',
-      label: 'Preparation questions for your agent',
-      detail: 'Bring your specific preparation questions to your listing consultation so they can be answered in the context of your property.',
     },
   },
   {

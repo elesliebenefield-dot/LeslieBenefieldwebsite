@@ -23,9 +23,9 @@ const DOCUMENTS_OPTIONS = [
 ]
 
 const MULTIPLE_OWNERS_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'no', label: 'No — just me, or just us as a couple' },
-  { value: 'possibly', label: 'Possibly — I need to confirm' },
+  { value: 'one', label: 'One owner' },
+  { value: 'multiple', label: 'Multiple owners' },
+  { value: 'needToConfirm', label: 'I need to confirm' },
 ]
 
 const TIMING_OPTIONS = [
@@ -99,7 +99,7 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
       <div className="tool-question">
         <fieldset className="tool-question-fieldset">
           <legend className={`tool-question-legend${showErrors && !answers.multipleOwners ? ' has-error' : ''}`}>
-            Are there multiple owners on the deed?
+            How many owners are on the deed?
           </legend>
           <div className="option-cards">
             {MULTIPLE_OWNERS_OPTIONS.map(opt => (

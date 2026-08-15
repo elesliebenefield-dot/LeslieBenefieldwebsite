@@ -57,40 +57,8 @@ export function PrioritiesStep({ answers, onChange }: Props) {
           className="tool-textarea"
           value={answers.agentQuestions}
           onChange={e => onChange({ agentQuestions: e.target.value })}
-          placeholder="List any questions here — these will appear in your planning summary."
+          placeholder="List any questions here — they will appear in your planning summary."
           rows={4}
-        />
-      </div>
-
-      <div className="tool-question">
-        <label htmlFor="seller-name" className="tool-question-legend">
-          Your name
-          <span className="tool-question-optional-tag">(optional)</span>
-        </label>
-        <input
-          id="seller-name"
-          type="text"
-          className="tool-input"
-          value={answers.name}
-          onChange={e => onChange({ name: e.target.value })}
-          placeholder="First name or full name"
-          autoComplete="name"
-        />
-      </div>
-
-      <div className="tool-question">
-        <label htmlFor="seller-email" className="tool-question-legend">
-          Email address
-          <span className="tool-question-optional-tag">(optional)</span>
-        </label>
-        <input
-          id="seller-email"
-          type="email"
-          className="tool-input"
-          value={answers.email}
-          onChange={e => onChange({ email: e.target.value })}
-          placeholder="you@example.com"
-          autoComplete="email"
         />
         <span className="tool-input-note">
           Your answers stay in your browser — nothing is stored or transmitted.
