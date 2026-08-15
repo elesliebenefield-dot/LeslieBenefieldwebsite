@@ -6,10 +6,14 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { evaluateRules } from '../../src/tools/core/evaluateRules.ts'
 import { BUYER_RULES, SECTION_ORDER, SECTION_TITLES } from '../../src/tools/real-estate/buyer/buyerRules.ts'
 import { EMPTY_BUYER_ANSWERS, type BuyerAnswers } from '../../src/tools/real-estate/buyer/buyerTypes.ts'
 import { buildBuyerSummaryText } from '../../src/tools/real-estate/buyer/buyerSummary.ts'
+
+const ROOT = path.resolve(import.meta.dirname, '../..')
 
 function answers(overrides: Partial<BuyerAnswers> = {}): BuyerAnswers {
   return { ...EMPTY_BUYER_ANSWERS, ...overrides }
@@ -163,6 +167,80 @@ test('timing-specific-move fires only for movingFlexibility specific', () => {
   assert.ok(itemIds(answers({ movingFlexibility: 'specific' }), 'timingTopics').includes('timing-specific-move'))
   assert.ok(!itemIds(answers({ movingFlexibility: 'flexible' }), 'timingTopics').includes('timing-specific-move'))
   assert.ok(!itemIds(answers({ movingFlexibility: 'unsure' }), 'timingTopics').includes('timing-specific-move'))
+})
+
+// ── timeframe guidance ────────────────────────────────────────────────────────
+
+const TIMEFRAME_ITEM_IDS = ['timing-near-term', 'timing-planning-window', 'info-timeline-6to12', 'info-timeline-long', 'agent-timeline-unsure']
+
+test('"exploring" is not a recognized timeframe value and produces no timeframe result', () => {
+  const a = answers({ timeframe: 'exploring' })
+  const secs = evaluate(a)
+  const matched = secs.flatMap(s => s.items.filter(i => TIMEFRAME_ITEM_IDS.includes(i.id)))
+  assert.equal(matched.length, 0, '"exploring" must not produce a timeframe result')
+})
+
+test('timing-near-term fires only for within3 timeframe, in timingTopics', () => {
+  assert.ok(itemIds(answers({ timeframe: 'within3' }), 'timingTopics').includes('timing-near-term'))
+  assert.ok(!itemIds(answers({ timeframe: '3to6' }), 'timingTopics').includes('timing-near-term'))
+  assert.ok(!itemIds(answers({ timeframe: '6to12' }), 'timingTopics').includes('timing-near-term'))
+  assert.ok(!itemIds(answers({ timeframe: 'moreThan12' }), 'timingTopics').includes('timing-near-term'))
+  assert.ok(!itemIds(answers({ timeframe: 'unsure' }), 'timingTopics').includes('timing-near-term'))
+})
+
+test('timing-planning-window fires only for 3to6 timeframe, in timingTopics', () => {
+  assert.ok(itemIds(answers({ timeframe: '3to6' }), 'timingTopics').includes('timing-planning-window'))
+  assert.ok(!itemIds(answers({ timeframe: 'within3' }), 'timingTopics').includes('timing-planning-window'))
+  assert.ok(!itemIds(answers({ timeframe: '6to12' }), 'timingTopics').includes('timing-planning-window'))
+  assert.ok(!itemIds(answers({ timeframe: 'moreThan12' }), 'timingTopics').includes('timing-planning-window'))
+})
+
+test('info-timeline-6to12 fires only for 6to12 timeframe, in infoToOrganize', () => {
+  assert.ok(itemIds(answers({ timeframe: '6to12' }), 'infoToOrganize').includes('info-timeline-6to12'))
+  assert.ok(!itemIds(answers({ timeframe: 'within3' }), 'infoToOrganize').includes('info-timeline-6to12'))
+  assert.ok(!itemIds(answers({ timeframe: 'moreThan12' }), 'infoToOrganize').includes('info-timeline-6to12'))
+  assert.ok(!itemIds(answers({ timeframe: 'unsure' }), 'infoToOrganize').includes('info-timeline-6to12'))
+})
+
+test('info-timeline-long fires only for moreThan12 timeframe, in infoToOrganize', () => {
+  assert.ok(itemIds(answers({ timeframe: 'moreThan12' }), 'infoToOrganize').includes('info-timeline-long'))
+  assert.ok(!itemIds(answers({ timeframe: '6to12' }), 'infoToOrganize').includes('info-timeline-long'))
+  assert.ok(!itemIds(answers({ timeframe: 'within3' }), 'infoToOrganize').includes('info-timeline-long'))
+  assert.ok(!itemIds(answers({ timeframe: 'unsure' }), 'infoToOrganize').includes('info-timeline-long'))
+})
+
+test('agent-timeline-unsure fires only for unsure timeframe, in agentTopics', () => {
+  assert.ok(itemIds(answers({ timeframe: 'unsure' }), 'agentTopics').includes('agent-timeline-unsure'))
+  assert.ok(!itemIds(answers({ timeframe: 'within3' }), 'agentTopics').includes('agent-timeline-unsure'))
+  assert.ok(!itemIds(answers({ timeframe: '3to6' }), 'agentTopics').includes('agent-timeline-unsure'))
+  assert.ok(!itemIds(answers({ timeframe: '6to12' }), 'agentTopics').includes('agent-timeline-unsure'))
+  assert.ok(!itemIds(answers({ timeframe: 'moreThan12' }), 'agentTopics').includes('agent-timeline-unsure'))
+})
+
+test('exactly one timeframe result fires for each of the five valid timeframe values', () => {
+  for (const tf of ['within3', '3to6', '6to12', 'moreThan12', 'unsure'] as const) {
+    const a = answers({ timeframe: tf })
+    const secs = evaluate(a)
+    const matched = secs.flatMap(s => s.items.filter(i => TIMEFRAME_ITEM_IDS.includes(i.id)))
+    assert.equal(matched.length, 1, `expected exactly 1 timeframe result for timeframe="${tf}", got ${matched.length}: ${matched.map(i => i.id).join(', ')}`)
+  }
+})
+
+test('empty timeframe produces no timeframe guidance result', () => {
+  const a = answers({ timeframe: '' })
+  const secs = evaluate(a)
+  const matched = secs.flatMap(s => s.items.filter(i => TIMEFRAME_ITEM_IDS.includes(i.id)))
+  assert.equal(matched.length, 0, 'no timeframe result should fire for empty timeframe')
+})
+
+test('no duplicate timeframe guidance across sections for any timeframe value', () => {
+  for (const tf of ['within3', '3to6', '6to12', 'moreThan12', 'unsure', '']) {
+    const a = answers({ timeframe: tf })
+    const secs = evaluate(a)
+    const matched = secs.flatMap(s => s.items.filter(i => TIMEFRAME_ITEM_IDS.includes(i.id)))
+    const unique = new Set(matched.map(i => i.id))
+    assert.equal(unique.size, matched.length, `duplicate timeframe guidance found for timeframe="${tf}"`)
+  }
 })
 
 // ── agentTopics ───────────────────────────────────────────────────────────────
@@ -392,4 +470,12 @@ test('buildBuyerSummaryText items without detail do not include a blank indent l
   const labelIdx = lines.findIndex(l => l === '• Connect with a licensed real estate agent')
   assert.ok(labelIdx !== -1, 'label line must exist')
   assert.ok(lines[labelIdx + 1] !== '  ', 'no blank indent line should follow a label with no detail')
+})
+
+// ── test infrastructure ───────────────────────────────────────────────────────
+
+test('npm test command is configured for single-file concurrency (--test-concurrency=1)', async () => {
+  const raw = await readFile(path.join(ROOT, 'package.json'), 'utf-8')
+  const pkg = JSON.parse(raw) as { scripts: Record<string, string> }
+  assert.match(pkg.scripts.test, /--test-concurrency=1/, 'package.json test script must include --test-concurrency=1')
 })

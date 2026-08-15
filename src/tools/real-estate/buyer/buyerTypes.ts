@@ -1,6 +1,6 @@
 export interface BuyerAnswers {
   // Step 1: Buying Plans
-  timeframe: string       // 'within3' | '3to6' | '6to12' | 'exploring' | ''
+  timeframe: string       // 'within3' | '3to6' | '6to12' | 'moreThan12' | 'unsure' | ''
   stage: string           // 'justExploring' | 'actively' | 'ready' | ''
   purchaseType: string    // 'firstHome' | 'anotherHome' | 'investment' | 'land' | ''
   // Step 2: Search Preferences

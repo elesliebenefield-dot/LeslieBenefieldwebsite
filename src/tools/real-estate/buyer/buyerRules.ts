@@ -44,11 +44,31 @@ export const BUYER_RULES: Rule<BuyerAnswers>[] = [
   },
 
   // ── infoToOrganize ────────────────────────────────────────────────────────
-  // Note: financingStatus notSpoken/unsure goes here only (not agentTopics).
+  // Note: timeframe 6to12/moreThan12 goes here only.
+  // financingStatus notSpoken/unsure goes here only (not agentTopics).
   // mustSellFirst unsure goes here only (not timingTopics).
   // purchaseType investment/land goes here only.
   // hasTargetArea no goes here only (not agentTopics).
   // otherDecisionMakers yes goes here only.
+
+  {
+    condition: a => a.timeframe === '6to12',
+    sectionId: 'infoToOrganize',
+    item: {
+      id: 'info-timeline-6to12',
+      label: 'Use your planning time to clarify preferences',
+      detail: 'You are planning to purchase within 6–12 months. The available time is useful for clarifying what you want, learning how the buying process works, and deciding when to begin professional conversations.',
+    },
+  },
+  {
+    condition: a => a.timeframe === 'moreThan12',
+    sectionId: 'infoToOrganize',
+    item: {
+      id: 'info-timeline-long',
+      label: 'Early planning steps for a future purchase',
+      detail: 'You are thinking about purchasing more than 12 months from now. Early planning can help you understand what the process involves and what to start thinking about — without any pressure to act on a specific timeline.',
+    },
+  },
 
   {
     condition: a => a.financingStatus === 'notSpoken',
@@ -124,7 +144,27 @@ export const BUYER_RULES: Rule<BuyerAnswers>[] = [
   },
 
   // ── timingTopics ──────────────────────────────────────────────────────────
-  // Note: mustSellFirst yes goes here only (not infoToOrganize).
+  // Note: timeframe within3/3to6 goes here only.
+  // mustSellFirst yes goes here only (not infoToOrganize).
+
+  {
+    condition: a => a.timeframe === 'within3',
+    sectionId: 'timingTopics',
+    item: {
+      id: 'timing-near-term',
+      label: 'Near-term purchase timeline',
+      detail: 'You are hoping to purchase within the next 3 months. Discussing your timeline with a licensed real estate agent — and, if financing is involved, connecting with a lender — will help you understand what to expect and how to prepare.',
+    },
+  },
+  {
+    condition: a => a.timeframe === '3to6',
+    sectionId: 'timingTopics',
+    item: {
+      id: 'timing-planning-window',
+      label: '3–6 month planning window',
+      detail: 'You have a 3–6 month window before you hope to purchase. This is a good time to organize your preferences and begin professional conversations, so your search can start on solid footing.',
+    },
+  },
 
   {
     condition: a => a.housingTiming === 'leaseSoon',
@@ -182,8 +222,19 @@ export const BUYER_RULES: Rule<BuyerAnswers>[] = [
   },
 
   // ── agentTopics ───────────────────────────────────────────────────────────
-  // Note: financingStatus begun/preapproved/noFinancing goes here only.
+  // Note: timeframe unsure goes here only.
+  // financingStatus begun/preapproved/noFinancing goes here only.
   // hasTargetArea open goes here only (not infoToOrganize).
+
+  {
+    condition: a => a.timeframe === 'unsure',
+    sectionId: 'agentTopics',
+    item: {
+      id: 'agent-timeline-unsure',
+      label: 'Clarifying your purchase timeline',
+      detail: "You're not sure when you want to purchase. Talking through the factors that might affect your timing — such as your current housing situation and life circumstances — with a licensed real estate agent can help you identify your next steps.",
+    },
+  },
 
   {
     condition: a => a.financingStatus === 'begun',

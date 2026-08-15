@@ -11,7 +11,8 @@ const TIMEFRAME_OPTIONS = [
   { value: 'within3', label: 'Within the next 3 months' },
   { value: '3to6', label: 'Within 3–6 months' },
   { value: '6to12', label: 'Within 6–12 months' },
-  { value: 'exploring', label: 'Just exploring for now' },
+  { value: 'moreThan12', label: 'More than 12 months from now' },
+  { value: 'unsure', label: "I'm not sure yet" },
 ]
 
 const STAGE_OPTIONS = [
@@ -85,7 +86,7 @@ export function BuyingPlansStep({ answers, onChange, showErrors }: Props) {
       <div className="tool-question">
         <fieldset className="tool-question-fieldset">
           <legend className={`tool-question-legend${showErrors && !answers.purchaseType ? ' has-error' : ''}`}>
-            What type of property are you looking to purchase?
+            What best describes what you're planning to purchase?
           </legend>
           <div className="option-cards">
             {PURCHASE_TYPE_OPTIONS.map(opt => (

@@ -149,7 +149,7 @@ test('page renders the header and step 1 questions', async () => {
     const body = await page.evaluate(() => document.body.textContent || '')
     assert.match(body, /When are you hoping to purchase/)
     assert.match(body, /Where are you in the buying process/)
-    assert.match(body, /type of property are you looking to purchase/)
+    assert.match(body, /what best describes what you.re planning to purchase/i)
   } finally {
     await page.close()
   }
@@ -719,4 +719,78 @@ test('result-actions and tool-sales-cta are hidden in print media', async () => 
   } finally {
     await page.close()
   }
+})
+
+// ── Timeframe options and guidance ────────────────────────────────────────────
+
+test('step 1 timeframe options contain exactly the five expected values', async () => {
+  const page = await openPage()
+  try {
+    const values = await page.$$eval('input[name="timeframe"]', els =>
+      els.map(el => (el as HTMLInputElement).value).sort()
+    )
+    assert.deepEqual(values, ['3to6', '6to12', 'moreThan12', 'unsure', 'within3'])
+  } finally {
+    await page.close()
+  }
+})
+
+test('"exploring" is absent from the timeframe radio inputs', async () => {
+  const page = await openPage()
+  try {
+    const exploringInput = await page.$('input[name="timeframe"][value="exploring"]')
+    assert.equal(exploringInput, null, '"exploring" must not exist as a timeframe radio option')
+  } finally {
+    await page.close()
+  }
+})
+
+test('within3 timeframe produces a near-term timing result in the planning summary', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'within3')
+    await pickRadio(page, 'stage', 'actively')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Near-term purchase timeline/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('moreThan12 timeframe produces an early planning result in the planning summary', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'moreThan12')
+    await pickRadio(page, 'stage', 'justExploring')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await clickNext(page) // step 5
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Early planning steps for a future purchase/i)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Favicon and HTML hygiene ──────────────────────────────────────────────────
+
+test('tools-buyer.html links the existing favicon.svg', async () => {
+  const html = await readFile(path.join(ROOT, 'tools-buyer.html'), 'utf-8')
+  assert.match(html, /favicon\.svg/, 'tools-buyer.html must link favicon.svg')
+})
+
+test('tools-seller.html links the existing favicon.svg', async () => {
+  const html = await readFile(path.join(ROOT, 'tools-seller.html'), 'utf-8')
+  assert.match(html, /favicon\.svg/, 'tools-seller.html must link favicon.svg')
 })
