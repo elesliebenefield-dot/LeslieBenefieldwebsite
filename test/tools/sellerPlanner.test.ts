@@ -673,7 +673,23 @@ test('sales CTA appears on results screen targeting real estate professionals', 
     assert.match(ctaText, /real estate professionals/i)
 
     const ctaLinkHref = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('href') || '')
-    assert.match(ctaLinkHref, /websitesbyleslie\.com/i)
+    assert.match(ctaLinkHref, /mailto:websitesbyleslie01@gmail\.com/i)
+    const ctaSubjectMatch = ctaLinkHref.match(/[?&]subject=([^&]*)/)
+    const ctaSubject = decodeURIComponent(ctaSubjectMatch?.[1] ?? '')
+    assert.equal(ctaSubject, 'Custom planner inquiry')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller CTA button shows "Email Leslie →" and has accessible title', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const text = await page.$eval('.tool-sales-cta-link', el => el.textContent?.trim() ?? '')
+    assert.equal(text, 'Email Leslie →')
+    const title = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('title') || '')
+    assert.match(title, /email application/i)
   } finally {
     await page.close()
   }

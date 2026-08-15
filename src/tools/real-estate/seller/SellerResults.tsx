@@ -152,12 +152,11 @@ export function SellerResults({ sections, answers, onStartOver, onEditAnswers }:
           <li>Integration with your existing website</li>
         </ul>
         <a
-          href="https://websitesbyleslie.com/#contact"
+          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry"
           className="tool-sales-cta-link"
-          target="_blank"
-          rel="noopener noreferrer"
+          title="Opens your email application to contact Websites by Leslie"
         >
-          Get in touch →
+          Email Leslie →
         </a>
       </div>
     </div>

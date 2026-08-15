@@ -12,6 +12,9 @@ import { evaluateRules } from '../../src/tools/core/evaluateRules.ts'
 import { BUYER_RULES, SECTION_ORDER, SECTION_TITLES } from '../../src/tools/real-estate/buyer/buyerRules.ts'
 import { EMPTY_BUYER_ANSWERS, type BuyerAnswers } from '../../src/tools/real-estate/buyer/buyerTypes.ts'
 import { buildBuyerSummaryText } from '../../src/tools/real-estate/buyer/buyerSummary.ts'
+import { SELLER_RULES, SECTION_ORDER as SELLER_SECTION_ORDER, SECTION_TITLES as SELLER_SECTION_TITLES } from '../../src/tools/real-estate/seller/sellerRules.ts'
+import { EMPTY_SELLER_ANSWERS, type SellerAnswers } from '../../src/tools/real-estate/seller/sellerTypes.ts'
+import { buildSummaryText as buildSellerSummaryText } from '../../src/tools/real-estate/seller/sellerSummary.ts'
 import { buildMailtoHref } from '../../src/tools/core/buildMailtoHref.ts'
 
 const ROOT = path.resolve(import.meta.dirname, '../..')
@@ -509,6 +512,153 @@ test('buildMailtoHref buyer mailto includes complete summary and disclaimer', ()
   assert.match(body, /BUYER READINESS PLANNER/)
   assert.match(body, /informational and discussion purposes only/)
   assert.match(body, /does not constitute real estate/)
+})
+
+// ── Rich-scenario mailto regression ──────────────────────────────────────────
+// These tests prove that the APPLICATION correctly encodes the full summary in
+// the mailto URL. They operate entirely on computed values — no browser, no
+// mail client. Platform truncation by Apple Mail or other clients is a separate
+// (OS-level) concern documented in the corrective review report.
+
+// Rich buyer scenario: triggers every section with multiple items.
+const richBuyerAnswers: BuyerAnswers = {
+  ...EMPTY_BUYER_ANSWERS,
+  timeframe: 'within3',
+  stage: 'actively',
+  purchaseType: 'firstHome',
+  propertyTypes: ['singleFamily', 'condo', 'townhome', 'multiUnit'],
+  mustHaves: ['garage', 'yard', 'homeOffice'],
+  niceToHaves: ['pool', 'walkInCloset'],
+  hasTargetArea: 'open',
+  financingStatus: 'begun',
+  housingTiming: 'leaseSoon',
+  mustSellFirst: 'yes',
+  showingAvailability: 'weekendsOnly',
+  otherDecisionMakers: 'yes',
+  movingFlexibility: 'specific',
+  priorities: ['price', 'location', 'size'],
+  agentQuestions: 'What is a reasonable offer strategy? How quickly are homes selling?',
+}
+
+// Rich seller scenario: triggers every section with multiple items.
+const richSellerAnswers: SellerAnswers = {
+  ...EMPTY_SELLER_ANSWERS,
+  timeframe: 'asap',
+  stage: 'preparing',
+  coordination: 'simultaneously',
+  propertyType: 'multiUnit',
+  occupancy: 'tenantOccupied',
+  ownershipDuration: 'over10',
+  knownRepairs: 'yesList',
+  declutterStatus: 'planned',
+  recentImprovements: 'yesMajor',
+  accessArrangement: 'needsCoordination',
+  prepQuestions: 'yes',
+  hoaInvolvement: 'yes',
+  documentsAvailable: ['surveys', 'permits', 'warranties', 'hoa', 'taxRecords'],
+  multipleOwners: 'multiple',
+  timingComplications: 'yes',
+  priorities: ['timing', 'process', 'preparation'],
+  agentQuestions: 'How do tenant situations affect the sale timeline?',
+}
+
+test('rich buyer: decoded mailto body equals full summary-builder output exactly', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
+  const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
+  const decoded = decodeURIComponent(bodyEncoded)
+  assert.equal(decoded, summaryText, 'decoded mailto body must equal the full summary text exactly')
+})
+
+test('rich buyer: mailto URL has not been shortened by application code', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const href = buildMailtoHref('', 'My Buyer Readiness Planning Summary', summaryText)
+  assert.ok(href.length > 4000, `mailto URL should be well over 4000 chars for a rich scenario; got ${href.length}`)
+})
+
+test('rich buyer: every populated section heading appears in the summary', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  for (const section of sections) {
+    assert.ok(summaryText.includes(section.title), `summary must include section heading "${section.title}"`)
+  }
+})
+
+test('rich buyer: every populated item label appears in the summary', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  for (const section of sections) {
+    for (const item of section.items) {
+      assert.ok(summaryText.includes(item.label), `summary must include item label "${item.label}"`)
+    }
+  }
+})
+
+test('rich buyer: complete disclaimer is present in the summary', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  assert.match(summaryText, /informational and discussion purposes only/)
+  assert.match(summaryText, /does not constitute real estate/)
+})
+
+test('rich buyer: written questions are included in the summary', () => {
+  const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  assert.ok(summaryText.includes(richBuyerAnswers.agentQuestions), 'written questions must appear in summary')
+})
+
+test('rich seller: decoded mailto body equals full summary-builder output exactly', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const href = buildMailtoHref('', 'My Seller Readiness Planning Summary', summaryText)
+  const bodyEncoded = href.match(/[?&]body=(.*)$/)?.[1] ?? ''
+  const decoded = decodeURIComponent(bodyEncoded)
+  assert.equal(decoded, summaryText, 'decoded seller mailto body must equal the full summary text exactly')
+})
+
+test('rich seller: mailto URL has not been shortened by application code', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const href = buildMailtoHref('', 'My Seller Readiness Planning Summary', summaryText)
+  assert.ok(href.length > 4000, `seller mailto URL should be well over 4000 chars for a rich scenario; got ${href.length}`)
+})
+
+test('rich seller: every populated section heading appears in the summary', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  for (const section of sections) {
+    assert.ok(summaryText.includes(section.title), `seller summary must include section heading "${section.title}"`)
+  }
+})
+
+test('rich seller: every populated item label appears in the summary', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  for (const section of sections) {
+    for (const item of section.items) {
+      assert.ok(summaryText.includes(item.label), `seller summary must include item label "${item.label}"`)
+    }
+  }
+})
+
+test('rich seller: complete disclaimer is present in the summary', () => {
+  const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  assert.match(summaryText, /informational and discussion purposes only/)
+  assert.match(summaryText, /does not constitute real estate/)
+})
+
+test('buyer and seller summaries never mix content', () => {
+  const buyerSections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
+  const buyerSummary = buildBuyerSummaryText(buyerSections, richBuyerAnswers.agentQuestions)
+  const sellerSections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
+  const sellerSummary = buildSellerSummaryText(sellerSections, richSellerAnswers.agentQuestions)
+  assert.match(buyerSummary, /BUYER READINESS PLANNER/)
+  assert.ok(!buyerSummary.includes('SELLER READINESS PLANNER'), 'buyer summary must not contain seller header')
+  assert.match(sellerSummary, /SELLER READINESS PLANNER/)
+  assert.ok(!sellerSummary.includes('BUYER READINESS PLANNER'), 'seller summary must not contain buyer header')
 })
 
 // ── test infrastructure ───────────────────────────────────────────────────────
