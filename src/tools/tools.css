@@ -583,6 +583,14 @@ body {
   color: var(--color-text-muted);
 }
 
+.result-share-hint {
+  width: 100%;
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+}
+
 .result-copy-status {
   width: 100%;
   min-height: 1.25rem;

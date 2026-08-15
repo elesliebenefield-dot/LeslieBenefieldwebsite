@@ -579,7 +579,7 @@ test('step 5 has no name or email input fields', async () => {
 
 // ── Result actions ────────────────────────────────────────────────────────────
 
-test('result actions bar has Copy Summary, Share / Email Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
+test('result actions bar always has Copy Summary, Print Summary, Review / Edit Answers, and Start Over', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
@@ -588,7 +588,6 @@ test('result actions bar has Copy Summary, Share / Email Summary, Print Summary,
       els.map(el => el.textContent?.trim() ?? '')
     )
     assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must exist')
-    assert.ok(buttons.some(t => /share\s*\/\s*email summary/i.test(t)), 'Share / Email Summary must exist')
     assert.ok(buttons.some(t => /print summary/i.test(t)), 'Print Summary must exist')
     assert.ok(buttons.some(t => /review.*edit.*answers/i.test(t)), 'Review / Edit Answers must exist')
     assert.ok(buttons.some(t => /start over/i.test(t)), 'Start Over must exist')
@@ -730,16 +729,24 @@ test('result-actions and tool-sales-cta are hidden in print media', async () => 
   }
 })
 
-// ── Share / Email Summary ─────────────────────────────────────────────────────
+// ── Share Summary ─────────────────────────────────────────────────────────────
 
-test('Share / Email Summary button exists with correct text and accessible title', async () => {
-  const page = await openPage()
+test('seller native share: Share Summary button is visible and labeled correctly when share is supported', async () => {
+  const page = await browser.newPage()
   try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async () => undefined,
+        configurable: true, writable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
     const text = await page.$eval('.result-share-action', el => el.textContent?.trim() ?? '')
-    assert.equal(text, 'Share / Email Summary')
+    assert.equal(text, 'Share Summary')
     const title = await page.$eval('.result-share-action', el => el.getAttribute('title') || '')
-    assert.match(title, /share|email/i)
+    assert.match(title, /share/i)
   } finally {
     await page.close()
   }
@@ -802,7 +809,64 @@ test('seller native share: AbortError is handled quietly with no error status', 
   }
 })
 
-test('seller fallback: clipboard receives the exact complete seller summary when navigator.share is unavailable', async () => {
+test('seller native share: Share Summary is not visible in print media', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', {
+        value: async () => undefined,
+        configurable: true, writable: true,
+      })
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    await page.emulateMediaType('print')
+    const visible = await page.$eval('.result-share-action', el =>
+      window.getComputedStyle(el.closest('.result-actions')!).display !== 'none'
+    )
+    assert.equal(visible, false, 'result-actions (containing Share Summary) must be hidden in print')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller desktop: Share Summary button is not rendered when navigator.share is unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    const shareBtn = await page.$('.result-share-action')
+    assert.equal(shareBtn, null, 'Share Summary must not render when navigator.share is unavailable')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller desktop: email helper text is displayed when navigator.share is unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    const hint = await page.$eval('.result-share-hint', el => el.textContent?.trim() ?? '')
+    assert.match(hint, /Copy Summary/i)
+    assert.match(hint, /paste it into your email/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller desktop: Copy Summary places complete report on clipboard', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
@@ -818,7 +882,7 @@ test('seller fallback: clipboard receives the exact complete seller summary when
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
-    await page.click('.result-share-action')
+    await page.click('.result-action-btn') // Copy Summary is the first button
     await page.waitForFunction(
       () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
       { timeout: 3000 }
@@ -827,7 +891,7 @@ test('seller fallback: clipboard receives the exact complete seller summary when
     const written = await page.evaluate(
       () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
     )
-    assert.ok(written.length >= 1, 'clipboard.writeText must have been called')
+    assert.ok(written.length >= 1)
     assert.match(written[0], /SELLER READINESS PLANNER/)
     assert.match(written[0], /Suggested Next Step/)
     assert.match(written[0], /informational and discussion purposes only/)
@@ -836,58 +900,21 @@ test('seller fallback: clipboard receives the exact complete seller summary when
   }
 })
 
-test('seller fallback: live region tells visitor to paste the copied summary', async () => {
+test('seller desktop: email helper text is hidden in print media', async () => {
   const page = await browser.newPage()
   try {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
-      Object.defineProperty(navigator, 'clipboard', {
-        value: { writeText: async () => undefined },
-        configurable: true,
-      })
     })
     await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
+    await page.emulateMediaType('print')
 
-    await page.click('.result-share-action')
-    await page.waitForFunction(
-      () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Paste it'),
-      { timeout: 3000 }
+    const visible = await page.$eval('.result-share-hint', el =>
+      window.getComputedStyle(el.closest('.result-actions')!).display !== 'none'
     )
-
-    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
-    assert.match(status, /Your complete summary was copied/i)
-    assert.match(status, /Paste it into the email/i)
-  } finally {
-    await page.close()
-  }
-})
-
-test('seller fallback: clipboard failure shows error message and does not show paste instruction', async () => {
-  const page = await browser.newPage()
-  try {
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
-      Object.defineProperty(navigator, 'clipboard', {
-        value: { writeText: async () => Promise.reject(new Error('Permission denied')) },
-        configurable: true,
-      })
-    })
-    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
-    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
-    await completeAllSteps(page)
-
-    await page.click('.result-share-action')
-    await page.waitForFunction(
-      () => (document.querySelector('.result-copy-status')?.textContent ?? '').includes('Copying failed'),
-      { timeout: 3000 }
-    )
-
-    const status = await page.$eval('.result-copy-status', el => el.textContent || '')
-    assert.match(status, /Copying failed/i)
-    assert.match(status, /Copy Summary/i)
-    assert.ok(!/Paste it into the email/.test(status), 'paste instruction must not appear on clipboard failure')
+    assert.equal(visible, false, 'result-actions (containing email hint) must be hidden in print')
   } finally {
     await page.close()
   }
