@@ -155,7 +155,7 @@ test('privacy note appears on step 1 and mentions browser storage', async () => 
   try {
     const note = await page.$eval('.tool-privacy-note', el => el.textContent || '')
     assert.match(note, /browser/)
-    assert.match(note, /stored or transmitted/i)
+    assert.match(note, /nothing\s+is\s+stored\s+or\s+transmitted/i)
   } finally {
     await page.close()
   }
