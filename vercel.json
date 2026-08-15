@@ -5,6 +5,7 @@
     { "source": "/faq", "destination": "/faq.html" },
     { "source": "/website-checklist", "destination": "/website-checklist.html" },
     { "source": "/privacy-policy", "destination": "/privacy-policy.html" },
-    { "source": "/tools/real-estate/seller", "destination": "/tools-seller.html" }
+    { "source": "/tools/real-estate/seller", "destination": "/tools-seller.html" },
+    { "source": "/tools/real-estate/buyer", "destination": "/tools-buyer.html" }
   ]
 }
