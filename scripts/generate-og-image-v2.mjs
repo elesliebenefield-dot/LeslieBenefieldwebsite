@@ -1,89 +1,102 @@
 import { Resvg } from '@resvg/resvg-js';
 import sharp from 'sharp';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// ── Load Sacramento font (download once, cache locally) ────────────────
+const fontPath = join(__dirname, 'Sacramento-Regular.ttf');
+if (!existsSync(fontPath)) {
+  console.log('Downloading Sacramento font…');
+  // Request TTF format via legacy UA
+  const cssRes = await fetch(
+    'https://fonts.googleapis.com/css?family=Sacramento',
+    { headers: { 'User-Agent': 'Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)' } }
+  );
+  const css = await cssRes.text();
+  const match = css.match(/url\(([^)]+)\)/);
+  if (!match) throw new Error('Could not parse Sacramento font URL from Google Fonts CSS');
+  const fontUrl = match[1].replace(/'/g, '');
+  const fontRes = await fetch(fontUrl);
+  writeFileSync(fontPath, Buffer.from(await fontRes.arrayBuffer()));
+  console.log('Sacramento font saved to scripts/Sacramento-Regular.ttf');
+}
+
+// ── SVG overlay ────────────────────────────────────────────────────────
 const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#FDFCFA"/>
-      <stop offset="60%"  stop-color="#F2F7F7"/>
-      <stop offset="100%" stop-color="#EEF5F5"/>
-    </linearGradient>
-
-    <radialGradient id="gtr" cx="1100" cy="400" r="500" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#4DA3A8" stop-opacity="0.10"/>
-      <stop offset="100%" stop-color="#4DA3A8" stop-opacity="0"/>
+    <!-- Warm ivory base overlay — lets beach show through -->
+    <!-- Subtle center glow for text readability -->
+    <radialGradient id="centerGlow" cx="50%" cy="44%" r="52%">
+      <stop offset="0%"   stop-color="#FDFCFA" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#FDFCFA" stop-opacity="0"/>
     </radialGradient>
-
-    <radialGradient id="gbl" cx="100" cy="400" r="450" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#E4BDC6" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#E4BDC6" stop-opacity="0"/>
+    <!-- Edge darkening to frame the image naturally -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="72%">
+      <stop offset="0%"   stop-color="transparent"/>
+      <stop offset="100%" stop-color="#1F3347" stop-opacity="0.08"/>
     </radialGradient>
   </defs>
 
-  <!-- Main background -->
-  <rect width="1200" height="630" fill="url(#bg)"/>
-  <rect width="1200" height="630" fill="url(#gtr)"/>
-  <rect width="1200" height="630" fill="url(#gbl)"/>
+  <!-- Base overlay — 62% ivory, beach shows through while ensuring readability -->
+  <rect width="1200" height="630" fill="#FDFCFA" opacity="0.62"/>
 
-  <!-- Navy header band — matches site nav -->
-  <rect x="0" y="0" width="1200" height="130" fill="#1F3347"/>
-  <rect x="0" y="128" width="1200" height="3" fill="#4DA3A8" opacity="0.35"/>
+  <!-- Subtle center readability glow -->
+  <rect width="1200" height="630" fill="url(#centerGlow)"/>
 
-  <!-- Brand name inside navy band — matches nav logo style -->
-  <text x="600" y="75" text-anchor="middle"
+  <!-- Soft edge vignette -->
+  <rect width="1200" height="630" fill="url(#vignette)"/>
+
+  <!-- "Websites by" — smaller attribution in navy -->
+  <text x="600" y="228" text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-style="italic" font-size="56" fill="#E4BDC6">
-    Websites by Leslie
+    font-size="22" font-weight="normal" letter-spacing="6"
+    fill="#1F3347" opacity="0.80">
+    WEBSITES BY
   </text>
 
-  <!-- Role line inside band -->
-  <text x="600" y="112" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="14" font-weight="500" letter-spacing="4" fill="#4DA3A8">
-    WEBSITE DESIGNER &amp; DEVELOPER
+  <!-- "Leslie" — Sacramento script, richer blush for contrast on light beach -->
+  <text x="600" y="336" text-anchor="middle"
+    font-family="Sacramento, cursive"
+    font-size="110" fill="#B87A90">
+    Leslie
   </text>
 
-  <!-- Main headline — big and bold, centered in lower area -->
-  <text x="600" y="305" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="74" font-weight="700" fill="#1F3347">
-    Affordable websites
-  </text>
-  <text x="600" y="396" text-anchor="middle"
-    font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-    font-size="74" font-weight="700" fill="#1F3347">
-    without the DIY headache.
-  </text>
+  <!-- Blush accent divider -->
+  <rect x="490" y="358" width="220" height="2.5" rx="1.25" fill="#B87A90" opacity="0.60"/>
 
-  <!-- Blush accent underline below headline -->
-  <rect x="370" y="416" width="460" height="4" rx="2" fill="#E4BDC6" opacity="0.55"/>
-
-  <!-- Sub-tagline -->
-  <text x="600" y="492" text-anchor="middle"
+  <!-- Supporting copy — warm, personal, unhurried -->
+  <text x="600" y="412" text-anchor="middle"
     font-family="Georgia, 'Times New Roman', serif"
-    font-size="22" fill="#4DA3A8">
-    Simple. Affordable. Built for your business.
+    font-size="24" fill="#1F3347" opacity="0.78">
+    Websites built with care for real small businesses.
   </text>
 
-  <!-- Sea glass bar at bottom -->
-  <rect x="0" y="620" width="1200" height="10" fill="#1F3347"/>
 </svg>
 `;
 
+// ── Render SVG overlay ─────────────────────────────────────────────────
 const resvg = new Resvg(svg.trim(), {
   fitTo: { mode: 'width', value: 1200 },
-  font:  { loadSystemFonts: true },
+  font: {
+    loadSystemFonts: true,
+    fontFiles: [fontPath],
+  },
+  background: 'transparent',
 });
+const svgPng = resvg.render().asPng();
 
-const pngBuffer = resvg.render().asPng();
+// ── Composite beach + overlay → JPEG ──────────────────────────────────
+const beachPath = join(__dirname, '..', 'src', 'assets', 'backgrounds', 'beach-background.jpeg');
+const beachBuffer = await sharp(beachPath)
+  .resize(1200, 630, { fit: 'cover', position: 'centre' })
+  .toBuffer();
 
-const jpgBuffer = await sharp(pngBuffer)
+const jpgBuffer = await sharp(beachBuffer)
+  .composite([{ input: svgPng, blend: 'over' }])
   .jpeg({ quality: 93, progressive: true, mozjpeg: true })
   .toBuffer();
 
