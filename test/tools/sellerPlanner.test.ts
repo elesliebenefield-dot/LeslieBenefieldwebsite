@@ -919,3 +919,523 @@ test('seller desktop: email helper text is hidden in print media', async () => {
     await page.close()
   }
 })
+
+// ── Seller Answers at a Glance recap ─────────────────────────────────────────
+
+test('seller answers-recap section appears in results', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const recap = await page.$('.result-section--answers-recap')
+    assert.ok(recap, 'answers-recap section must exist in seller results')
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Your Answers at a Glance/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller recap shows exact timeframe label selected', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'asap')
+    await pickRadio(page, 'stage', 'preparing')
+    await pickRadio(page, 'coordination', 'sellOnly')
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+    await fillStep4(page)
+    await clickNext(page)
+    await clickNext(page)
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /As soon as possible/)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Document selector mutual exclusivity ──────────────────────────────────────
+
+test('None of these clears specific document selections', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page)
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+
+    await pickRadio(page, 'hoaInvolvement', 'no')
+    await toggleCheckbox(page, 'documentsAvailable', 'surveys')
+    const surveysCheckedBefore = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="surveys"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(surveysCheckedBefore, true, 'surveys should be checked before selecting none')
+
+    await toggleCheckbox(page, 'documentsAvailable', 'none')
+
+    const surveysCheckedAfter = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="surveys"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(surveysCheckedAfter, false, 'surveys must be unchecked when None of these is selected')
+
+    const noneChecked = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="none"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(noneChecked, true, 'None of these must be checked')
+  } finally {
+    await page.close()
+  }
+})
+
+test('selecting specific document clears None of these', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page)
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+
+    await pickRadio(page, 'hoaInvolvement', 'no')
+    await toggleCheckbox(page, 'documentsAvailable', 'none')
+    const noneCheckedBefore = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="none"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(noneCheckedBefore, true, 'none should be checked before selecting specific document')
+
+    await toggleCheckbox(page, 'documentsAvailable', 'permits')
+
+    const noneCheckedAfter = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="none"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(noneCheckedAfter, false, 'None of these must be unchecked when a specific document is selected')
+
+    const permitsChecked = await page.evaluate(() =>
+      (document.querySelector('input[name="documentsAvailable"][value="permits"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(permitsChecked, true, 'permits must be checked')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Seller Copy Summary recap ─────────────────────────────────────────────────
+
+test('seller Copy Summary includes recap content', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-action-btn')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    assert.ok(written.length >= 1)
+    assert.match(written[0], /Your Answers at a Glance/)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Seller overflow at additional viewports ───────────────────────────────────
+
+test('seller no horizontal overflow on results at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 320px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller no horizontal overflow on results at 375px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 375, height: 667 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 375px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller no horizontal overflow on results at 430px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 430, height: 932 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 430px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller no horizontal overflow on results at 768px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 768, height: 1024 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 768px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller no horizontal overflow on results at 1440px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1440, height: 900 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 1440px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Seller touch targets ──────────────────────────────────────────────────────
+
+test('seller all interactive controls have touch target height >= 44px', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const minHeight = await page.$$eval('.result-action-btn', btns =>
+      Math.min(...btns.map(b => b.getBoundingClientRect().height))
+    )
+    assert.ok(minHeight >= 44, `all interactive controls must be at least 44px tall; smallest was ${minHeight.toFixed(1)}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Recap ordering — must precede guidance ────────────────────────────────────
+
+test('seller answers-recap section appears before the first tailored-guidance section in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const recapBeforeGuidance = await page.evaluate(() => {
+      const recap = document.querySelector('.result-section--answers-recap')
+      const firstGuidance = document.querySelector('.result-sections .result-section')
+      if (!recap || !firstGuidance) return false
+      return !!(recap.compareDocumentPosition(firstGuidance) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(recapBeforeGuidance, true, 'seller answers-recap must appear before the first guidance section in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Written questions appear exactly once ─────────────────────────────────────
+
+test('seller written question appears exactly once in visible results', async () => {
+  const page = await openPage()
+  try {
+    const q = 'What is the typical days-on-market for this area?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/What is the typical days-on-market for this area\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in seller results; found ${occurrences}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller written question appears exactly once in Copy Summary', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const q = 'What is the typical days-on-market for this area?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.click('.result-action-btn')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    const text = written[0] || ''
+    const occurrences = (text.match(/What is the typical days-on-market for this area\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in seller Copy Summary; found ${occurrences}`)
+    assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear in seller Copy Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller written question appears exactly once in Share Summary', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      const calls: Array<{ text?: string }> = []
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { text?: string }) => { calls.push(data); return undefined },
+        configurable: true, writable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__shareCalls = () => [...calls]
+    })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const q = 'What is the typical days-on-market for this area?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as Record<string, unknown>).__shareCalls as () => unknown[])().length > 0,
+      { timeout: 3000 }
+    )
+    const calls = await page.evaluate(
+      () => (window as unknown as { __shareCalls: () => Array<{ text: string }> }).__shareCalls()
+    )
+    const text = calls[0]?.text ?? ''
+    const occurrences = (text.match(/What is the typical days-on-market for this area\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in seller Share Summary; found ${occurrences}`)
+    assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear in seller Share Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller written question appears exactly once in print', async () => {
+  const page = await openPage()
+  try {
+    const q = 'What is the typical days-on-market for this area?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.emulateMediaType('print')
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/What is the typical days-on-market for this area\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in seller print; found ${occurrences}`)
+    await page.emulateMediaType('screen')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller blank written-question field produces no blank or redundant section', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const writtenQSection = await page.$('.result-written-questions')
+    assert.equal(writtenQSection, null, 'standalone result-written-questions section must not exist in seller results')
+    const emptyDDs = await page.$$eval('.result-recap-detail', els =>
+      els.filter(el => !el.textContent || !el.textContent.trim()).length
+    )
+    assert.equal(emptyDDs, 0, 'recap must have no empty detail cells when seller question is blank')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller Review/Edit preserves written question; question still appears exactly once after round-trip', async () => {
+  const page = await openPage()
+  try {
+    const q = 'What repairs will buyers typically request?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    const buttons = await page.$$('.result-action-btn')
+    for (const btn of buttons) {
+      const text = await btn.evaluate(el => el.textContent || '')
+      if (/review.*edit.*answers/i.test(text)) { await btn.click(); break }
+    }
+
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+    const questionValue = await page.$eval('#agentQuestions', el => (el as HTMLTextAreaElement).value)
+    assert.equal(questionValue, q, 'agentQuestions textarea must retain prior value after seller Review/Edit')
+    await clickNext(page)
+
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/What repairs will buyers typically request\?/g) || []).length
+    assert.equal(occurrences, 1, `question must appear exactly once after seller Review/Edit round-trip; found ${occurrences}`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Seller overflow at 390px ──────────────────────────────────────────────────
+
+test('seller no horizontal overflow on results at 390px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 390, height: 844 })
+    await page.goto(`${baseUrl}/tools-seller.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 390px on seller results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Seller action bar placement ────────────────────────────────────────────────
+
+test('seller action bar appears after disclaimer in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const disclaimerBeforeActions = await page.evaluate(() => {
+      const disclaimer = document.querySelector('.tool-disclaimer')
+      const actions = document.querySelector('.result-actions')
+      if (!disclaimer || !actions) return false
+      return !!(disclaimer.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(disclaimerBeforeActions, true, 'seller disclaimer must appear before result-actions in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller action bar appears before the professional customization CTA in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const actionsBeforeCta = await page.evaluate(() => {
+      const actions = document.querySelector('.result-actions')
+      const cta = document.querySelector('.tool-sales-cta')
+      if (!actions || !cta) return false
+      return !!(actions.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(actionsBeforeCta, true, 'seller result-actions must appear before tool-sales-cta in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller exactly one action bar exists on the results page', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const count = await page.$$eval('.result-actions', els => els.length)
+    assert.equal(count, 1, `seller expected exactly one .result-actions element, found ${count}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller accessible status message inside action bar has role="status" and aria-live="polite"', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const attrs = await page.evaluate(() => {
+      const status = document.querySelector('.result-actions [role="status"]')
+      if (!status) return null
+      return {
+        role: status.getAttribute('role'),
+        ariaLive: status.getAttribute('aria-live'),
+        ariaAtomic: status.getAttribute('aria-atomic'),
+      }
+    })
+    assert.ok(attrs !== null, 'seller status element with role="status" must exist inside .result-actions')
+    assert.equal(attrs!.role, 'status', 'seller status element must have role="status"')
+    assert.equal(attrs!.ariaLive, 'polite', 'seller status element must have aria-live="polite"')
+    assert.equal(attrs!.ariaAtomic, 'true', 'seller status element must have aria-atomic="true"')
+  } finally {
+    await page.close()
+  }
+})
+
+test('seller recap, guidance sections, and disclaimer are not hidden in print', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const visibility = await page.evaluate(() => {
+      const recap = document.querySelector('.result-section--answers-recap')
+      const firstGuidanceSection = document.querySelector('.result-sections .result-section')
+      const disclaimer = document.querySelector('.tool-disclaimer')
+      const getDisplayInPrint = (el: Element | null) => {
+        if (!el) return 'missing'
+        return !el.classList.contains('no-print') ? 'visible' : 'hidden'
+      }
+      return {
+        recap: getDisplayInPrint(recap),
+        guidance: getDisplayInPrint(firstGuidanceSection),
+        disclaimer: getDisplayInPrint(disclaimer),
+      }
+    })
+    assert.equal(visibility.recap, 'visible', 'seller answers-recap must not have no-print class (must be visible in print)')
+    assert.equal(visibility.guidance, 'visible', 'seller guidance sections must not have no-print class (must be visible in print)')
+    assert.equal(visibility.disclaimer, 'visible', 'seller disclaimer must not have no-print class (must be visible in print)')
+  } finally {
+    await page.close()
+  }
+})

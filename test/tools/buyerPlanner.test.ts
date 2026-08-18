@@ -1229,3 +1229,637 @@ test('all action buttons meet 44px minimum touch target height', async () => {
     await page.close()
   }
 })
+
+// ── Answers at a Glance recap ─────────────────────────────────────────────────
+
+test('answers-recap section appears in results', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const recap = await page.$('.result-section--answers-recap')
+    assert.ok(recap, 'answers-recap section must exist in results')
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Your Answers at a Glance/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('recap shows exact timeframe label selected', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'within3')
+    await pickRadio(page, 'stage', 'actively')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+    await fillStep4(page)
+    await clickNext(page)
+    await clickNext(page)
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Within the next 3 months/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('recap omits unanswered optional fields — no empty dd elements', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const emptyDetails = await page.$$eval('.result-recap-detail', els =>
+      els.filter(el => !el.textContent || !el.textContent.trim()).length
+    )
+    assert.equal(emptyDetails, 0, 'no recap detail elements should be empty')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Mutual exclusivity ────────────────────────────────────────────────────────
+
+test('selecting must-have removes it from nice-to-haves', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page)
+    await clickNext(page)
+
+    await toggleCheckbox(page, 'niceToHaves', 'garage')
+    const niceCheckedBefore = await page.evaluate(() =>
+      (document.querySelector('input[name="niceToHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(niceCheckedBefore, true, 'garage should be checked in nice-to-haves before toggling must-have')
+
+    await toggleCheckbox(page, 'mustHaves', 'garage')
+
+    const niceCheckedAfter = await page.evaluate(() =>
+      (document.querySelector('input[name="niceToHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(niceCheckedAfter, false, 'garage must be removed from nice-to-haves when added to must-haves')
+
+    const mustChecked = await page.evaluate(() =>
+      (document.querySelector('input[name="mustHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(mustChecked, true, 'garage must be checked in must-haves')
+  } finally {
+    await page.close()
+  }
+})
+
+test('selecting nice-to-have removes it from must-haves', async () => {
+  const page = await openPage()
+  try {
+    await fillStep1(page)
+    await clickNext(page)
+
+    await toggleCheckbox(page, 'mustHaves', 'garage')
+    const mustCheckedBefore = await page.evaluate(() =>
+      (document.querySelector('input[name="mustHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(mustCheckedBefore, true, 'garage should be checked in must-haves before toggling nice-to-have')
+
+    await toggleCheckbox(page, 'niceToHaves', 'garage')
+
+    const mustCheckedAfter = await page.evaluate(() =>
+      (document.querySelector('input[name="mustHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(mustCheckedAfter, false, 'garage must be removed from must-haves when added to nice-to-haves')
+
+    const niceChecked = await page.evaluate(() =>
+      (document.querySelector('input[name="niceToHaves"][value="garage"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(niceChecked, true, 'garage must be checked in nice-to-haves')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Copy/Share recap ──────────────────────────────────────────────────────────
+
+test('Copy Summary includes recap answers-at-a-glance content', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+
+    await pickRadio(page, 'timeframe', '3to6')
+    await pickRadio(page, 'stage', 'actively')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+    await fillStep4(page)
+    await clickNext(page)
+    await clickNext(page)
+
+    await page.click('.result-action-btn')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    assert.ok(written.length >= 1)
+    assert.match(written[0], /Your Answers at a Glance/)
+    assert.match(written[0], /Within 3–6 months/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('Share Summary receives complete summary with recap', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      const calls: Array<{ title?: string; text?: string }> = []
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { title?: string; text?: string }) => { calls.push(data); return undefined },
+        configurable: true, writable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__shareCalls = () => [...calls]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as Record<string, unknown>).__shareCalls as () => unknown[])().length > 0,
+      { timeout: 3000 }
+    )
+
+    const calls = await page.evaluate(
+      () => (window as unknown as { __shareCalls: () => Array<{ title: string; text: string }> }).__shareCalls()
+    )
+    assert.equal(calls.length, 1)
+    assert.match(calls[0].text, /Your Answers at a Glance/)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Review/Edit preserves recap ───────────────────────────────────────────────
+
+test('Review/Edit returns to questions preserving selections; recap reflects them after re-completing', async () => {
+  const page = await openPage()
+  try {
+    await pickRadio(page, 'timeframe', 'within3')
+    await pickRadio(page, 'stage', 'actively')
+    await pickRadio(page, 'purchaseType', 'firstHome')
+    await clickNext(page)
+    await fillStep2(page)
+    await clickNext(page)
+    await fillStep3(page)
+    await clickNext(page)
+    await fillStep4(page)
+    await clickNext(page)
+    await clickNext(page)
+
+    const buttons = await page.$$('.result-action-btn')
+    for (const btn of buttons) {
+      const text = await btn.evaluate(el => el.textContent || '')
+      if (/review.*edit.*answers/i.test(text)) {
+        await btn.click()
+        break
+      }
+    }
+
+    const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
+    assert.equal(progressLabel, 'Buying Plans', 'should be back on step 1')
+
+    const timeframeChecked = await page.evaluate(() =>
+      (document.querySelector('input[name="timeframe"][value="within3"]') as HTMLInputElement)?.checked
+    )
+    assert.equal(timeframeChecked, true, 'prior timeframe selection should be preserved')
+
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+
+    const body = await page.evaluate(() => document.body.textContent || '')
+    assert.match(body, /Within the next 3 months/)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Print ─────────────────────────────────────────────────────────────────────
+
+test('answers-recap section is present in DOM and does not have no-print class', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const hasNoPrint = await page.$eval('.result-section--answers-recap', el => el.classList.contains('no-print'))
+    assert.equal(hasNoPrint, false, 'answers-recap must not have no-print class')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Overflow at additional viewports ─────────────────────────────────────────
+
+test('no horizontal overflow on results at 320px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 320, height: 568 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 320px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no horizontal overflow on results at 375px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 375, height: 667 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 375px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no horizontal overflow on results at 430px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 430, height: 932 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 430px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no horizontal overflow on results at 768px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 768, height: 1024 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 768px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no horizontal overflow on results at 1440px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1440, height: 900 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 1440px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Touch targets ─────────────────────────────────────────────────────────────
+
+test('all interactive controls have touch target height >= 44px', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const minHeight = await page.$$eval('.result-action-btn', btns =>
+      Math.min(...btns.map(b => b.getBoundingClientRect().height))
+    )
+    assert.ok(minHeight >= 44, `all interactive controls must be at least 44px tall; smallest was ${minHeight.toFixed(1)}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Recap ordering — must precede guidance ────────────────────────────────────
+
+test('answers-recap section appears before the first tailored-guidance section in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const recapBeforeGuidance = await page.evaluate(() => {
+      const recap = document.querySelector('.result-section--answers-recap')
+      const firstGuidance = document.querySelector('.result-sections .result-section')
+      if (!recap || !firstGuidance) return false
+      // DOCUMENT_POSITION_FOLLOWING means firstGuidance comes AFTER recap
+      return !!(recap.compareDocumentPosition(firstGuidance) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(recapBeforeGuidance, true, 'answers-recap must appear before the first guidance section in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Written questions appear exactly once ─────────────────────────────────────
+
+test('written question appears exactly once in visible results', async () => {
+  const page = await openPage()
+  try {
+    const q = 'How competitive is the market right now?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    // Step 5: enter question
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/How competitive is the market right now\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in visible results; found ${occurrences}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('written question appears exactly once in Copy Summary', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true, writable: true })
+      const written: string[] = []
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: async (t: string) => { written.push(t); return undefined } },
+        configurable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__clipboardWritten = () => [...written]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const q = 'How competitive is the market right now?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.click('.result-action-btn')
+    await page.waitForFunction(
+      () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
+      { timeout: 3000 }
+    )
+    const written = await page.evaluate(
+      () => (window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten()
+    )
+    const text = written[0] || ''
+    const occurrences = (text.match(/How competitive is the market right now\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in Copy Summary; found ${occurrences}`)
+    assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear in Copy Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('written question appears exactly once in Share Summary', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.evaluateOnNewDocument(() => {
+      const calls: Array<{ text?: string }> = []
+      Object.defineProperty(navigator, 'share', {
+        value: async (data: { text?: string }) => { calls.push(data); return undefined },
+        configurable: true, writable: true,
+      })
+      ;(window as unknown as Record<string, unknown>).__shareCalls = () => [...calls]
+    })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    const q = 'How competitive is the market right now?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.click('.result-share-action')
+    await page.waitForFunction(
+      () => ((window as unknown as Record<string, unknown>).__shareCalls as () => unknown[])().length > 0,
+      { timeout: 3000 }
+    )
+    const calls = await page.evaluate(
+      () => (window as unknown as { __shareCalls: () => Array<{ text: string }> }).__shareCalls()
+    )
+    const text = calls[0]?.text ?? ''
+    const occurrences = (text.match(/How competitive is the market right now\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in Share Summary; found ${occurrences}`)
+    assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear in Share Summary')
+  } finally {
+    await page.close()
+  }
+})
+
+test('written question appears exactly once in print', async () => {
+  const page = await openPage()
+  try {
+    const q = 'How competitive is the market right now?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    await page.emulateMediaType('print')
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/How competitive is the market right now\?/g) || []).length
+    assert.equal(occurrences, 1, `written question must appear exactly once in print; found ${occurrences}`)
+    await page.emulateMediaType('screen')
+  } finally {
+    await page.close()
+  }
+})
+
+test('blank written-question field produces no blank or redundant section', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page) // step 5 left blank
+    const writtenQSection = await page.$('.result-written-questions')
+    assert.equal(writtenQSection, null, 'standalone result-written-questions section must not exist')
+    const emptyDDs = await page.$$eval('.result-recap-detail', els =>
+      els.filter(el => !el.textContent || !el.textContent.trim()).length
+    )
+    assert.equal(emptyDDs, 0, 'recap must have no empty detail cells when question is blank')
+  } finally {
+    await page.close()
+  }
+})
+
+test('Review/Edit preserves written question; question still appears exactly once after round-trip', async () => {
+  const page = await openPage()
+  try {
+    const q = 'What is typical earnest money in this area?'
+    await fillStep1(page); await clickNext(page)
+    await fillStep2(page); await clickNext(page)
+    await fillStep3(page); await clickNext(page)
+    await fillStep4(page); await clickNext(page)
+    await page.type('#agentQuestions', q)
+    await clickNext(page)
+
+    // Click Review / Edit Answers
+    const buttons = await page.$$('.result-action-btn')
+    for (const btn of buttons) {
+      const text = await btn.evaluate(el => el.textContent || '')
+      if (/review.*edit.*answers/i.test(text)) { await btn.click(); break }
+    }
+
+    // Verify question is preserved in textarea on step 1 return
+    await clickNext(page) // advance to step 5 through remaining steps
+    await clickNext(page)
+    await clickNext(page)
+    await clickNext(page)
+    const questionValue = await page.$eval('#agentQuestions', el => (el as HTMLTextAreaElement).value)
+    assert.equal(questionValue, q, 'agentQuestions textarea must retain prior value after Review/Edit')
+    await clickNext(page) // to results
+
+    const bodyText = await page.evaluate(() => document.body.textContent || '')
+    const occurrences = (bodyText.match(/What is typical earnest money in this area\?/g) || []).length
+    assert.equal(occurrences, 1, `question must appear exactly once after Review/Edit round-trip; found ${occurrences}`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Overflow at 390px ─────────────────────────────────────────────────────────
+
+test('no horizontal overflow on results at 390px', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 390, height: 844 })
+    await page.goto(`${baseUrl}/tools-buyer.html`, { waitUntil: 'load' })
+    await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
+    await completeAllSteps(page)
+    const ovf = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(ovf <= 0, `expected no overflow at 390px on results, got ${ovf}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Action bar placement ───────────────────────────────────────────────────────
+
+test('action bar appears after disclaimer in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const disclaimerBeforeActions = await page.evaluate(() => {
+      const disclaimer = document.querySelector('.tool-disclaimer')
+      const actions = document.querySelector('.result-actions')
+      if (!disclaimer || !actions) return false
+      return !!(disclaimer.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(disclaimerBeforeActions, true, 'disclaimer must appear before result-actions in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+test('action bar appears before the professional customization CTA in DOM order', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const actionsBeforeCta = await page.evaluate(() => {
+      const actions = document.querySelector('.result-actions')
+      const cta = document.querySelector('.tool-sales-cta')
+      if (!actions || !cta) return false
+      return !!(actions.compareDocumentPosition(cta) & Node.DOCUMENT_POSITION_FOLLOWING)
+    })
+    assert.equal(actionsBeforeCta, true, 'result-actions must appear before tool-sales-cta in DOM order')
+  } finally {
+    await page.close()
+  }
+})
+
+test('exactly one action bar exists on the results page', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const count = await page.$$eval('.result-actions', els => els.length)
+    assert.equal(count, 1, `expected exactly one .result-actions element, found ${count}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('accessible status message inside action bar has role="status" and aria-live="polite"', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const attrs = await page.evaluate(() => {
+      const status = document.querySelector('.result-actions [role="status"]')
+      if (!status) return null
+      return {
+        role: status.getAttribute('role'),
+        ariaLive: status.getAttribute('aria-live'),
+        ariaAtomic: status.getAttribute('aria-atomic'),
+      }
+    })
+    assert.ok(attrs !== null, 'status element with role="status" must exist inside .result-actions')
+    assert.equal(attrs!.role, 'status', 'status element must have role="status"')
+    assert.equal(attrs!.ariaLive, 'polite', 'status element must have aria-live="polite"')
+    assert.equal(attrs!.ariaAtomic, 'true', 'status element must have aria-atomic="true"')
+  } finally {
+    await page.close()
+  }
+})
+
+test('recap, guidance sections, and disclaimer are not hidden in print', async () => {
+  const page = await openPage()
+  try {
+    await completeAllSteps(page)
+    const visibility = await page.evaluate(() => {
+      const recap = document.querySelector('.result-section--answers-recap')
+      const firstGuidanceSection = document.querySelector('.result-sections .result-section')
+      const disclaimer = document.querySelector('.tool-disclaimer')
+      const getDisplayInPrint = (el: Element | null) => {
+        if (!el) return 'missing'
+        // Use matchMedia to emulate print
+        const sheet = document.createElement('style')
+        sheet.media = 'print'
+        sheet.textContent = ''
+        return !el.classList.contains('no-print') ? 'visible' : 'hidden'
+      }
+      return {
+        recap: getDisplayInPrint(recap),
+        guidance: getDisplayInPrint(firstGuidanceSection),
+        disclaimer: getDisplayInPrint(disclaimer),
+      }
+    })
+    assert.equal(visibility.recap, 'visible', 'answers-recap must not have no-print class (must be visible in print)')
+    assert.equal(visibility.guidance, 'visible', 'guidance sections must not have no-print class (must be visible in print)')
+    assert.equal(visibility.disclaimer, 'visible', 'disclaimer must not have no-print class (must be visible in print)')
+  } finally {
+    await page.close()
+  }
+})

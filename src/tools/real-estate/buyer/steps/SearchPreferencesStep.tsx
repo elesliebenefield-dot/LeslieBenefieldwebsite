@@ -32,12 +32,6 @@ const TARGET_AREA_OPTIONS = [
   { value: 'open', label: "I'm open and would like guidance" },
 ]
 
-function toggleFeature(current: string[], value: string): string[] {
-  return current.includes(value)
-    ? current.filter(v => v !== value)
-    : [...current, value]
-}
-
 function togglePropertyType(current: string[], value: string): string[] {
   if (value === 'openToAll') {
     return current.includes('openToAll') ? [] : ['openToAll']
@@ -49,6 +43,28 @@ function togglePropertyType(current: string[], value: string): string[] {
 }
 
 export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) {
+  function handleMustHaveChange(val: string) {
+    const isAdding = !answers.mustHaves.includes(val)
+    const newMustHaves = isAdding
+      ? [...answers.mustHaves, val]
+      : answers.mustHaves.filter(v => v !== val)
+    const newNiceToHaves = isAdding
+      ? answers.niceToHaves.filter(v => v !== val)
+      : answers.niceToHaves
+    onChange({ mustHaves: newMustHaves, niceToHaves: newNiceToHaves })
+  }
+
+  function handleNiceToHaveChange(val: string) {
+    const isAdding = !answers.niceToHaves.includes(val)
+    const newNiceToHaves = isAdding
+      ? [...answers.niceToHaves, val]
+      : answers.niceToHaves.filter(v => v !== val)
+    const newMustHaves = isAdding
+      ? answers.mustHaves.filter(v => v !== val)
+      : answers.mustHaves
+    onChange({ mustHaves: newMustHaves, niceToHaves: newNiceToHaves })
+  }
+
   return (
     <div>
       <div className="tool-question">
@@ -80,6 +96,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
             Which features are must-haves for you?
             <span className="tool-question-optional-tag">(select all that apply — optional)</span>
           </legend>
+          <p className="tool-question-hint">Selecting a feature here will remove it from the other category.</p>
           <div className="option-cards">
             {FEATURE_OPTIONS.map(opt => (
               <OptionCard
@@ -90,7 +107,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
                 label={opt.label}
                 checked={answers.mustHaves.includes(opt.value)}
                 type="checkbox"
-                onChange={val => onChange({ mustHaves: toggleFeature(answers.mustHaves, val) })}
+                onChange={handleMustHaveChange}
               />
             ))}
           </div>
@@ -103,6 +120,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
             Which features would be nice to have but are not required?
             <span className="tool-question-optional-tag">(select all that apply — optional)</span>
           </legend>
+          <p className="tool-question-hint">Selecting a feature here will remove it from the other category.</p>
           <div className="option-cards">
             {FEATURE_OPTIONS.map(opt => (
               <OptionCard
@@ -113,7 +131,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
                 label={opt.label}
                 checked={answers.niceToHaves.includes(opt.value)}
                 type="checkbox"
-                onChange={val => onChange({ niceToHaves: toggleFeature(answers.niceToHaves, val) })}
+                onChange={handleNiceToHaveChange}
               />
             ))}
           </div>
