@@ -223,9 +223,8 @@ test('agent-custom-questions fires when agentQuestions is non-empty', () => {
 test('sections appear in the declared order when multiple fire', () => {
   const a = answers({
     hoaInvolvement: 'yes',
-    knownRepairs: 'yesList',
-    timeframe: 'asap',
     knownRepairs: 'notSure',
+    timeframe: 'asap',
     stage: 'exploring',
   })
   const ids = sectionIds(a)
@@ -326,7 +325,7 @@ test('hoa-confirm detail does not claim specific documents definitively confirm 
 // ── buildSummaryText ──────────────────────────────────────────────────────────
 
 test('buildSummaryText includes the standard header line', () => {
-  const text = buildSummaryText([], '')
+  const text = buildSummaryText([], answers())
   assert.match(text, /SELLER READINESS PLANNER/)
 })
 
@@ -338,25 +337,28 @@ test('buildSummaryText includes each section title and item label', () => {
       items: [{ id: 'hoa-docs', label: 'HOA information', detail: 'Contact your HOA.' }],
     },
   ]
-  const text = buildSummaryText(sections, '')
+  const text = buildSummaryText(sections, answers())
   assert.match(text, /Information to Gather/)
   assert.match(text, /• HOA information/)
   assert.match(text, /Contact your HOA\./)
 })
 
-test('buildSummaryText includes written questions when non-empty', () => {
-  const text = buildSummaryText([], 'What is the showing timeline?')
-  assert.match(text, /Your Written Questions/)
+test('buildSummaryText includes written questions in recap when non-empty', () => {
+  const q = 'What is the showing timeline?'
+  const text = buildSummaryText([], answers({ agentQuestions: q }))
+  assert.match(text, /Written questions:/)
   assert.match(text, /What is the showing timeline\?/)
+  assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear')
 })
 
-test('buildSummaryText omits written questions block when agentQuestions is blank', () => {
-  const text = buildSummaryText([], '   ')
-  assert.ok(!/Your Written Questions/.test(text), 'written questions block must be absent for blank input')
+test('buildSummaryText omits written questions from recap when agentQuestions is blank', () => {
+  const text = buildSummaryText([], answers({ agentQuestions: '   ' }))
+  assert.ok(!/Written questions:/.test(text), 'written questions recap row must be absent for blank input')
+  assert.ok(!/Your Written Questions/.test(text), 'standalone heading must also be absent for blank input')
 })
 
 test('buildSummaryText includes the disclaimer footer', () => {
-  const text = buildSummaryText([], '')
+  const text = buildSummaryText([], answers())
   assert.match(text, /informational and discussion purposes only/)
   assert.match(text, /does not constitute real estate/)
 })
@@ -369,7 +371,7 @@ test('buildSummaryText items without detail do not include a blank indent line',
       items: [{ id: 'next-general', label: 'Connect with an agent' }],
     },
   ]
-  const text = buildSummaryText(sections, '')
+  const text = buildSummaryText(sections, answers())
   const lines = text.split('\n')
   const labelIdx = lines.findIndex(l => l === '• Connect with an agent')
   assert.ok(labelIdx !== -1, 'label line must exist')

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import type { ResultSection } from '../../core/types'
 import type { BuyerAnswers } from './buyerTypes'
 import { buildBuyerSummaryText } from './buyerSummary'
+import { buildBuyerAnswerRecap, type RecapRow } from './buyerLabels'
 
 export { buildBuyerSummaryText }
 
@@ -19,7 +20,7 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
   const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
   async function handleCopy() {
-    const text = buildBuyerSummaryText(sections, answers.agentQuestions)
+    const text = buildBuyerSummaryText(sections, answers)
     try {
       await navigator.clipboard.writeText(text)
       setCopyStatus('copied')
@@ -30,7 +31,7 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
   }
 
   async function handleShare() {
-    const text = buildBuyerSummaryText(sections, answers.agentQuestions)
+    const text = buildBuyerSummaryText(sections, answers)
     try {
       await navigator.share({ title: BUYER_SHARE_TITLE, text })
     } catch (err) {
@@ -45,6 +46,8 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
   const isSuccess = copyStatus === 'copied'
   const isError = copyStatus === 'failed' || copyStatus === 'share-error'
 
+  const recapRows: RecapRow[] = buildBuyerAnswerRecap(answers)
+
   return (
     <div>
       <div className="tool-results-header">
@@ -52,6 +55,63 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
         <p className="tool-results-subtitle">
           Based on your answers, here are the topics most relevant to your situation.
           Use this as a starting point for conversations with a licensed real estate agent.
+        </p>
+      </div>
+
+      {recapRows.length > 0 && (
+        <div className="result-section result-section--answers-recap">
+          <div className="result-section-header">
+            <p className="result-section-title">Your Answers at a Glance</p>
+          </div>
+          <dl className="result-recap-list">
+            {recapRows.map(row => (
+              <Fragment key={row.field}>
+                <dt className="result-recap-term">{row.field}</dt>
+                <dd className="result-recap-detail">{row.value}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
+
+      <div className="result-sections">
+        {sections.map(section => (
+          <div key={section.id} className={`result-section result-section--${section.id}`}>
+            <div className="result-section-header">
+              <p className="result-section-title">{section.title}</p>
+            </div>
+            <div className="result-items">
+              {section.items.map(item => (
+                <div key={item.id} className="result-item">
+                  <p className="result-item-label">
+                    <span className="result-item-arrow" aria-hidden="true">→</span>
+                    {item.label}
+                  </p>
+                  {item.detail && (
+                    <p className="result-item-detail">{item.detail}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tool-disclaimer" role="note">
+        <p>
+          This planning summary is for informational and discussion purposes only.
+          It does not constitute real estate, legal, financial, or tax advice.
+          Please consult qualified professionals for guidance specific to your situation.
+        </p>
+        <p>
+          Results are based solely on the information you entered and are not a
+          prediction, valuation, or professional assessment of your situation.
+        </p>
+        <p>
+          Interactive demo by{' '}
+          <a href="https://websitesbyleslie.com" target="_blank" rel="noopener noreferrer">
+            Websites by Leslie
+          </a>
         </p>
       </div>
 
@@ -93,62 +153,6 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
           {copyStatus === 'failed' && "Copy failed — use your device's select-all and copy instead."}
           {copyStatus === 'share-error' && 'Sharing failed. Use Copy Summary to copy your summary and share it manually.'}
         </div>
-      </div>
-
-      <div className="result-sections">
-        {sections.map(section => (
-          <div key={section.id} className={`result-section result-section--${section.id}`}>
-            <div className="result-section-header">
-              <p className="result-section-title">{section.title}</p>
-            </div>
-            <div className="result-items">
-              {section.items.map(item => (
-                <div key={item.id} className="result-item">
-                  <p className="result-item-label">
-                    <span className="result-item-arrow" aria-hidden="true">→</span>
-                    {item.label}
-                  </p>
-                  {item.detail && (
-                    <p className="result-item-detail">{item.detail}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {answers.agentQuestions.trim() && (
-        <div className="result-section result-written-questions">
-          <div className="result-section-header">
-            <p className="result-section-title">Your Written Questions</p>
-          </div>
-          <div className="result-items">
-            <div className="result-item">
-              <p className="result-item-detail result-item-detail--questions">
-                {answers.agentQuestions.trim()}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="tool-disclaimer" role="note">
-        <p>
-          This planning summary is for informational and discussion purposes only.
-          It does not constitute real estate, legal, financial, or tax advice.
-          Please consult qualified professionals for guidance specific to your situation.
-        </p>
-        <p>
-          Results are based solely on the information you entered and are not a
-          prediction, valuation, or professional assessment of your situation.
-        </p>
-        <p>
-          Interactive demo by{' '}
-          <a href="https://websitesbyleslie.com" target="_blank" rel="noopener noreferrer">
-            Websites by Leslie
-          </a>
-        </p>
       </div>
 
       <div className="tool-sales-cta no-print" aria-label="For real estate professionals">

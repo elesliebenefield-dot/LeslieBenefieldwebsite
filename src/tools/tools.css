@@ -608,6 +608,42 @@ body {
   color: var(--color-error);
 }
 
+/* ── Answers at a Glance recap ─────────────────────────────── */
+.result-section--answers-recap {}
+
+.result-recap-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-recap-term {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.result-recap-term::after {
+  content: ':';
+}
+
+.result-recap-detail {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.tool-question-hint {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  margin: 0.25rem 0 0;
+}
+
 /* ─── Written Questions block ────────────────────────────── */
 .result-written-questions {
   margin-top: 0;
@@ -817,6 +853,20 @@ body {
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .result-recap-list {
+    grid-template-columns: 1fr;
+  }
+  .result-recap-term {
+    white-space: normal;
+    margin-bottom: 0;
+  }
+  .result-recap-detail {
+    padding-left: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
 @media (max-width: 480px) {
   .tool-content {
     padding: 1.5rem 1rem;
@@ -896,4 +946,6 @@ body {
   .result-sections {
     gap: 0.75rem;
   }
+
+  .result-section--answers-recap { break-inside: avoid; }
 }

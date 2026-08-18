@@ -12,15 +12,21 @@ import { evaluateRules } from '../../src/tools/core/evaluateRules.ts'
 import { BUYER_RULES, SECTION_ORDER, SECTION_TITLES } from '../../src/tools/real-estate/buyer/buyerRules.ts'
 import { EMPTY_BUYER_ANSWERS, type BuyerAnswers } from '../../src/tools/real-estate/buyer/buyerTypes.ts'
 import { buildBuyerSummaryText } from '../../src/tools/real-estate/buyer/buyerSummary.ts'
+import { buildBuyerAnswerRecap } from '../../src/tools/real-estate/buyer/buyerLabels.ts'
 import { SELLER_RULES, SECTION_ORDER as SELLER_SECTION_ORDER, SECTION_TITLES as SELLER_SECTION_TITLES } from '../../src/tools/real-estate/seller/sellerRules.ts'
 import { EMPTY_SELLER_ANSWERS, type SellerAnswers } from '../../src/tools/real-estate/seller/sellerTypes.ts'
 import { buildSummaryText as buildSellerSummaryText } from '../../src/tools/real-estate/seller/sellerSummary.ts'
+import { buildSellerAnswerRecap } from '../../src/tools/real-estate/seller/sellerLabels.ts'
 import { buildMailtoHref } from '../../src/tools/core/buildMailtoHref.ts'
 
 const ROOT = path.resolve(import.meta.dirname, '../..')
 
 function answers(overrides: Partial<BuyerAnswers> = {}): BuyerAnswers {
   return { ...EMPTY_BUYER_ANSWERS, ...overrides }
+}
+
+function sellerAnswers(overrides: Partial<SellerAnswers> = {}): SellerAnswers {
+  return { ...EMPTY_SELLER_ANSWERS, ...overrides }
 }
 
 function evaluate(a: BuyerAnswers) {
@@ -426,7 +432,7 @@ test('evaluateRules returns only nextStep when no other conditions match', () =>
 // ── buildBuyerSummaryText ─────────────────────────────────────────────────────
 
 test('buildBuyerSummaryText includes the standard header line', () => {
-  const text = buildBuyerSummaryText([], '')
+  const text = buildBuyerSummaryText([], answers())
   assert.match(text, /BUYER READINESS PLANNER/)
 })
 
@@ -438,25 +444,28 @@ test('buildBuyerSummaryText includes each section title and item label', () => {
       items: [{ id: 'info-financing-not-started', label: 'Connect with a lender before beginning your search', detail: 'Helpful detail here.' }],
     },
   ]
-  const text = buildBuyerSummaryText(sections, '')
+  const text = buildBuyerSummaryText(sections, answers())
   assert.match(text, /Information to Organize/)
   assert.match(text, /• Connect with a lender before beginning your search/)
   assert.match(text, /Helpful detail here\./)
 })
 
-test('buildBuyerSummaryText includes written questions when non-empty', () => {
-  const text = buildBuyerSummaryText([], 'What is the offer timeline in this area?')
-  assert.match(text, /Your Written Questions/)
+test('buildBuyerSummaryText includes written questions in recap when non-empty', () => {
+  const q = 'What is the offer timeline in this area?'
+  const text = buildBuyerSummaryText([], answers({ agentQuestions: q }))
+  assert.match(text, /Written questions:/)
   assert.match(text, /What is the offer timeline in this area\?/)
+  assert.ok(!text.includes('Your Written Questions'), 'standalone "Your Written Questions" heading must not appear')
 })
 
-test('buildBuyerSummaryText omits written questions block when agentQuestions is blank', () => {
-  const text = buildBuyerSummaryText([], '   ')
-  assert.ok(!/Your Written Questions/.test(text), 'written questions block must be absent for blank input')
+test('buildBuyerSummaryText omits written questions from recap when agentQuestions is blank', () => {
+  const text = buildBuyerSummaryText([], answers({ agentQuestions: '   ' }))
+  assert.ok(!/Written questions:/.test(text), 'written questions recap row must be absent for blank input')
+  assert.ok(!/Your Written Questions/.test(text), 'standalone heading must also be absent for blank input')
 })
 
 test('buildBuyerSummaryText includes the disclaimer footer', () => {
-  const text = buildBuyerSummaryText([], '')
+  const text = buildBuyerSummaryText([], answers())
   assert.match(text, /informational and discussion purposes only/)
   assert.match(text, /does not constitute real estate/)
 })
@@ -469,7 +478,7 @@ test('buildBuyerSummaryText items without detail do not include a blank indent l
       items: [{ id: 'next-general', label: 'Connect with a licensed real estate agent' }],
     },
   ]
-  const text = buildBuyerSummaryText(sections, '')
+  const text = buildBuyerSummaryText(sections, answers())
   const lines = text.split('\n')
   const labelIdx = lines.findIndex(l => l === '• Connect with a licensed real estate agent')
   assert.ok(labelIdx !== -1, 'label line must exist')
@@ -562,7 +571,7 @@ const richSellerAnswers: SellerAnswers = {
 
 test('rich buyer: every populated section heading appears in the summary', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers)
   for (const section of sections) {
     assert.ok(summaryText.includes(section.title), `summary must include section heading "${section.title}"`)
   }
@@ -570,7 +579,7 @@ test('rich buyer: every populated section heading appears in the summary', () =>
 
 test('rich buyer: every populated item label appears in the summary', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers)
   for (const section of sections) {
     for (const item of section.items) {
       assert.ok(summaryText.includes(item.label), `summary must include item label "${item.label}"`)
@@ -580,21 +589,21 @@ test('rich buyer: every populated item label appears in the summary', () => {
 
 test('rich buyer: complete disclaimer is present in the summary', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers)
   assert.match(summaryText, /informational and discussion purposes only/)
   assert.match(summaryText, /does not constitute real estate/)
 })
 
 test('rich buyer: written questions are included in the summary', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const summaryText = buildBuyerSummaryText(sections, richBuyerAnswers)
   assert.ok(summaryText.includes(richBuyerAnswers.agentQuestions), 'written questions must appear in summary')
 })
 
 
 test('rich seller: every populated section heading appears in the summary', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers)
   for (const section of sections) {
     assert.ok(summaryText.includes(section.title), `seller summary must include section heading "${section.title}"`)
   }
@@ -602,7 +611,7 @@ test('rich seller: every populated section heading appears in the summary', () =
 
 test('rich seller: every populated item label appears in the summary', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers)
   for (const section of sections) {
     for (const item of section.items) {
       assert.ok(summaryText.includes(item.label), `seller summary must include item label "${item.label}"`)
@@ -612,7 +621,7 @@ test('rich seller: every populated item label appears in the summary', () => {
 
 test('rich seller: complete disclaimer is present in the summary', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const summaryText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const summaryText = buildSellerSummaryText(sections, richSellerAnswers)
   assert.match(summaryText, /informational and discussion purposes only/)
   assert.match(summaryText, /does not constitute real estate/)
 })
@@ -628,9 +637,9 @@ const SELLER_SHARE_TITLE = 'My Seller Readiness Planning Summary'
 
 test('buyer native share: text contains complete summary with all sections and disclaimer', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  // The component calls buildBuyerSummaryText(sections, answers.agentQuestions) and passes
+  // The component calls buildBuyerSummaryText(sections, answers) and passes
   // the result directly to navigator.share({ text }). Verify completeness.
-  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers)
   assert.match(shareText, /BUYER READINESS PLANNER/)
   assert.match(shareText, /Suggested Next Step/)
   assert.match(shareText, /informational and discussion purposes only/)
@@ -641,8 +650,8 @@ test('buyer native share: text contains complete summary with all sections and d
 
 test('buyer native share: share text and Copy Summary text are identical', () => {
   const sections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
-  const copyText = buildBuyerSummaryText(sections, richBuyerAnswers.agentQuestions)
+  const shareText = buildBuyerSummaryText(sections, richBuyerAnswers)
+  const copyText = buildBuyerSummaryText(sections, richBuyerAnswers)
   assert.equal(shareText, copyText, 'share text must be identical to Copy Summary text')
 })
 
@@ -653,7 +662,7 @@ test('buyer native share title is the correct planning summary title', () => {
 
 test('seller native share: text contains complete summary with all sections and disclaimer', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const shareText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const shareText = buildSellerSummaryText(sections, richSellerAnswers)
   assert.match(shareText, /SELLER READINESS PLANNER/)
   assert.match(shareText, /Suggested Next Step/)
   assert.match(shareText, /informational and discussion purposes only/)
@@ -664,8 +673,8 @@ test('seller native share: text contains complete summary with all sections and 
 
 test('seller native share: share text and Copy Summary text are identical', () => {
   const sections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const shareText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
-  const copyText = buildSellerSummaryText(sections, richSellerAnswers.agentQuestions)
+  const shareText = buildSellerSummaryText(sections, richSellerAnswers)
+  const copyText = buildSellerSummaryText(sections, richSellerAnswers)
   assert.equal(shareText, copyText, 'seller share text must be identical to Copy Summary text')
 })
 
@@ -680,9 +689,9 @@ test('buyer and seller share titles are different from each other', () => {
 
 test('buyer and seller summaries never mix content', () => {
   const buyerSections = evaluateRules(BUYER_RULES, richBuyerAnswers, [...SECTION_ORDER], SECTION_TITLES)
-  const buyerSummary = buildBuyerSummaryText(buyerSections, richBuyerAnswers.agentQuestions)
+  const buyerSummary = buildBuyerSummaryText(buyerSections, richBuyerAnswers)
   const sellerSections = evaluateRules(SELLER_RULES, richSellerAnswers, [...SELLER_SECTION_ORDER], SELLER_SECTION_TITLES)
-  const sellerSummary = buildSellerSummaryText(sellerSections, richSellerAnswers.agentQuestions)
+  const sellerSummary = buildSellerSummaryText(sellerSections, richSellerAnswers)
   assert.match(buyerSummary, /BUYER READINESS PLANNER/)
   assert.ok(!buyerSummary.includes('SELLER READINESS PLANNER'), 'buyer summary must not contain seller header')
   assert.match(sellerSummary, /SELLER READINESS PLANNER/)
@@ -695,4 +704,127 @@ test('npm test command is configured for single-file concurrency (--test-concurr
   const raw = await readFile(path.join(ROOT, 'package.json'), 'utf-8')
   const pkg = JSON.parse(raw) as { scripts: Record<string, string> }
   assert.match(pkg.scripts.test, /--test-concurrency=1/, 'package.json test script must include --test-concurrency=1')
+})
+
+// ── buildBuyerAnswerRecap unit tests ─────────────────────────────────────────
+
+test('buildBuyerAnswerRecap returns empty array for empty answers', () => {
+  const rows = buildBuyerAnswerRecap(answers())
+  assert.deepEqual(rows, [])
+})
+
+test('buildBuyerAnswerRecap includes exact timeframe label', () => {
+  const rows = buildBuyerAnswerRecap(answers({ timeframe: '3to6' }))
+  const row = rows.find(r => r.field === 'Purchase timing')
+  assert.ok(row, 'Purchase timing row must exist')
+  assert.equal(row!.value, 'Within 3–6 months')
+})
+
+test('buildBuyerAnswerRecap includes multiple selected property types joined with comma', () => {
+  const rows = buildBuyerAnswerRecap(answers({ propertyTypes: ['singleFamily', 'condo'] }))
+  const row = rows.find(r => r.field === 'Selected property types')
+  assert.ok(row, 'Selected property types row must exist')
+  assert.ok(row!.value.includes('Single-family home'), 'value must include Single-family home')
+  assert.ok(row!.value.includes('Condo'), 'value must include Condo')
+})
+
+test('buildBuyerAnswerRecap includes must-have labels', () => {
+  const rows = buildBuyerAnswerRecap(answers({ mustHaves: ['garage', 'yard'] }))
+  const row = rows.find(r => r.field === 'Must-have features')
+  assert.ok(row, 'Must-have features row must exist')
+  assert.ok(row!.value.includes('Garage or covered parking'), 'value must include garage label')
+})
+
+test('buildBuyerAnswerRecap includes nice-to-have labels separate from must-haves', () => {
+  const rows = buildBuyerAnswerRecap(answers({ mustHaves: ['garage'], niceToHaves: ['yard'] }))
+  const mustRow = rows.find(r => r.field === 'Must-have features')
+  const niceRow = rows.find(r => r.field === 'Nice-to-have features')
+  assert.ok(mustRow, 'Must-have features row must exist')
+  assert.ok(niceRow, 'Nice-to-have features row must exist')
+  assert.ok(mustRow!.value.includes('Garage or covered parking'))
+  assert.ok(niceRow!.value.includes('Private yard or outdoor space'))
+})
+
+test('buildBuyerAnswerRecap omits empty optional fields', () => {
+  const rows = buildBuyerAnswerRecap(answers({ propertyTypes: [], mustHaves: [], niceToHaves: [], priorities: [] }))
+  assert.ok(!rows.some(r => r.field === 'Selected property types'), 'no property types row when empty')
+  assert.ok(!rows.some(r => r.field === 'Must-have features'), 'no must-haves row when empty')
+  assert.ok(!rows.some(r => r.field === 'Nice-to-have features'), 'no nice-to-haves row when empty')
+  assert.ok(!rows.some(r => r.field === 'Selected priorities'), 'no priorities row when empty')
+})
+
+test('buildBuyerAnswerRecap includes agentQuestions as Written questions row', () => {
+  const rows = buildBuyerAnswerRecap(answers({ agentQuestions: 'How long is this process?' }))
+  const row = rows.find(r => r.field === 'Written questions')
+  assert.ok(row, 'Written questions row must exist')
+  assert.equal(row!.value, 'How long is this process?')
+})
+
+test('buildBuyerAnswerRecap omits agentQuestions when empty', () => {
+  const rows = buildBuyerAnswerRecap(answers({ agentQuestions: '' }))
+  assert.ok(!rows.some(r => r.field === 'Written questions'), 'no Written questions row when empty')
+})
+
+// ── buildBuyerSummaryText recap section ──────────────────────────────────────
+
+test('buildBuyerSummaryText includes Your Answers at a Glance heading when answers present', () => {
+  const text = buildBuyerSummaryText([], answers({ timeframe: 'within3' }))
+  assert.match(text, /Your Answers at a Glance/)
+})
+
+test('buildBuyerSummaryText includes exact label in recap', () => {
+  const text = buildBuyerSummaryText([], answers({ timeframe: 'within3' }))
+  assert.match(text, /Within the next 3 months/)
+})
+
+// ── buildSellerAnswerRecap unit tests ────────────────────────────────────────
+
+test('buildSellerAnswerRecap returns empty array for empty answers', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers())
+  assert.deepEqual(rows, [])
+})
+
+test('buildSellerAnswerRecap includes exact timeframe label', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ timeframe: '3to6' }))
+  const row = rows.find(r => r.field === 'Listing timing')
+  assert.ok(row, 'Listing timing row must exist')
+  assert.equal(row!.value, 'Within 3–6 months')
+})
+
+test('buildSellerAnswerRecap includes ownership duration when answered', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ ownershipDuration: 'over10' }))
+  const row = rows.find(r => r.field === 'Ownership duration')
+  assert.ok(row, 'Ownership duration row must exist')
+  assert.equal(row!.value, 'More than 10 years')
+})
+
+test('buildSellerAnswerRecap includes ownership duration preferNotSay', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ ownershipDuration: 'preferNotSay' }))
+  const row = rows.find(r => r.field === 'Ownership duration')
+  assert.ok(row, 'Ownership duration row must exist when preferNotSay is selected')
+})
+
+test('buildSellerAnswerRecap omits ownershipDuration when empty', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ ownershipDuration: '' }))
+  assert.ok(!rows.some(r => r.field === 'Ownership duration'), 'no Ownership duration row when empty')
+})
+
+test('buildSellerAnswerRecap includes multiple documents joined', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ documentsAvailable: ['surveys', 'permits'] }))
+  const row = rows.find(r => r.field === 'Available documents')
+  assert.ok(row, 'Available documents row must exist')
+  assert.ok(row!.value.includes('Survey documents'), 'value must include survey label')
+  assert.ok(row!.value.includes('Building permits for renovations'), 'value must include permits label')
+})
+
+test('buildSellerAnswerRecap none documents shows None of these', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ documentsAvailable: ['none'] }))
+  const row = rows.find(r => r.field === 'Available documents')
+  assert.ok(row, 'Available documents row must exist')
+  assert.ok(row!.value.includes('None of these'), 'value must include None of these')
+})
+
+test('buildSellerAnswerRecap omits documents when empty', () => {
+  const rows = buildSellerAnswerRecap(sellerAnswers({ documentsAvailable: [] }))
+  assert.ok(!rows.some(r => r.field === 'Available documents'), 'no Available documents row when empty')
 })
