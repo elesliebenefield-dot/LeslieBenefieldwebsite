@@ -9,6 +9,7 @@
     { "source": "/tools/real-estate/buyer", "destination": "/tools-buyer.html" },
     { "source": "/tools/real-estate/listing-preparation", "destination": "/tools-listing-preparation.html" },
     { "source": "/tools/real-estate/property-comparison", "destination": "/tools-property-comparison.html" },
-    { "source": "/tools/real-estate/open-house-follow-up", "destination": "/tools-open-house-follow-up.html" }
+    { "source": "/tools/real-estate/open-house-follow-up", "destination": "/tools-open-house-follow-up.html" },
+    { "source": "/tools/real-estate/closing-moving", "destination": "/tools-closing-moving.html" }
   ]
 }
