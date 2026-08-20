@@ -16,6 +16,7 @@ export default defineConfig({
         toolsSeller: fileURLToPath(new URL('./tools-seller.html', import.meta.url)),
         toolsBuyer: fileURLToPath(new URL('./tools-buyer.html', import.meta.url)),
         toolsListingPrep: fileURLToPath(new URL('./tools-listing-preparation.html', import.meta.url)),
+        toolsPropertyComparison: fileURLToPath(new URL('./tools-property-comparison.html', import.meta.url)),
       },
     },
   },
