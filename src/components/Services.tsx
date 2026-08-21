@@ -100,6 +100,13 @@ export default function Services() {
           Google Forms, basic SEO, social preview images, mobile-friendly layout,
           email/phone/social links, website cleanup, polish, and small updates.
         </p>
+        <div className="tools-callout" data-reveal>
+          <span className="tools-callout-eyebrow">New from Websites by Leslie</span>
+          <p className="tools-callout-text">
+            A suite of six interactive real estate planning tools—built for agents who want to give clients something genuinely useful before, during, and after a transaction.{' '}
+            <a href="/real-estate-tools" className="tools-callout-link">See the tools →</a>
+          </p>
+        </div>
       </div>
     </section>
   )
