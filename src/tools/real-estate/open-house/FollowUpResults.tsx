@@ -345,24 +345,24 @@ export function FollowUpResults({ setup, outcomes, actions, onStartOver, onBack 
         <div className="oh-results-actions">
           <button
             type="button"
-            className="listing-planner-btn listing-planner-btn--secondary"
+            className="tool-action-btn"
             onClick={handleCopy}
             aria-live="polite"
           >
             {copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Copy failed' : 'Copy Follow-Up Plan'}
           </button>
           {canShare && (
-            <button type="button" className="listing-planner-btn listing-planner-btn--secondary" onClick={handleShare}>
+            <button type="button" className="tool-action-btn" onClick={handleShare}>
               Share Follow-Up Plan
             </button>
           )}
-          <button type="button" className="listing-planner-btn listing-planner-btn--secondary oh-print-btn" onClick={handlePrint}>
+          <button type="button" className="tool-action-btn oh-print-btn" onClick={handlePrint}>
             Print Follow-Up Plan
           </button>
-          <button type="button" className="listing-planner-btn listing-planner-btn--secondary" onClick={onBack}>
+          <button type="button" className="tool-action-btn" onClick={onBack}>
             Review / Edit
           </button>
-          <button type="button" className="listing-planner-btn listing-planner-btn--secondary" onClick={() => setShowStartOverConfirm(true)}>
+          <button type="button" className="tool-action-btn" onClick={() => setShowStartOverConfirm(true)}>
             Start Over
           </button>
         </div>

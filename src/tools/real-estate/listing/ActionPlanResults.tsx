@@ -285,26 +285,26 @@ export function ActionPlanResults({ setup, tasks, onReviewEdit, onStartOver }: P
       </div>
 
       <div className="result-actions no-print">
-        <button type="button" className="result-action-btn" onClick={handleCopy}>
+        <button type="button" className="tool-action-btn" onClick={handleCopy}>
           Copy Action Plan
         </button>
         {canShare && (
           <button
             type="button"
-            className="result-action-btn result-share-action"
+            className="tool-action-btn result-share-action"
             title="Shares the complete action plan via your device's share options"
             onClick={handleShare}
           >
             Share Action Plan
           </button>
         )}
-        <button type="button" className="result-action-btn" onClick={() => window.print()}>
+        <button type="button" className="tool-action-btn" onClick={() => window.print()}>
           Print Action Plan
         </button>
-        <button type="button" className="result-action-btn" onClick={onReviewEdit}>
+        <button type="button" className="tool-action-btn" onClick={onReviewEdit}>
           Review / Edit Plan
         </button>
-        <button type="button" className="result-action-btn result-action-btn--ghost" onClick={onStartOver}>
+        <button type="button" className="tool-action-btn" onClick={onStartOver}>
           Start Over
         </button>
         {!canShare && (

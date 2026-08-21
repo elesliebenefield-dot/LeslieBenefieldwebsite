@@ -875,8 +875,7 @@ test('copied text includes disclaimer', async () => {
 test('Edit responses button returns to observations stage', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  const editBtn = await page.$('.cmp-action-btn--secondary')
-  await editBtn!.click()
+  await page.evaluate(() => (Array.from(document.querySelectorAll('.cmp-action-bar .tool-action-btn')).find(b => b.textContent?.trim() === 'Edit responses') as HTMLButtonElement)?.click())
   await new Promise(r => setTimeout(r, 200))
   const tabs = await page.$('.cmp-property-tabs')
   assert.ok(tabs, 'Edit should return to observations stage')
@@ -886,8 +885,11 @@ test('Edit responses button returns to observations stage', async () => {
 test('Start over button shows inline confirmation', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  const dangerBtns = await page.$$('.cmp-action-btn--danger')
-  await dangerBtns[dangerBtns.length - 1].click()
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.cmp-action-bar .tool-action-btn'))
+      .find(b => b.textContent?.trim().toLowerCase() === 'start over') as HTMLButtonElement | undefined
+    btn?.click()
+  })
   await new Promise(r => setTimeout(r, 200))
   const confirm = await page.$('.cmp-start-over-confirm')
   assert.ok(confirm, 'Start over should show inline confirm')
@@ -897,10 +899,13 @@ test('Start over button shows inline confirmation', async () => {
 test('cancel Start over keeps results', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  const dangerBtns = await page.$$('.cmp-action-btn--danger')
-  await dangerBtns[dangerBtns.length - 1].click()
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.cmp-action-bar .tool-action-btn'))
+      .find(b => b.textContent?.trim().toLowerCase() === 'start over') as HTMLButtonElement | undefined
+    btn?.click()
+  })
   await new Promise(r => setTimeout(r, 200))
-  const cancelBtn = await page.$('.cmp-start-over-confirm .cmp-action-btn--secondary')
+  const cancelBtn = await page.$('.cmp-start-over-confirm .tool-action-btn')
   await cancelBtn!.click()
   await new Promise(r => setTimeout(r, 200))
   const root = await page.$('.cmp-results-root')
@@ -911,8 +916,11 @@ test('cancel Start over keeps results', async () => {
 test('confirm Start over resets to stage 1', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  const dangerBtns = await page.$$('.cmp-action-btn--danger')
-  await dangerBtns[dangerBtns.length - 1].click()
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.cmp-action-bar .tool-action-btn'))
+      .find(b => b.textContent?.trim().toLowerCase() === 'start over') as HTMLButtonElement | undefined
+    btn?.click()
+  })
   await new Promise(r => setTimeout(r, 200))
   const yesBtn = await page.$('.cmp-start-over-confirm .cmp-action-btn--danger')
   await yesBtn!.click()

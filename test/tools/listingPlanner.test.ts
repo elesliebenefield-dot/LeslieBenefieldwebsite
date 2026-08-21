@@ -685,7 +685,7 @@ test('CTA has no-print class', async () => {
 test('Copy Action Plan produces non-empty text with plan header', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn:first-child')
+  await page.click('.tool-action-btn:first-child')
   await new Promise(r => setTimeout(r, 200))
   const copied = await page.evaluate(() => (window as unknown as Record<string, string>).__lastCopied || '')
   assert.ok(copied.length > 0)
@@ -696,7 +696,7 @@ test('Copy Action Plan produces non-empty text with plan header', async () => {
 test('Copy Action Plan includes task content', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn:first-child')
+  await page.click('.tool-action-btn:first-child')
   await new Promise(r => setTimeout(r, 200))
   const copied = await page.evaluate(() => (window as unknown as Record<string, string>).__lastCopied || '')
   assert.ok(copied.includes('Remove excess belongings'))
@@ -706,7 +706,7 @@ test('Copy Action Plan includes task content', async () => {
 test('Copy Action Plan includes disclaimer', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn:first-child')
+  await page.click('.tool-action-btn:first-child')
   await new Promise(r => setTimeout(r, 200))
   const copied = await page.evaluate(() => (window as unknown as Record<string, string>).__lastCopied || '')
   assert.ok(/organizational and planning purposes only/i.test(copied))
@@ -716,7 +716,7 @@ test('Copy Action Plan includes disclaimer', async () => {
 test('blank plan name absent from copy text', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn:first-child')
+  await page.click('.tool-action-btn:first-child')
   await new Promise(r => setTimeout(r, 200))
   const copied = await page.evaluate(() => (window as unknown as Record<string, string>).__lastCopied || '')
   assert.ok(!/^Plan: $/m.test(copied))
@@ -780,7 +780,7 @@ test('Review/Edit Plan returns to review stage with tasks preserved', async () =
   const page = await openTool()
   await advanceToResults(page)
   await page.evaluate(() => {
-    const btns = Array.from(document.querySelectorAll('.result-action-btn'))
+    const btns = Array.from(document.querySelectorAll('.tool-action-btn'))
     const btn = btns.find(b => b.textContent?.includes('Review'))
     ;(btn as HTMLButtonElement)?.click()
   })
@@ -795,7 +795,7 @@ test('Review/Edit Plan returns to review stage with tasks preserved', async () =
 test('Start Over shows confirm dialog', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn--ghost')
+  await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
   await new Promise(r => setTimeout(r, 200))
   const dialog = await page.$('.tool-confirm-dialog')
   assert.ok(dialog)
@@ -805,7 +805,7 @@ test('Start Over shows confirm dialog', async () => {
 test('cancel Start Over keeps results page', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn--ghost')
+  await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
   await new Promise(r => setTimeout(r, 200))
   await page.click('.tool-confirm-cancel')
   await new Promise(r => setTimeout(r, 200))
@@ -817,7 +817,7 @@ test('cancel Start Over keeps results page', async () => {
 test('confirm Start Over resets to stage 1 and clears tasks', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  await page.click('.result-action-btn--ghost')
+  await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
   await new Promise(r => setTimeout(r, 200))
   await page.click('.tool-confirm-proceed')
   await new Promise(r => setTimeout(r, 300))
@@ -836,7 +836,7 @@ test('all action buttons meet 44px minimum touch target', async () => {
   const page = await openTool()
   await advanceToResults(page)
   const short = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.result-action-btn'))
+    Array.from(document.querySelectorAll('.tool-action-btn'))
       .map(b => ({ text: b.textContent?.trim(), h: (b as HTMLElement).getBoundingClientRect().height }))
       .filter(b => b.h < 44)
   )

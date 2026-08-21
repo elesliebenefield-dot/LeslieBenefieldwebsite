@@ -22,6 +22,7 @@ export default function Footer() {
       </p>
       <div className="footer-links">
         <a href="/privacy-policy" className="footer-link">Privacy Policy</a>
+        <a href="/real-estate-tools" className="footer-link">Real Estate Tools</a>
       </div>
       <p className="footer-contact">
         <a href="tel:8505659114" className="footer-phone">850-565-9114</a>
