@@ -326,7 +326,7 @@ export function ClosingResults({ setup, tasks, onBack, onStartOver }: Props) {
         <div className="cm-results-actions">
           <button
             type="button"
-            className="listing-planner-btn listing-planner-btn--secondary"
+            className="tool-action-btn"
             onClick={handleCopy}
             aria-live="polite"
           >
@@ -335,7 +335,7 @@ export function ClosingResults({ setup, tasks, onBack, onStartOver }: Props) {
           {canShare && (
             <button
               type="button"
-              className="listing-planner-btn listing-planner-btn--secondary"
+              className="tool-action-btn"
               onClick={handleShare}
             >
               Share Closing & Moving Plan
@@ -343,21 +343,21 @@ export function ClosingResults({ setup, tasks, onBack, onStartOver }: Props) {
           )}
           <button
             type="button"
-            className="listing-planner-btn listing-planner-btn--secondary cm-print-btn"
+            className="tool-action-btn cm-print-btn"
             onClick={handlePrint}
           >
             Print Closing & Moving Plan
           </button>
           <button
             type="button"
-            className="listing-planner-btn listing-planner-btn--secondary"
+            className="tool-action-btn"
             onClick={onBack}
           >
             Review / Edit
           </button>
           <button
             type="button"
-            className="listing-planner-btn listing-planner-btn--secondary"
+            className="tool-action-btn"
             onClick={() => setShowStartOverConfirm(true)}
           >
             Start Over

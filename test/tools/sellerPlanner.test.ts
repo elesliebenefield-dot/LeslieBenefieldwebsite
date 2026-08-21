@@ -407,7 +407,7 @@ test('Start Over button shows a confirmation dialog', async () => {
   try {
     await completeAllSteps(page)
 
-    await page.click('.result-action-btn--ghost')
+    await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
     const dialog = await page.$('[role="dialog"]')
     assert.ok(dialog, 'confirm dialog should appear')
     const dialogText = await page.$eval('[role="dialog"]', el => el.textContent || '')
@@ -421,7 +421,7 @@ test('cancelling Start Over dialog stays on results', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
-    await page.click('.result-action-btn--ghost')
+    await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
     await page.click('.tool-confirm-cancel')
 
     const title = await page.$eval('.tool-results-title', el => el.textContent)
@@ -435,7 +435,7 @@ test('confirming Start Over resets to step 1 with blank answers', async () => {
   const page = await openPage()
   try {
     await completeAllSteps(page)
-    await page.click('.result-action-btn--ghost')
+    await page.evaluate(() => (Array.from(document.querySelectorAll('.result-actions .tool-action-btn')).find(b => b.textContent?.trim() === 'Start Over') as HTMLButtonElement)?.click())
     await page.click('.tool-confirm-proceed')
 
     const progressLabel = await page.$eval('.tool-progress-label', el => el.textContent)
@@ -584,7 +584,7 @@ test('result actions bar always has Copy Summary, Print Summary, Review / Edit A
   try {
     await completeAllSteps(page)
 
-    const buttons = await page.$$eval('.result-action-btn', els =>
+    const buttons = await page.$$eval('.tool-action-btn', els =>
       els.map(el => el.textContent?.trim() ?? '')
     )
     assert.ok(buttons.some(t => /copy summary/i.test(t)), 'Copy Summary must exist')
@@ -611,7 +611,7 @@ test('Copy Summary button updates live region with feedback', async () => {
     const statusBefore = await page.$eval('.result-copy-status', el => el.textContent || '')
     assert.equal(statusBefore.trim(), '', 'status should be empty before copy')
 
-    await page.click('.result-action-btn')
+    await page.click('.tool-action-btn')
     await page.waitForFunction(() => {
       const el = document.querySelector('.result-copy-status')
       return el && el.textContent && el.textContent.trim().length > 0
@@ -637,7 +637,7 @@ test('Review / Edit Answers returns to step 1 with prior answers preserved', asy
     await clickNext(page) // step 5
 
     // Click Review / Edit Answers
-    const buttons = await page.$$('.result-action-btn')
+    const buttons = await page.$$('.tool-action-btn')
     for (const btn of buttons) {
       const text = await btn.evaluate(el => el.textContent || '')
       if (/review.*edit.*answers/i.test(text)) {
@@ -882,7 +882,7 @@ test('seller desktop: Copy Summary places complete report on clipboard', async (
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
-    await page.click('.result-action-btn') // Copy Summary is the first button
+    await page.click('.tool-action-btn') // Copy Summary is the first button
     await page.waitForFunction(
       () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
       { timeout: 3000 }
@@ -1043,7 +1043,7 @@ test('seller Copy Summary includes recap content', async () => {
     await page.waitForSelector('.tool-progress-label', { timeout: 15000 })
     await completeAllSteps(page)
 
-    await page.click('.result-action-btn')
+    await page.click('.tool-action-btn')
     await page.waitForFunction(
       () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
       { timeout: 3000 }
@@ -1137,7 +1137,7 @@ test('seller all interactive controls have touch target height >= 44px', async (
   const page = await openPage()
   try {
     await completeAllSteps(page)
-    const minHeight = await page.$$eval('.result-action-btn', btns =>
+    const minHeight = await page.$$eval('.tool-action-btn', btns =>
       Math.min(...btns.map(b => b.getBoundingClientRect().height))
     )
     assert.ok(minHeight >= 44, `all interactive controls must be at least 44px tall; smallest was ${minHeight.toFixed(1)}px`)
@@ -1207,7 +1207,7 @@ test('seller written question appears exactly once in Copy Summary', async () =>
     await page.type('#agentQuestions', q)
     await clickNext(page)
 
-    await page.click('.result-action-btn')
+    await page.click('.tool-action-btn')
     await page.waitForFunction(
       () => ((window as unknown as { __clipboardWritten: () => string[] }).__clipboardWritten)().length > 0,
       { timeout: 3000 }
@@ -1309,7 +1309,7 @@ test('seller Review/Edit preserves written question; question still appears exac
     await page.type('#agentQuestions', q)
     await clickNext(page)
 
-    const buttons = await page.$$('.result-action-btn')
+    const buttons = await page.$$('.tool-action-btn')
     for (const btn of buttons) {
       const text = await btn.evaluate(el => el.textContent || '')
       if (/review.*edit.*answers/i.test(text)) { await btn.click(); break }

@@ -409,21 +409,21 @@ export function ComparisonResults({ priorities, properties, observations, onEdit
       {/* Single action bar — after disclaimer, before CTA */}
       <div className="cmp-action-bar" aria-label="Result actions">
         <div className="cmp-action-bar-left">
-          <button type="button" className="cmp-action-btn" onClick={handleCopy}>
+          <button type="button" className="tool-action-btn" onClick={handleCopy}>
             {copyDone ? 'Copied!' : 'Copy text'}
           </button>
           {typeof navigator !== 'undefined' && 'share' in navigator && (
-            <button type="button" className="cmp-action-btn" onClick={handleShare}>Share</button>
+            <button type="button" className="tool-action-btn" onClick={handleShare}>Share</button>
           )}
-          <button type="button" className="cmp-action-btn" onClick={handlePrint}>Print</button>
-          <button type="button" className="cmp-action-btn cmp-action-btn--secondary" onClick={onEdit}>
+          <button type="button" className="tool-action-btn" onClick={handlePrint}>Print</button>
+          <button type="button" className="tool-action-btn" onClick={onEdit}>
             Edit responses
           </button>
         </div>
         {!startOverConfirm ? (
           <button
             type="button"
-            className="cmp-action-btn cmp-action-btn--danger"
+            className="tool-action-btn"
             onClick={() => setStartOverConfirm(true)}
           >
             Start over
@@ -432,7 +432,7 @@ export function ComparisonResults({ priorities, properties, observations, onEdit
           <div className="cmp-start-over-confirm" role="alert">
             <span>Start over and clear all responses?</span>
             <button type="button" className="cmp-action-btn cmp-action-btn--danger" onClick={onStartOver}>Yes, start over</button>
-            <button type="button" className="cmp-action-btn cmp-action-btn--secondary" onClick={() => setStartOverConfirm(false)}>Cancel</button>
+            <button type="button" className="tool-action-btn" onClick={() => setStartOverConfirm(false)}>Cancel</button>
           </div>
         )}
       </div>
