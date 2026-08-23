@@ -63,6 +63,7 @@ export default defineConfig({
         toolsClosingMoving:      fileURLToPath(new URL('./tools-closing-moving.html',        import.meta.url)),
         toolsRealEstateShowcase: fileURLToPath(new URL('./tools-real-estate-showcase.html',  import.meta.url)),
         toolsCustomBakeryOrder:  fileURLToPath(new URL('./tools-custom-bakery-order.html',   import.meta.url)),
+        toolsPlumbingVisit:      fileURLToPath(new URL('./tools-plumbing-visit.html',         import.meta.url)),
       },
     },
   },

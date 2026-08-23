@@ -37,6 +37,7 @@ const REWRITES: Record<string, string> = {
   '/tools/real-estate/closing-moving':       '/tools-closing-moving.html',
   '/real-estate-tools':                      '/tools-real-estate-showcase.html',
   '/tools-custom-bakery-order':              '/tools-custom-bakery-order.html',
+  '/tools-plumbing-visit':                   '/tools-plumbing-visit.html',
 }
 
 const MIME: Record<string, string> = {
@@ -212,6 +213,32 @@ test('/tools-custom-bakery-order loads the bakery planner, not the homepage', as
     const brand    = await page.$eval('.tool-header-brand',   el => el.textContent?.trim() ?? '')
     const progress = await page.$eval('.tool-progress-count', el => el.textContent?.trim() ?? '')
     assert.equal(brand,    'Your Custom Bakery')
+    assert.equal(progress, '1 of 3')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Plumbing planner clean URL ───────────────────────────────────────────────
+
+test('/tools-plumbing-visit loads the plumbing planner, not the homepage', async () => {
+  const page = await getPage('/tools-plumbing-visit')
+  try {
+    const title = await page.title()
+    assert.equal(title, 'Plumbing Service Visit Planner',
+      `expected "Plumbing Service Visit Planner", got: "${title}" — rewrite may be missing or pointing to wrong file`)
+
+    const homepageHero = await page.$('.hero')
+    assert.equal(homepageHero, null,
+      'homepage .hero must not be present at /tools-plumbing-visit — clean URL is falling back to index.html')
+
+    await page.waitForSelector('input[name="concernType"]', { timeout: 5000 }).catch(() => {
+      throw new Error('React did not mount Stage 1 inputs at /tools-plumbing-visit — blank page or wrong bundle')
+    })
+
+    const brand    = await page.$eval('.tool-header-brand',   el => el.textContent?.trim() ?? '')
+    const progress = await page.$eval('.tool-progress-count', el => el.textContent?.trim() ?? '')
+    assert.equal(brand,    'Your Plumbing Company')
     assert.equal(progress, '1 of 3')
   } finally {
     await page.close()

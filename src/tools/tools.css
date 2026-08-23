@@ -5188,3 +5188,77 @@ body {
     break-inside: avoid;
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   PLUMBING SERVICE VISIT PLANNER
+   ════════════════════════════════════════════════════════════ */
+
+/* ─── Urgency notice ─────────────────────────────────────── */
+.plumbing-urgency-notice {
+  margin-top: 1rem;
+  padding: 0.875rem 1.125rem;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1.5px solid rgba(217, 119, 6, 0.5);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+/* ─── Results: name row ──────────────────────────────────── */
+.plumbing-name-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+}
+
+.plumbing-name-label {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.plumbing-name-note {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* ─── Results: primary email CTA ─────────────────────────── */
+.plumbing-email-cta {
+  margin-bottom: 1.75rem;
+}
+
+.plumbing-email-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.375rem;
+  background: var(--color-accent-button);
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  min-height: 48px;
+}
+
+.plumbing-email-btn:hover {
+  background: var(--color-accent-button-hover);
+}
+
+.plumbing-email-btn:focus-visible {
+  outline: 2px solid var(--color-accent-button);
+  outline-offset: 2px;
+}
+
+/* ─── Print ──────────────────────────────────────────────── */
+@media print {
+  .plumbing-email-cta,
+  .plumbing-name-row {
+    display: none !important;
+  }
+}

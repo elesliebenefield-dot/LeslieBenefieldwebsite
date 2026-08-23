@@ -79,6 +79,87 @@ export default function ServicesPage() {
           </div>
         </section>
 
+        <section className="pricing-tools">
+          <div className="pricing-tools-inner" data-reveal>
+            <p className="section-label">Add-On Services</p>
+            <h2 className="section-title">Interactive Tool Pricing</h2>
+            <p className="section-subtitle">
+              Interactive tools can be added to a new Websites by Leslie project or customized
+              and hosted for a business that already has a website. Pricing depends on the number
+              of tools and whether they are being created as part of a new website project.
+            </p>
+            <div className="pricing-tools-groups">
+              <div className="pricing-tools-group">
+                <h3 className="pricing-tools-group-heading">Added to a New Website</h3>
+                <ul className="pricing-tools-list">
+                  <li>
+                    <span className="pricing-tools-item">One tool</span>
+                    <span className="pricing-tools-price">$250</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Suite of 2–3 tools</span>
+                    <span className="pricing-tools-price">$600</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Complete suite of 4–6 tools</span>
+                    <span className="pricing-tools-price">$1,000</span>
+                  </li>
+                </ul>
+                <p className="pricing-tools-note">
+                  These reduced prices are available when the tools are planned, branded, and
+                  launched as part of a new Websites by Leslie website project.
+                </p>
+              </div>
+              <div className="pricing-tools-group">
+                <h3 className="pricing-tools-group-heading">For an Existing Website</h3>
+                <ul className="pricing-tools-list">
+                  <li>
+                    <span className="pricing-tools-item">One hosted tool</span>
+                    <span className="pricing-tools-price">$400</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Suite of 2–3 hosted tools</span>
+                    <span className="pricing-tools-price">$800</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Complete suite of 4–6 hosted tools</span>
+                    <span className="pricing-tools-price">$1,500</span>
+                  </li>
+                </ul>
+                <p className="pricing-tools-note">
+                  I customize and host the tool, then provide a professional link that your
+                  current website provider can add as a button or menu item. Changes to your
+                  existing website are not included. Direct integration may be quoted separately
+                  when available.
+                </p>
+              </div>
+              <div className="pricing-tools-group">
+                <h3 className="pricing-tools-group-heading">Monthly Hosting &amp; Care</h3>
+                <ul className="pricing-tools-list">
+                  <li>
+                    <span className="pricing-tools-item">One tool</span>
+                    <span className="pricing-tools-price">$19/month</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Suite of 2–3 tools</span>
+                    <span className="pricing-tools-price">$29/month</span>
+                  </li>
+                  <li>
+                    <span className="pricing-tools-item">Suite of 4–6 tools</span>
+                    <span className="pricing-tools-price">$49/month</span>
+                  </li>
+                </ul>
+                <p className="pricing-tools-note">
+                  Hosting and care includes continued tool availability, compatibility
+                  maintenance, bug fixes, and small updates to basic business contact
+                  information. New tools, redesigned workflows, major content changes, and
+                  third-party integrations are quoted separately.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="pricing-payment">
           <div className="pricing-payment-inner" data-reveal>
             <p className="section-label">Payment & Project Terms</p>
@@ -104,29 +185,63 @@ export default function ServicesPage() {
             <h2 className="section-title">Interactive web experiences — built for real businesses.</h2>
             <p className="section-subtitle">
               I build tools and interactive experiences that make it easier for your customers to
-              engage with your business before they ever reach out. Here's a live example:
+              engage with your business before they ever reach out. Here are three live examples:
             </p>
-            <div className="pricing-demo-card">
-              <div className="pricing-demo-card-body">
-                <span className="pricing-demo-tag">Live Demo</span>
-                <h3 className="pricing-demo-card-title">Custom Bakery Order Planner</h3>
-                <p className="pricing-demo-card-desc">
-                  A guided, step-by-step tool that helps a bakery customer organize their order
-                  request — including inscription, colors, size, timing, and questions — before
-                  contacting the business. Produces a ready-to-send order brief with one click.
-                </p>
-                <a
-                  href="/tools-custom-bakery-order"
-                  className="pricing-demo-link"
-                >
-                  Try the Demo →
-                </a>
+            <div className="pricing-demo-cards">
+              <div className="pricing-demo-card">
+                <div className="pricing-demo-card-body">
+                  <span className="pricing-demo-tag">Live Demo</span>
+                  <h3 className="pricing-demo-card-title">Custom Bakery Order Planner</h3>
+                  <p className="pricing-demo-card-desc">
+                    A guided, step-by-step tool that helps a bakery customer organize their order
+                    request — including inscription, colors, size, timing, and questions — before
+                    contacting the business. Produces a ready-to-send order brief with one click.
+                  </p>
+                  <a
+                    href="/tools-custom-bakery-order"
+                    className="pricing-demo-link"
+                  >
+                    Try the Demo →
+                  </a>
+                </div>
+              </div>
+              <div className="pricing-demo-card">
+                <div className="pricing-demo-card-body">
+                  <span className="pricing-demo-tag">Live Demo</span>
+                  <h3 className="pricing-demo-card-title">Plumbing Service Visit Planner</h3>
+                  <p className="pricing-demo-card-desc">
+                    A calm, guided form that helps a homeowner organize what they've observed
+                    before calling a plumber — including location, timeline, and access details.
+                    Produces a plain-text service visit brief they can copy, print, or email.
+                  </p>
+                  <a
+                    href="/tools-plumbing-visit"
+                    className="pricing-demo-link"
+                  >
+                    Try the Demo →
+                  </a>
+                </div>
+              </div>
+              <div className="pricing-demo-card">
+                <div className="pricing-demo-card-body">
+                  <span className="pricing-demo-tag">Live Suite</span>
+                  <h3 className="pricing-demo-card-title">Real Estate Client Tools</h3>
+                  <p className="pricing-demo-card-desc">
+                    A connected suite of six interactive planning tools for buyers, sellers, and
+                    clients — from the first conversation through closing and moving.
+                  </p>
+                  <a
+                    href="/real-estate-tools"
+                    className="pricing-demo-link"
+                  >
+                    Explore the Suite →
+                  </a>
+                </div>
               </div>
             </div>
             <p className="pricing-demo-note">
-              This is one example of an app-style web experience. Similar tools can be built for
-              bakeries, custom-order shops, embroidery and apparel businesses, sign makers, and
-              other makers who take custom requests.
+              These are examples of app-style web experiences. Similar tools can be built for
+              bakeries, plumbing companies, service businesses, custom-order shops, and more.
             </p>
           </div>
         </section>
