@@ -36,6 +36,7 @@ const REWRITES: Record<string, string> = {
   '/tools/real-estate/open-house-follow-up': '/tools-open-house-follow-up.html',
   '/tools/real-estate/closing-moving':       '/tools-closing-moving.html',
   '/real-estate-tools':                      '/tools-real-estate-showcase.html',
+  '/tools-custom-bakery-order':              '/tools-custom-bakery-order.html',
 }
 
 const MIME: Record<string, string> = {
@@ -186,6 +187,36 @@ for (const { url, titleFragment, bodyFragment, mountedSelector } of DEMO_ROUTES)
     }
   })
 }
+
+// ── Bakery planner clean URL ─────────────────────────────────────────────────
+
+test('/tools-custom-bakery-order loads the bakery planner, not the homepage', async () => {
+  const page = await getPage('/tools-custom-bakery-order')
+  try {
+    // Static <title> — confirms the rewrite maps to tools-custom-bakery-order.html
+    const title = await page.title()
+    assert.equal(title, 'Custom Bakery Order Planner',
+      `expected "Custom Bakery Order Planner", got: "${title}" — rewrite may be missing or pointing to wrong file`)
+
+    // Homepage hero must not be present
+    const homepageHero = await page.$('.hero')
+    assert.equal(homepageHero, null,
+      'homepage .hero must not be present at /tools-custom-bakery-order — clean URL is falling back to index.html')
+
+    // React must mount and render Stage 1 content
+    await page.waitForSelector('input[name="productType"]', { timeout: 5000 }).catch(() => {
+      throw new Error('React did not mount Stage 1 inputs at /tools-custom-bakery-order — blank page or wrong bundle')
+    })
+
+    // Brand and progress confirm the correct component loaded
+    const brand    = await page.$eval('.tool-header-brand',   el => el.textContent?.trim() ?? '')
+    const progress = await page.$eval('.tool-progress-count', el => el.textContent?.trim() ?? '')
+    assert.equal(brand,    'Your Custom Bakery')
+    assert.equal(progress, '1 of 3')
+  } finally {
+    await page.close()
+  }
+})
 
 // ── Homepage callout destination ─────────────────────────────────────────────
 
