@@ -98,6 +98,39 @@ export default function ServicesPage() {
           </div>
         </section>
 
+        <section className="pricing-demo" data-reveal>
+          <div className="pricing-demo-inner">
+            <p className="section-label">See It in Action</p>
+            <h2 className="section-title">Interactive web experiences — built for real businesses.</h2>
+            <p className="section-subtitle">
+              I build tools and interactive experiences that make it easier for your customers to
+              engage with your business before they ever reach out. Here's a live example:
+            </p>
+            <div className="pricing-demo-card">
+              <div className="pricing-demo-card-body">
+                <span className="pricing-demo-tag">Live Demo</span>
+                <h3 className="pricing-demo-card-title">Custom Bakery Order Planner</h3>
+                <p className="pricing-demo-card-desc">
+                  A guided, step-by-step tool that helps a bakery customer organize their order
+                  request — including inscription, colors, size, timing, and questions — before
+                  contacting the business. Produces a ready-to-send order brief with one click.
+                </p>
+                <a
+                  href="/tools-custom-bakery-order"
+                  className="pricing-demo-link"
+                >
+                  Try the Demo →
+                </a>
+              </div>
+            </div>
+            <p className="pricing-demo-note">
+              This is one example of an app-style web experience. Similar tools can be built for
+              bakeries, custom-order shops, embroidery and apparel businesses, sign makers, and
+              other makers who take custom requests.
+            </p>
+          </div>
+        </section>
+
         <section className="pricing-cta">
           <div className="pricing-cta-inner" data-reveal>
             <h2 className="section-title">Not sure which option fits?</h2>

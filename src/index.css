@@ -1902,6 +1902,120 @@ section[id] {
   margin-top: 1rem;
 }
 
+/* ─── Interactive Demo Showcase ─────────────────────────── */
+.pricing-demo {
+  position: relative;
+  padding: 0 1.5rem 1rem;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .pricing-demo {
+    padding: 0 1.5rem 2rem;
+  }
+}
+
+.pricing-demo-inner {
+  max-width: 700px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+}
+
+@media (min-width: 768px) {
+  .pricing-demo-inner {
+    padding: 3rem 3rem 3.5rem;
+  }
+}
+
+.pricing-demo-inner .section-label {
+  text-align: left;
+}
+
+.pricing-demo-inner .section-title {
+  text-align: left;
+}
+
+.pricing-demo-inner .section-subtitle {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.pricing-demo-card {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+}
+
+.pricing-demo-card-body {
+  padding: 1.375rem 1.5rem;
+}
+
+.pricing-demo-tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-button);
+  margin-bottom: 0.5rem;
+}
+
+.pricing-demo-card-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.625rem;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.pricing-demo-card-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.pricing-demo-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1.125rem;
+  background: var(--color-accent-button);
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  min-height: 44px;
+}
+
+.pricing-demo-link:hover {
+  background: var(--color-accent-button-hover);
+}
+
+.pricing-demo-link:focus-visible {
+  outline: 2px solid var(--color-accent-button);
+  outline-offset: 2px;
+}
+
+.pricing-demo-note {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  font-style: italic;
+}
+
 /* ─── Final CTA ─────────────────────────────────────────── */
 .pricing-cta {
   position: relative;

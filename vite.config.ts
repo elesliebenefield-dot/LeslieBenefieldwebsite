@@ -62,6 +62,7 @@ export default defineConfig({
         toolsOpenHouseFollowUp:  fileURLToPath(new URL('./tools-open-house-follow-up.html',  import.meta.url)),
         toolsClosingMoving:      fileURLToPath(new URL('./tools-closing-moving.html',        import.meta.url)),
         toolsRealEstateShowcase: fileURLToPath(new URL('./tools-real-estate-showcase.html',  import.meta.url)),
+        toolsCustomBakeryOrder:  fileURLToPath(new URL('./tools-custom-bakery-order.html',   import.meta.url)),
       },
     },
   },
