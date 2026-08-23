@@ -14,13 +14,24 @@ export function buildOrderBriefText(answers: BakeryAnswers): string {
     'ORDER REQUEST BRIEF',
     '='.repeat(40),
     '',
-    'WHAT I\'M ORDERING',
-    '-'.repeat(18),
+    'ORDER OVERVIEW',
+    '-'.repeat(14),
   ]
 
   if (answers.productType) lines.push(`Product: ${PRODUCT_TYPE_LABELS[answers.productType]}`)
+  if (answers.sizeQuantity.trim()) lines.push(`Size & quantity: ${answers.sizeQuantity.trim()}`)
   if (answers.occasion)    lines.push(`Occasion: ${OCCASION_LABELS[answers.occasion]}`)
   if (answers.recipient)   lines.push(`For: ${RECIPIENT_LABELS[answers.recipient]}`)
+  lines.push('')
+
+  lines.push('TIMING & BUDGET')
+  lines.push('-'.repeat(15))
+
+  if (answers.neededByDate) lines.push(`Needed by: ${formatDate(answers.neededByDate)}`)
+  if (answers.timingNote.trim()) lines.push(`Timing note: ${answers.timingNote.trim()}`)
+  if (answers.budget && answers.budget !== 'prefer_not_say') {
+    lines.push(`Budget: ${BUDGET_LABELS[answers.budget]}`)
+  }
   lines.push('')
 
   lines.push('PERSONALIZATION & DESIGN')
@@ -40,21 +51,17 @@ export function buildOrderBriefText(answers: BakeryAnswers): string {
   }
 
   if (answers.styleTheme.trim()) lines.push(`Style / theme: ${answers.styleTheme.trim()}`)
-  if (answers.sizeQuantity.trim()) lines.push(`Size & quantity: ${answers.sizeQuantity.trim()}`)
   lines.push('')
 
-  lines.push('TIMING & LOGISTICS')
-  lines.push('-'.repeat(18))
-
-  if (answers.neededByDate) lines.push(`Needed by: ${formatDate(answers.neededByDate)}`)
-  if (answers.timingNote.trim()) lines.push(`Timing note: ${answers.timingNote.trim()}`)
-  if (answers.budget && answers.budget !== 'prefer_not_say') {
-    lines.push(`Budget: ${BUDGET_LABELS[answers.budget]}`)
-  }
   if (answers.dietaryRestrictions.trim()) {
+    lines.push('DIETARY INFORMATION')
+    lines.push('-'.repeat(19))
     lines.push(`Dietary / allergy notes: ${answers.dietaryRestrictions.trim()}`)
+    lines.push('')
+    lines.push('Note: Dietary and allergy information must be confirmed directly with the bakery.')
+    lines.push('Completing this planner does not guarantee allergen-free preparation or accommodation.')
+    lines.push('')
   }
-  lines.push('')
 
   if (answers.questionsForBaker.trim()) {
     lines.push('QUESTIONS FOR THE BAKER')
@@ -69,12 +76,6 @@ export function buildOrderBriefText(answers: BakeryAnswers): string {
   }
 
   lines.push('='.repeat(40))
-
-  if (answers.dietaryRestrictions.trim()) {
-    lines.push('')
-    lines.push('Note: Dietary and allergy information must be confirmed directly with the bakery.')
-    lines.push('Completing this planner does not guarantee allergen-free preparation or accommodation.')
-  }
 
   return lines.join('\n')
 }

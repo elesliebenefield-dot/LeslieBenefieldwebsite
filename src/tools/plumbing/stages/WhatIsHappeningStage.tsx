@@ -56,26 +56,6 @@ export function WhatIsHappeningStage({ answers, onChange, showErrors }: Props) {
       </div>
 
       <div className="tool-question">
-        <label htmlFor="observations" className="tool-question-legend">
-          What can you see, hear, or smell? <span className="tool-question-optional">(optional)</span>
-        </label>
-        <p className="tool-question-hint">
-          Describe what you're noticing in your own words — you don't need to identify the cause.
-        </p>
-        <p className="tool-question-hint">
-          For example: "There's a dripping sound under the kitchen sink" or "The water coming out looks slightly orange."
-        </p>
-        <textarea
-          id="observations"
-          className="tool-textarea"
-          rows={3}
-          placeholder="Describe what you're noticing in your own words — you don't need to identify the cause."
-          value={answers.observations}
-          onChange={e => onChange({ observations: e.target.value })}
-        />
-      </div>
-
-      <div className="tool-question">
         <fieldset className="tool-question-fieldset">
           <legend className={`tool-question-legend${showErrors && !answers.activeWater ? ' has-error' : ''}`}>
             Is water currently running, dripping, or collecting somewhere it shouldn't be?
@@ -104,6 +84,26 @@ export function WhatIsHappeningStage({ answers, onChange, showErrors }: Props) {
             </div>
           )}
         </fieldset>
+      </div>
+
+      <div className="tool-question">
+        <label htmlFor="observations" className="tool-question-legend">
+          What can you see, hear, or smell? <span className="tool-question-optional">(optional)</span>
+        </label>
+        <p className="tool-question-hint">
+          Describe what you're noticing in your own words — you don't need to identify the cause.
+        </p>
+        <p className="tool-question-hint">
+          For example: "There's a dripping sound under the kitchen sink" or "The water coming out looks slightly orange."
+        </p>
+        <textarea
+          id="observations"
+          className="tool-textarea"
+          rows={3}
+          placeholder="Describe what you're noticing in your own words — you don't need to identify the cause."
+          value={answers.observations}
+          onChange={e => onChange({ observations: e.target.value })}
+        />
       </div>
     </div>
   )

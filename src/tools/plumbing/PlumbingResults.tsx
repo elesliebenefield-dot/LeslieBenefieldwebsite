@@ -163,21 +163,21 @@ export function PlumbingResults({ answers, onEditAnswers, onStartOver, onNameCha
       </div>
 
       <div className="result-actions no-print">
-        <button type="button" className="result-action-btn" onClick={handleCopy}>
+        <button type="button" className="tool-action-btn" onClick={handleCopy}>
           Copy Brief
         </button>
         {canShare && (
-          <button type="button" className="result-action-btn" onClick={handleShare}>
+          <button type="button" className="tool-action-btn" onClick={handleShare}>
             Share Brief
           </button>
         )}
-        <button type="button" className="result-action-btn" onClick={() => window.print()}>
+        <button type="button" className="tool-action-btn" onClick={() => window.print()}>
           Print Brief
         </button>
-        <button type="button" className="result-action-btn" onClick={onEditAnswers}>
+        <button type="button" className="tool-action-btn" onClick={onEditAnswers}>
           Edit Answers
         </button>
-        <button type="button" className="result-action-btn result-action-btn--ghost" onClick={onStartOver}>
+        <button type="button" className="tool-action-btn" onClick={onStartOver}>
           Start Over
         </button>
         {!canShare && (

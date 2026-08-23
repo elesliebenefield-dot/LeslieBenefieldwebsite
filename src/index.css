@@ -1978,6 +1978,15 @@ section[id] {
   flex-shrink: 0;
 }
 
+@media (max-width: 399px) {
+  .pricing-tools-list li {
+    flex-wrap: wrap;
+  }
+  .pricing-tools-price {
+    white-space: normal;
+  }
+}
+
 .pricing-tools-note {
   font-family: var(--font-body);
   font-size: 0.8125rem;
@@ -2076,7 +2085,13 @@ section[id] {
 
 @media (min-width: 580px) {
   .pricing-demo-cards {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .pricing-demo-cards {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -2159,6 +2174,7 @@ section[id] {
   color: var(--color-text-muted);
   line-height: 1.65;
   font-style: italic;
+  margin-bottom: 2rem;
 }
 
 /* ─── Final CTA ─────────────────────────────────────────── */

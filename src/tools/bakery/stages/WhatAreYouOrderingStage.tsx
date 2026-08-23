@@ -63,6 +63,26 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
       </div>
 
       <div className="tool-question">
+        <label
+          htmlFor="neededByDate"
+          className={`tool-question-legend${showErrors && !answers.neededByDate ? ' has-error' : ''}`}
+        >
+          When do you need this order?
+        </label>
+        <input
+          id="neededByDate"
+          type="date"
+          className={`tool-input tool-input--date${showErrors && !answers.neededByDate ? ' tool-input--error' : ''}`}
+          value={answers.neededByDate}
+          onChange={e => onChange({ neededByDate: e.target.value })}
+          aria-required="true"
+        />
+        {showErrors && !answers.neededByDate && (
+          <span className="tool-question-error" role="alert">Please enter a date.</span>
+        )}
+      </div>
+
+      <div className="tool-question">
         <fieldset className="tool-question-fieldset">
           <legend className={`tool-question-legend${showErrors && !answers.occasion ? ' has-error' : ''}`}>
             What is this for?

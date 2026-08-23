@@ -1,40 +1,48 @@
 import { useState, useCallback } from 'react'
 import { PlannerProgress } from '../core/components/PlannerProgress'
 import { ConfirmDialog } from '../core/components/ConfirmDialog'
-import { WhatAreYouOrderingStage } from './stages/WhatAreYouOrderingStage'
-import { CustomizeItStage } from './stages/CustomizeItStage'
-import { TimingDetailsStage } from './stages/TimingDetailsStage'
-import { BakeryResults } from './BakeryResults'
-import { EMPTY_BAKERY_ANSWERS, type BakeryAnswers } from './bakeryTypes'
+import { EventBasicsStage } from './stages/EventBasicsStage'
+import { FoodAndServiceStage } from './stages/FoodAndServiceStage'
+import { VenueAndLogisticsStage } from './stages/VenueAndLogisticsStage'
+import { FoodTruckResults } from './FoodTruckResults'
+import { EMPTY_FOOD_TRUCK_ANSWERS, type FoodTruckAnswers } from './foodTruckTypes'
 
-type AppStage = 'what' | 'customize' | 'timing' | 'results'
+type AppStage = 'event' | 'food' | 'venue' | 'results'
 
 const STAGE_LABELS: Record<AppStage, string> = {
-  what:      'What are you ordering?',
-  customize: 'Customize it',
-  timing:    'Details & questions',
-  results:   'Your order request brief',
+  event:   'Event basics',
+  food:    'Food and service',
+  venue:   'Venue and logistics',
+  results: 'Your event service inquiry brief',
 }
 
-const STAGE_ORDER: AppStage[] = ['what', 'customize', 'timing', 'results']
+const STAGE_ORDER: AppStage[] = ['event', 'food', 'venue', 'results']
 
-function validateStage(stage: AppStage, answers: BakeryAnswers): boolean {
-  if (stage === 'what') {
-    return !!(answers.productType && answers.neededByDate && answers.occasion && answers.recipient)
+function validateStage(stage: AppStage, answers: FoodTruckAnswers): boolean {
+  if (stage === 'event') {
+    return !!(
+      answers.eventType &&
+      answers.eventDateStatus &&
+      (answers.eventDateStatus === 'tbd' || answers.eventDate.trim()) &&
+      (answers.eventDateStatus === 'confirmed' || answers.dateNotes.trim()) &&
+      answers.venueName.trim() &&
+      answers.isPublic &&
+      answers.attendance &&
+      answers.serviceWindow
+    )
   }
-  if (stage === 'customize') {
-    const inscriptionOk = answers.noInscription || !!answers.inscriptionText.trim()
-    return inscriptionOk && !!answers.sizeQuantity.trim()
+  if (stage === 'food') {
+    return !!(answers.serviceTypes.length > 0 && answers.paymentArrangement)
   }
-  if (stage === 'timing') {
-    return !!answers.budget
+  if (stage === 'venue') {
+    return !!answers.setupSpace
   }
   return true
 }
 
-export function BakeryOrderPlanner() {
-  const [answers, setAnswers] = useState<BakeryAnswers>(EMPTY_BAKERY_ANSWERS)
-  const [stage, setStage] = useState<AppStage>('what')
+export function FoodTruckEventPlanner() {
+  const [answers, setAnswers] = useState<FoodTruckAnswers>(EMPTY_FOOD_TRUCK_ANSWERS)
+  const [stage, setStage] = useState<AppStage>('event')
   const [showErrors, setShowErrors] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -42,7 +50,7 @@ export function BakeryOrderPlanner() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const handleChange = useCallback((partial: Partial<BakeryAnswers>) => {
+  const handleChange = useCallback((partial: Partial<FoodTruckAnswers>) => {
     setAnswers(prev => ({ ...prev, ...partial }))
   }, [])
 
@@ -70,15 +78,15 @@ export function BakeryOrderPlanner() {
   }, [])
 
   const handleConfirmStartOver = useCallback(() => {
-    setAnswers(EMPTY_BAKERY_ANSWERS)
-    setStage('what')
+    setAnswers(EMPTY_FOOD_TRUCK_ANSWERS)
+    setStage('event')
     setShowErrors(false)
     setShowConfirm(false)
     scrollTop()
   }, [scrollTop])
 
   const handleEditAnswers = useCallback(() => {
-    setStage('what')
+    setStage('event')
     setShowErrors(false)
     scrollTop()
   }, [scrollTop])
@@ -91,9 +99,9 @@ export function BakeryOrderPlanner() {
   return (
     <div className="tool-page">
       <header className="tool-header">
-        <span className="tool-header-brand">Your Custom Bakery</span>
+        <span className="tool-header-brand">Your Mobile Food Business</span>
         <span className="tool-header-sep" aria-hidden="true">›</span>
-        <span className="tool-header-title">Custom Order Planner</span>
+        <span className="tool-header-title">Food Truck Event Planner</span>
         <span className="tool-header-demo no-print">Interactive demo · Websites by Leslie</span>
       </header>
 
@@ -107,11 +115,11 @@ export function BakeryOrderPlanner() {
 
       <main className="tool-content">
         {isResults ? (
-          <BakeryResults
+          <FoodTruckResults
             answers={answers}
             onEditAnswers={handleEditAnswers}
             onStartOver={handleStartOver}
-            onNameChange={name => handleChange({ customerName: name })}
+            onNameChange={name => handleChange({ organizerName: name })}
           />
         ) : (
           <>
@@ -121,16 +129,16 @@ export function BakeryOrderPlanner() {
               </div>
             )}
 
-            {stage === 'what' && (
+            {stage === 'event' && (
               <div className="tool-privacy-note" role="note">
                 <span className="tool-privacy-icon" aria-hidden="true">🔒</span>
                 Your answers stay in your browser during this session — nothing is stored or transmitted.
               </div>
             )}
 
-            {stage === 'what'      && <WhatAreYouOrderingStage answers={answers} onChange={handleChange} showErrors={showErrors} />}
-            {stage === 'customize' && <CustomizeItStage        answers={answers} onChange={handleChange} showErrors={showErrors} />}
-            {stage === 'timing'    && <TimingDetailsStage      answers={answers} onChange={handleChange} showErrors={showErrors} />}
+            {stage === 'event' && <EventBasicsStage    answers={answers} onChange={handleChange} showErrors={showErrors} />}
+            {stage === 'food'  && <FoodAndServiceStage answers={answers} onChange={handleChange} showErrors={showErrors} />}
+            {stage === 'venue' && <VenueAndLogisticsStage answers={answers} onChange={handleChange} showErrors={showErrors} />}
           </>
         )}
       </main>
@@ -151,9 +159,9 @@ export function BakeryOrderPlanner() {
               type="button"
               className="tool-nav-next"
               onClick={handleNext}
-              aria-label={stage === 'timing' ? 'Build my order brief' : 'Continue to next step'}
+              aria-label={stage === 'venue' ? 'Build my event brief' : 'Continue to next step'}
             >
-              {stage === 'timing' ? 'Build My Order Brief →' : 'Next →'}
+              {stage === 'venue' ? 'Build My Event Brief →' : 'Next →'}
             </button>
           </nav>
         </div>

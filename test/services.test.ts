@@ -93,13 +93,13 @@ for (const viewport of [320, 375, 390, 768, 1280, 1440]) {
   })
 }
 
-// ─── 2. Three demo cards — presence and content ───────────────────────────────
+// ─── 2. Four demo cards — presence and content ───────────────────────────────
 
-test('services page has exactly three demo cards', async () => {
+test('services page has exactly four demo cards', async () => {
   const page = await openServices(1280)
   try {
     const cards = await page.$$('.pricing-demo-card')
-    assert.equal(cards.length, 3, `Expected 3 .pricing-demo-card elements, got ${cards.length}`)
+    assert.equal(cards.length, 4, `Expected 4 .pricing-demo-card elements, got ${cards.length}`)
   } finally {
     await page.close()
   }
@@ -129,13 +129,35 @@ test('Plumbing Service Visit Planner card is present with correct link', async (
   }
 })
 
-test('Real Estate Client Tools card is present with correct link', async () => {
+test('Food Truck Event Planner card is present with correct link', async () => {
   const page = await openServices(1280)
   try {
     const titles = await page.$$eval('.pricing-demo-card-title', els => els.map(el => el.textContent?.trim()))
     const links  = await page.$$eval('.pricing-demo-link',       els => els.map(el => el.getAttribute('href')))
-    assert.ok(titles.some(t => /real estate client tools/i.test(t || '')), 'Real estate card title should be present')
-    assert.ok(links.includes('/real-estate-tools'), 'Real estate card link should point to /real-estate-tools')
+    assert.ok(titles.some(t => /food truck event planner/i.test(t || '')), 'Food Truck card title should be present')
+    assert.ok(links.includes('/tools-food-truck-event'), 'Food Truck card link should point to /tools-food-truck-event')
+  } finally {
+    await page.close()
+  }
+})
+
+test('Food Truck Event Planner card button text is "Try the Demo →"', async () => {
+  const page = await openServices(1280)
+  try {
+    const linkTexts = await page.$$eval('.pricing-demo-link', els => els.map(el => el.textContent?.trim()))
+    assert.ok(linkTexts.some(t => /Try the Demo/i.test(t || '')), 'At least one card should have "Try the Demo →" button')
+  } finally {
+    await page.close()
+  }
+})
+
+test('Real Estate Client Tools card is present in the demo grid with correct link', async () => {
+  const page = await openServices(1280)
+  try {
+    const titles = await page.$$eval('.pricing-demo-card-title', els => els.map(el => el.textContent?.trim()))
+    const links  = await page.$$eval('.pricing-demo-link',       els => els.map(el => el.getAttribute('href')))
+    assert.ok(titles.some(t => /real estate client tools/i.test(t || '')), 'Real Estate card title should be present')
+    assert.ok(links.includes('/real-estate-tools'), 'Real Estate card link should point to /real-estate-tools')
   } finally {
     await page.close()
   }
@@ -145,19 +167,68 @@ test('Real Estate Client Tools card button text is "Explore the Suite →"', asy
   const page = await openServices(1280)
   try {
     const linkTexts = await page.$$eval('.pricing-demo-link', els => els.map(el => el.textContent?.trim()))
-    assert.ok(linkTexts.some(t => /Explore the Suite/i.test(t || '')), 'Real estate card should have "Explore the Suite →" button')
+    assert.ok(linkTexts.some(t => /Explore the Suite/i.test(t || '')), 'Real Estate card should have "Explore the Suite →" button')
   } finally {
     await page.close()
   }
 })
 
-test('/real-estate-tools is the destination for the suite card (clean URL, not .html)', async () => {
+test('/real-estate-tools is the destination for the Real Estate card link (clean URL, not .html)', async () => {
   const page = await openServices(1280)
   try {
     const links = await page.$$eval('.pricing-demo-link', els => els.map(el => el.getAttribute('href')))
-    const reLink = links.find(h => h?.includes('real-estate'))
-    assert.ok(reLink === '/real-estate-tools',
-      `Suite link should be "/real-estate-tools", got "${reLink}"`)
+    assert.ok(links.includes('/real-estate-tools'), `Real Estate card link must be "/real-estate-tools"`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('all four demo card tags say "Live Demo"', async () => {
+  const page = await openServices(1280)
+  try {
+    const tags = await page.$$eval('.pricing-demo-tag', els => els.map(el => el.textContent?.trim()))
+    assert.equal(tags.length, 4, `Expected 4 .pricing-demo-tag elements, got ${tags.length}`)
+    for (const tag of tags) {
+      assert.equal(tag, 'Live Demo', `Expected tag "Live Demo", got "${tag}"`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('no demo card overflows its grid at 1280px', async () => {
+  const page = await openServices(1280)
+  try {
+    const overflow = await page.evaluate(() => {
+      const grid = document.querySelector('.pricing-demo-cards')
+      if (!grid) return 0
+      const gr = grid.getBoundingClientRect()
+      const cards = Array.from(grid.querySelectorAll('.pricing-demo-card'))
+      return cards.reduce((max, card) => {
+        const cr = card.getBoundingClientRect()
+        return Math.max(max, cr.right - gr.right)
+      }, 0)
+    })
+    assert.ok(overflow <= 1, `Card overflows grid by ${overflow}px at 1280px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no demo card overflows its grid at 1440px', async () => {
+  const page = await openServices(1440)
+  try {
+    const overflow = await page.evaluate(() => {
+      const grid = document.querySelector('.pricing-demo-cards')
+      if (!grid) return 0
+      const gr = grid.getBoundingClientRect()
+      const cards = Array.from(grid.querySelectorAll('.pricing-demo-card'))
+      return cards.reduce((max, card) => {
+        const cr = card.getBoundingClientRect()
+        return Math.max(max, cr.right - gr.right)
+      }, 0)
+    })
+    assert.ok(overflow <= 1, `Card overflows grid by ${overflow}px at 1440px`)
   } finally {
     await page.close()
   }
@@ -322,31 +393,31 @@ test('tool pricing — new-website group heading is "Added to a New Website"', a
   }
 })
 
-test('tool pricing — new-website one tool is $250', async () => {
+test('tool pricing — new-website one tool is "Starting at $250"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$250'), 'New-website single tool price should be $250')
+    assert.ok(text.includes('Starting at $250'), 'New-website single tool price should be "Starting at $250"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — new-website suite of 2–3 tools is $600', async () => {
+test('tool pricing — new-website suite of 2–3 tools is "Starting at $600"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$600'), 'New-website 2-3 tool suite price should be $600')
+    assert.ok(text.includes('Starting at $600'), 'New-website 2-3 tool suite price should be "Starting at $600"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — new-website complete suite of 4–6 tools is $1,000', async () => {
+test('tool pricing — new-website complete suite of 4–6 tools is "Starting at $1,000"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$1,000'), 'New-website 4-6 tool suite price should be $1,000')
+    assert.ok(text.includes('Starting at $1,000'), 'New-website 4-6 tool suite price should be "Starting at $1,000"')
   } finally {
     await page.close()
   }
@@ -364,31 +435,31 @@ test('tool pricing — existing-website group heading is "For an Existing Websit
   }
 })
 
-test('tool pricing — existing-website one hosted tool is $400', async () => {
+test('tool pricing — existing-website one hosted tool is "Starting at $400"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$400'), 'Existing-website single hosted tool price should be $400')
+    assert.ok(text.includes('Starting at $400'), 'Existing-website single hosted tool price should be "Starting at $400"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — existing-website suite of 2–3 hosted tools is $800', async () => {
+test('tool pricing — existing-website suite of 2–3 hosted tools is "Starting at $800"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$800'), 'Existing-website 2-3 hosted tool suite price should be $800')
+    assert.ok(text.includes('Starting at $800'), 'Existing-website 2-3 hosted tool suite price should be "Starting at $800"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — existing-website complete suite of 4–6 hosted tools is $1,500', async () => {
+test('tool pricing — existing-website complete suite of 4–6 hosted tools is "Starting at $1,500"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$1,500'), 'Existing-website 4-6 hosted tool suite price should be $1,500')
+    assert.ok(text.includes('Starting at $1,500'), 'Existing-website 4-6 hosted tool suite price should be "Starting at $1,500"')
   } finally {
     await page.close()
   }
@@ -406,31 +477,31 @@ test('tool pricing — monthly care group heading is "Monthly Hosting & Care"', 
   }
 })
 
-test('tool pricing — monthly one tool is $19/month', async () => {
+test('tool pricing — monthly one tool is "Starting at $19/month"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$19/month'), 'Monthly single tool rate should be $19/month')
+    assert.ok(text.includes('Starting at $19/month'), 'Monthly single tool rate should be "Starting at $19/month"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — monthly 2–3 tools suite is $29/month', async () => {
+test('tool pricing — monthly 2–3 tools suite is "Starting at $29/month"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$29/month'), 'Monthly 2-3 tool suite rate should be $29/month')
+    assert.ok(text.includes('Starting at $29/month'), 'Monthly 2-3 tool suite rate should be "Starting at $29/month"')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — monthly 4–6 tools suite is $49/month', async () => {
+test('tool pricing — monthly 4–6 tools suite is "Starting at $49/month"', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('$49/month'), 'Monthly 4-6 tool suite rate should be $49/month')
+    assert.ok(text.includes('Starting at $49/month'), 'Monthly 4-6 tool suite rate should be "Starting at $49/month"')
   } finally {
     await page.close()
   }
@@ -582,7 +653,10 @@ test('Services page h3 elements all appear inside sections that have an h2 ances
   try {
     const orphanH3s = await page.evaluate(() =>
       Array.from(document.querySelectorAll('h3'))
-        .filter(h3 => !h3.closest('.pricing-tools-inner') && !h3.closest('.pricing-demo-inner'))
+        .filter(h3 =>
+          !h3.closest('.pricing-tools-inner') &&
+          !h3.closest('.pricing-demo-inner')
+        )
         .map(h3 => h3.textContent?.trim())
     )
     assert.deepEqual(orphanH3s, [],

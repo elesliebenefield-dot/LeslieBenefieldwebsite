@@ -124,26 +124,17 @@ export function BakeryResults({ answers, onEditAnswers, onStartOver, onNameChang
       {/* Brief sections */}
       <div className="result-sections">
         <BriefSection
-          title="What You're Ordering"
+          title="Order Overview"
           rows={[
-            { label: 'Product',  value: answers.productType ? PRODUCT_TYPE_LABELS[answers.productType] : '' },
-            { label: 'Occasion', value: answers.occasion    ? OCCASION_LABELS[answers.occasion]        : '' },
-            { label: 'For',      value: answers.recipient   ? RECIPIENT_LABELS[answers.recipient]      : '' },
+            { label: 'Product',         value: answers.productType ? PRODUCT_TYPE_LABELS[answers.productType] : '' },
+            { label: 'Size & quantity', value: answers.sizeQuantity.trim() },
+            { label: 'Occasion',        value: answers.occasion ? OCCASION_LABELS[answers.occasion] : '' },
+            { label: 'For',             value: answers.recipient ? RECIPIENT_LABELS[answers.recipient] : '' },
           ]}
         />
 
         <BriefSection
-          title="Personalization & Design"
-          rows={[
-            { label: 'Inscription',    value: inscriptionValue },
-            { label: 'Colors',         value: colorValue },
-            { label: 'Style / theme',  value: answers.styleTheme.trim() },
-            { label: 'Size & quantity',value: answers.sizeQuantity.trim() },
-          ]}
-        />
-
-        <BriefSection
-          title="Timing & Logistics"
+          title="Timing & Budget"
           rows={[
             { label: 'Needed by',   value: answers.neededByDate ? formatBriefDate(answers.neededByDate) : '' },
             { label: 'Timing note', value: answers.timingNote.trim() },
@@ -151,9 +142,29 @@ export function BakeryResults({ answers, onEditAnswers, onStartOver, onNameChang
               label: 'Budget',
               value: answers.budget && answers.budget !== 'prefer_not_say' ? BUDGET_LABELS[answers.budget] : '',
             },
+          ]}
+        />
+
+        <BriefSection
+          title="Personalization & Design"
+          rows={[
+            { label: 'Inscription',   value: inscriptionValue },
+            { label: 'Colors',        value: colorValue },
+            { label: 'Style / theme', value: answers.styleTheme.trim() },
+          ]}
+        />
+
+        <BriefSection
+          title="Dietary Information"
+          rows={[
             { label: 'Dietary / allergy notes', value: answers.dietaryRestrictions.trim() },
           ]}
         />
+        {answers.dietaryRestrictions.trim() && (
+          <p className="bakery-dietary-disclaimer" role="note">
+            Dietary and allergy information must be confirmed directly with the bakery. Completing this planner does not guarantee allergen-free preparation or accommodation.
+          </p>
+        )}
 
         {answers.questionsForBaker.trim() && (
           <div className="result-section">
@@ -169,30 +180,23 @@ export function BakeryResults({ answers, onEditAnswers, onStartOver, onNameChang
         )}
       </div>
 
-      {/* Dietary disclaimer */}
-      {answers.dietaryRestrictions.trim() && (
-        <p className="bakery-dietary-disclaimer" role="note">
-          Dietary and allergy information must be confirmed directly with the bakery. Completing this planner does not guarantee allergen-free preparation or accommodation.
-        </p>
-      )}
-
       {/* Action bar */}
       <div className="result-actions no-print">
-        <button type="button" className="result-action-btn" onClick={handleCopy}>
+        <button type="button" className="tool-action-btn" onClick={handleCopy}>
           Copy Brief
         </button>
         {canShare && (
-          <button type="button" className="result-action-btn" onClick={handleShare}>
+          <button type="button" className="tool-action-btn" onClick={handleShare}>
             Share Brief
           </button>
         )}
-        <button type="button" className="result-action-btn" onClick={() => window.print()}>
+        <button type="button" className="tool-action-btn" onClick={() => window.print()}>
           Print Brief
         </button>
-        <button type="button" className="result-action-btn" onClick={onEditAnswers}>
+        <button type="button" className="tool-action-btn" onClick={onEditAnswers}>
           Edit Answers
         </button>
-        <button type="button" className="result-action-btn result-action-btn--ghost" onClick={onStartOver}>
+        <button type="button" className="tool-action-btn" onClick={onStartOver}>
           Start Over
         </button>
         {!canShare && (

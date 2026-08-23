@@ -18,27 +18,6 @@ const BUDGET_OPTIONS = [
 export function TimingDetailsStage({ answers, onChange, showErrors }: Props) {
   return (
     <div>
-      {/* Needed-by date */}
-      <div className="tool-question">
-        <label
-          htmlFor="neededByDate"
-          className={`tool-question-legend${showErrors && !answers.neededByDate ? ' has-error' : ''}`}
-        >
-          When do you need this order?
-        </label>
-        <input
-          id="neededByDate"
-          type="date"
-          className={`tool-input tool-input--date${showErrors && !answers.neededByDate ? ' tool-input--error' : ''}`}
-          value={answers.neededByDate}
-          onChange={e => onChange({ neededByDate: e.target.value })}
-          aria-required="true"
-        />
-        {showErrors && !answers.neededByDate && (
-          <span className="tool-question-error" role="alert">Please enter a date.</span>
-        )}
-      </div>
-
       {/* Timing note */}
       <div className="tool-question">
         <label htmlFor="timingNote" className="tool-question-legend">

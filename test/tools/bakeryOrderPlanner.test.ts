@@ -88,9 +88,21 @@ async function openTool(canShare = false): Promise<Page> {
   return page
 }
 
+// Set the date picker value (React requires native setter + dispatched events).
+async function setDate(page: Page, isoDate: string) {
+  await page.evaluate((d: string) => {
+    const input = document.querySelector('#neededByDate') as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    setter?.call(input, d)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+  }, isoDate)
+}
+
 // Fill all Stage 1 required fields with defaults.
 async function fillStage1(page: Page) {
   await page.click('input[name="productType"][value="cake"]')
+  await setDate(page, '2026-12-20')
   await page.click('input[name="occasion"][value="birthday"]')
   await page.click('input[name="recipient"][value="gift_one"]')
 }
@@ -104,8 +116,8 @@ async function advanceToStage2(page: Page) {
 
 // Fill all Stage 2 required fields with defaults.
 async function fillStage2(page: Page, inscription = 'Happy Birthday!') {
-  await page.type('#inscriptionText', inscription)
   await page.type('#sizeQuantity', '2-tier, serves 20')
+  await page.type('#inscriptionText', inscription)
 }
 
 // Advance through Stage 2 into Stage 3.
@@ -113,23 +125,11 @@ async function advanceToStage3(page: Page) {
   await advanceToStage2(page)
   await fillStage2(page)
   await page.click('.tool-nav-next')
-  await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
-}
-
-// Set the date picker value (React requires native setter + dispatched events).
-async function setDate(page: Page, isoDate: string) {
-  await page.evaluate((d: string) => {
-    const input = document.querySelector('#neededByDate') as HTMLInputElement
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
-    setter?.call(input, d)
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-    input.dispatchEvent(new Event('change', { bubbles: true }))
-  }, isoDate)
+  await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
 }
 
 // Fill all Stage 3 required fields with defaults.
 async function fillStage3(page: Page) {
-  await setDate(page, '2026-12-20')
   await page.click('input[name="budget"][value="150_300"]')
 }
 
@@ -281,7 +281,7 @@ test('Stage 1 shows 3 recipient options', async () => {
   }
 })
 
-test('Stage 1 does not advance when all three fields are empty', async () => {
+test('Stage 1 does not advance when all required fields are empty', async () => {
   const page = await openTool()
   try {
     await page.click('.tool-nav-next')
@@ -319,7 +319,7 @@ test('Stage 1 does not advance with only product type and occasion', async () =>
   }
 })
 
-test('Stage 1 advances with all three required fields complete', async () => {
+test('Stage 1 advances with all four required fields complete', async () => {
   const page = await openTool()
   try {
     await fillStage1(page)
@@ -378,8 +378,8 @@ test('Stage 2 advances when "No inscription needed" is checked (without text)', 
     await checkboxes[0].click() // "No inscription needed"
     await page.type('#sizeQuantity', '2-tier round, serves 20')
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
-    const onStage3 = await page.$('#neededByDate')
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
+    const onStage3 = await page.$('input[name="budget"]')
     assert.ok(onStage3, 'Should advance to Stage 3 with "no inscription" checked')
   } finally {
     await page.close()
@@ -407,8 +407,8 @@ test('Stage 2 advances with inscription text and size/quantity filled', async ()
     await advanceToStage2(page)
     await fillStage2(page)
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
-    const onStage3 = await page.$('#neededByDate')
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
+    const onStage3 = await page.$('input[name="budget"]')
     assert.ok(onStage3, 'Should advance to Stage 3')
   } finally {
     await page.close()
@@ -422,8 +422,8 @@ test('Stage 2 colors field is optional — no error when blank', async () => {
     await fillStage2(page)
     // Leave colors blank, only fill required fields
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
-    const onStage3 = await page.$('#neededByDate')
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
+    const onStage3 = await page.$('input[name="budget"]')
     assert.ok(onStage3, 'Should advance without colors filled')
   } finally {
     await page.close()
@@ -437,8 +437,8 @@ test('Stage 2 style/theme field is optional — no error when blank', async () =
     await fillStage2(page)
     // Leave styleTheme blank
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
-    const onStage3 = await page.$('#neededByDate')
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
+    const onStage3 = await page.$('input[name="budget"]')
     assert.ok(onStage3, 'Should advance without style/theme filled')
   } finally {
     await page.close()
@@ -473,16 +473,18 @@ test('Stage 3 progress indicator reads "3 of 3"', async () => {
   }
 })
 
-test('Stage 3 does not advance without a needed-by date', async () => {
+test('Stage 1 does not advance without a needed-by date', async () => {
   const page = await openTool()
   try {
-    await advanceToStage3(page)
-    await page.click('input[name="budget"][value="150_300"]')
+    await page.click('input[name="productType"][value="cake"]')
+    await page.click('input[name="occasion"][value="birthday"]')
+    await page.click('input[name="recipient"][value="gift_one"]')
+    // Leave date blank
     await page.click('.tool-nav-next')
     const banner = await page.$('.tool-error-banner')
     assert.ok(banner, 'Error banner should appear without date')
-    const stillStage3 = await page.$('#neededByDate')
-    assert.ok(stillStage3, 'Should still be on Stage 3')
+    const stillStage1 = await page.$('#neededByDate')
+    assert.ok(stillStage1, 'Should still be on Stage 1')
   } finally {
     await page.close()
   }
@@ -492,11 +494,11 @@ test('Stage 3 does not advance without a budget selection', async () => {
   const page = await openTool()
   try {
     await advanceToStage3(page)
-    await setDate(page, '2026-12-20')
+    // Date is already set by fillStage1 inside advanceToStage3
     await page.click('.tool-nav-next')
     const banner = await page.$('.tool-error-banner')
     assert.ok(banner, 'Error banner should appear without budget')
-    const stillStage3 = await page.$('#neededByDate')
+    const stillStage3 = await page.$('input[name="budget"]')
     assert.ok(stillStage3, 'Should still be on Stage 3')
   } finally {
     await page.close()
@@ -518,7 +520,6 @@ test('"Prefer not to say" satisfies the budget requirement and advances to resul
   const page = await openTool()
   try {
     await advanceToStage3(page)
-    await setDate(page, '2026-12-20')
     await page.click('input[name="budget"][value="prefer_not_say"]')
     await page.click('.tool-nav-next')
     await page.waitForFunction(() => !!document.querySelector('.bakery-email-btn'))
@@ -624,10 +625,10 @@ test('Back from Stage 3 to Stage 2 preserves inscription and size/quantity', asy
   const page = await openTool()
   try {
     await advanceToStage2(page)
-    await page.type('#inscriptionText', 'Hello World')
     await page.type('#sizeQuantity', '3 dozen cookies')
+    await page.type('#inscriptionText', 'Hello World')
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
     await page.click('.tool-nav-back')
     await page.waitForFunction(() => !!document.querySelector('#inscriptionText'))
     const inscription  = await page.$eval('#inscriptionText',  (el: Element) => (el as HTMLTextAreaElement).value)
@@ -725,7 +726,6 @@ test('results brief does not show budget when "prefer not to say" is selected', 
   const page = await openTool()
   try {
     await advanceToStage3(page)
-    await setDate(page, '2026-12-20')
     await page.click('input[name="budget"][value="prefer_not_say"]')
     await page.click('.tool-nav-next')
     await page.waitForFunction(() => !!document.querySelector('.bakery-email-btn'))
@@ -752,7 +752,7 @@ test('brief has no blank dt or dd elements when optional fields are skipped', as
     await checkboxes[0].click() // "No inscription needed"
     await page.type('#sizeQuantity', '1 dozen cookies')
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
     await fillStage3(page)
     await page.click('.tool-nav-next')
     await page.waitForFunction(() => !!document.querySelector('.bakery-email-btn'))
@@ -1171,7 +1171,7 @@ test('can re-advance to results after Edit Answers', async () => {
     await page.click('.tool-nav-next')
     await page.waitForFunction(() => !!document.querySelector('#sizeQuantity'))
     await page.click('.tool-nav-next')
-    await page.waitForFunction(() => !!document.querySelector('#neededByDate'))
+    await page.waitForFunction(() => !!document.querySelector('input[name="budget"]'))
     await page.click('.tool-nav-next')
     await page.waitForFunction(() => !!document.querySelector('.bakery-email-btn'))
     const emailBtn = await page.$('.bakery-email-btn')

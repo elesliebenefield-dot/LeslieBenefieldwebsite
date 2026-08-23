@@ -10,6 +10,28 @@ interface Props {
 export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
   return (
     <div>
+      {/* Size & quantity */}
+      <div className="tool-question">
+        <label
+          htmlFor="sizeQuantity"
+          className={`tool-question-legend${showErrors && !answers.sizeQuantity.trim() ? ' has-error' : ''}`}
+        >
+          Size and quantity
+        </label>
+        <input
+          id="sizeQuantity"
+          type="text"
+          className={`tool-input${showErrors && !answers.sizeQuantity.trim() ? ' tool-input--error' : ''}`}
+          placeholder={getSizeQuantityPlaceholder(answers.productType)}
+          value={answers.sizeQuantity}
+          onChange={e => onChange({ sizeQuantity: e.target.value })}
+          aria-required="true"
+        />
+        {showErrors && !answers.sizeQuantity.trim() && (
+          <span className="tool-question-error" role="alert">Please describe the size and quantity.</span>
+        )}
+      </div>
+
       {/* Inscription */}
       <div className="tool-question">
         <label
@@ -86,28 +108,6 @@ export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
           value={answers.styleTheme}
           onChange={e => onChange({ styleTheme: e.target.value })}
         />
-      </div>
-
-      {/* Size & quantity */}
-      <div className="tool-question">
-        <label
-          htmlFor="sizeQuantity"
-          className={`tool-question-legend${showErrors && !answers.sizeQuantity.trim() ? ' has-error' : ''}`}
-        >
-          Size and quantity
-        </label>
-        <input
-          id="sizeQuantity"
-          type="text"
-          className={`tool-input${showErrors && !answers.sizeQuantity.trim() ? ' tool-input--error' : ''}`}
-          placeholder={getSizeQuantityPlaceholder(answers.productType)}
-          value={answers.sizeQuantity}
-          onChange={e => onChange({ sizeQuantity: e.target.value })}
-          aria-required="true"
-        />
-        {showErrors && !answers.sizeQuantity.trim() && (
-          <span className="tool-question-error" role="alert">Please describe the size and quantity.</span>
-        )}
       </div>
     </div>
   )

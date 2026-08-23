@@ -38,6 +38,7 @@ const REWRITES: Record<string, string> = {
   '/real-estate-tools':                      '/tools-real-estate-showcase.html',
   '/tools-custom-bakery-order':              '/tools-custom-bakery-order.html',
   '/tools-plumbing-visit':                   '/tools-plumbing-visit.html',
+  '/tools-food-truck-event':                 '/tools-food-truck-event.html',
 }
 
 const MIME: Record<string, string> = {
@@ -239,6 +240,32 @@ test('/tools-plumbing-visit loads the plumbing planner, not the homepage', async
     const brand    = await page.$eval('.tool-header-brand',   el => el.textContent?.trim() ?? '')
     const progress = await page.$eval('.tool-progress-count', el => el.textContent?.trim() ?? '')
     assert.equal(brand,    'Your Plumbing Company')
+    assert.equal(progress, '1 of 3')
+  } finally {
+    await page.close()
+  }
+})
+
+// ── Food Truck Event Planner clean URL ──────────────────────────────────────
+
+test('/tools-food-truck-event loads the food truck planner, not the homepage', async () => {
+  const page = await getPage('/tools-food-truck-event')
+  try {
+    const title = await page.title()
+    assert.equal(title, 'Food Truck Event Planner',
+      `expected "Food Truck Event Planner", got: "${title}" — rewrite may be missing or pointing to wrong file`)
+
+    const homepageHero = await page.$('.hero')
+    assert.equal(homepageHero, null,
+      'homepage .hero must not be present at /tools-food-truck-event — clean URL is falling back to index.html')
+
+    await page.waitForSelector('input[name="eventType"]', { timeout: 5000 }).catch(() => {
+      throw new Error('React did not mount Stage 1 inputs at /tools-food-truck-event — blank page or wrong bundle')
+    })
+
+    const brand    = await page.$eval('.tool-header-brand',   el => el.textContent?.trim() ?? '')
+    const progress = await page.$eval('.tool-progress-count', el => el.textContent?.trim() ?? '')
+    assert.equal(brand,    'Your Mobile Food Business')
     assert.equal(progress, '1 of 3')
   } finally {
     await page.close()

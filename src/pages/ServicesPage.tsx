@@ -94,15 +94,15 @@ export default function ServicesPage() {
                 <ul className="pricing-tools-list">
                   <li>
                     <span className="pricing-tools-item">One tool</span>
-                    <span className="pricing-tools-price">$250</span>
+                    <span className="pricing-tools-price">Starting at $250</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Suite of 2–3 tools</span>
-                    <span className="pricing-tools-price">$600</span>
+                    <span className="pricing-tools-price">Starting at $600</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Complete suite of 4–6 tools</span>
-                    <span className="pricing-tools-price">$1,000</span>
+                    <span className="pricing-tools-price">Starting at $1,000</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">
@@ -115,15 +115,15 @@ export default function ServicesPage() {
                 <ul className="pricing-tools-list">
                   <li>
                     <span className="pricing-tools-item">One hosted tool</span>
-                    <span className="pricing-tools-price">$400</span>
+                    <span className="pricing-tools-price">Starting at $400</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Suite of 2–3 hosted tools</span>
-                    <span className="pricing-tools-price">$800</span>
+                    <span className="pricing-tools-price">Starting at $800</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Complete suite of 4–6 hosted tools</span>
-                    <span className="pricing-tools-price">$1,500</span>
+                    <span className="pricing-tools-price">Starting at $1,500</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">
@@ -138,15 +138,15 @@ export default function ServicesPage() {
                 <ul className="pricing-tools-list">
                   <li>
                     <span className="pricing-tools-item">One tool</span>
-                    <span className="pricing-tools-price">$19/month</span>
+                    <span className="pricing-tools-price">Starting at $19/month</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Suite of 2–3 tools</span>
-                    <span className="pricing-tools-price">$29/month</span>
+                    <span className="pricing-tools-price">Starting at $29/month</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Suite of 4–6 tools</span>
-                    <span className="pricing-tools-price">$49/month</span>
+                    <span className="pricing-tools-price">Starting at $49/month</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">
@@ -185,7 +185,7 @@ export default function ServicesPage() {
             <h2 className="section-title">Interactive web experiences — built for real businesses.</h2>
             <p className="section-subtitle">
               I build tools and interactive experiences that make it easier for your customers to
-              engage with your business before they ever reach out. Here are three live examples:
+              engage with your business before they ever reach out. Here are four live examples:
             </p>
             <div className="pricing-demo-cards">
               <div className="pricing-demo-card">
@@ -224,11 +224,29 @@ export default function ServicesPage() {
               </div>
               <div className="pricing-demo-card">
                 <div className="pricing-demo-card-body">
-                  <span className="pricing-demo-tag">Live Suite</span>
+                  <span className="pricing-demo-tag">Live Demo</span>
+                  <h3 className="pricing-demo-card-title">Food Truck Event Planner</h3>
+                  <p className="pricing-demo-card-desc">
+                    A guided form that helps an event organizer prepare a clear service inquiry
+                    before reaching out to a mobile food or beverage vendor — covering the event,
+                    the food, and the venue logistics.
+                  </p>
+                  <a
+                    href="/tools-food-truck-event"
+                    className="pricing-demo-link"
+                  >
+                    Try the Demo →
+                  </a>
+                </div>
+              </div>
+              <div className="pricing-demo-card">
+                <div className="pricing-demo-card-body">
+                  <span className="pricing-demo-tag">Live Demo</span>
                   <h3 className="pricing-demo-card-title">Real Estate Client Tools</h3>
                   <p className="pricing-demo-card-desc">
                     A connected suite of six interactive planning tools for buyers, sellers, and
-                    clients — from the first conversation through closing and moving.
+                    clients — from the first conversation through closing and moving. Each tool
+                    produces a plain-text brief the client can copy, print, or email directly.
                   </p>
                   <a
                     href="/real-estate-tools"
