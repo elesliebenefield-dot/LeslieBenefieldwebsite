@@ -10,7 +10,7 @@ const pricingItems = [
   {
     title: 'Free Website Review',
     price: 'Complimentary',
-    desc: 'A personal look at your current website and whether your project may be a good fit for my services.',
+    desc: 'A practical review of your current website to see what\'s working, what could be improved, and whether it\'s good to go as is. If I find something I can help fix, I\'ll explain your options.',
   },
   {
     title: 'One-Page Website or Landing Page',
@@ -157,6 +157,30 @@ export default function ServicesPage() {
                 </p>
               </div>
             </div>
+
+            <div className="pricing-clarity">
+              <h3 className="pricing-clarity-heading">What your tool pricing includes</h3>
+              <div className="pricing-clarity-grid">
+                <p className="pricing-clarity-item">
+                  Every tool setup includes your branding, standard question and wording
+                  customization, testing, setup and launch, and one revision round.
+                </p>
+                <p className="pricing-clarity-item">
+                  For customers with an existing website, I provide a hosted tool link for
+                  your website provider to add. Editing or directly integrating with an
+                  existing website is not included unless quoted separately.
+                </p>
+                <p className="pricing-clarity-item">
+                  Monthly Hosting &amp; Care includes continued hosting, compatibility
+                  maintenance, bug fixes, and small contact-information updates.
+                </p>
+                <p className="pricing-clarity-item">
+                  Major workflow changes, additional revision rounds, payment processing,
+                  customer accounts or databases, live scheduling, ordering or inventory
+                  systems, and third-party integrations are quoted separately.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -269,7 +293,8 @@ export default function ServicesPage() {
             <h2 className="section-title">Not sure which option fits?</h2>
             <p className="section-subtitle">
               Request a free website review, and I'll take a personal look at your current
-              site or idea before we decide on next steps.
+              site to see what's working, what could be improved, and whether it needs any
+              changes at all.
             </p>
             <div className="pricing-cta-buttons">
               <a href="/check" className="btn btn-primary">

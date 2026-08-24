@@ -309,11 +309,53 @@ test('Regression: /real-estate-tools still loads the showcase, not the homepage'
 
 // ─── 6. Website prices unchanged ─────────────────────────────────────────────
 
-test('website pricing — Free Website Review is "Complimentary"', async () => {
+test('website pricing — Free Website Review title and price are present', async () => {
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-grid', el => el.textContent ?? '')
+    assert.ok(text.includes('Free Website Review'), 'pricing-grid should contain "Free Website Review"')
     assert.ok(text.includes('Complimentary'), 'pricing-grid should contain "Complimentary"')
+  } finally {
+    await page.close()
+  }
+})
+
+test('website pricing — Free Website Review description uses approved wording', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-grid', el => el.textContent ?? '')
+    assert.ok(
+      text.includes("what's working") && text.includes('what could be improved'),
+      'Free Website Review description should describe the practical review'
+    )
+    assert.ok(
+      text.includes("I'll explain your options"),
+      'Free Website Review description should mention explaining options'
+    )
+    assert.ok(
+      !text.includes('good fit for my services'),
+      'Old "good fit for my services" wording should not appear'
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('website pricing — Free Website Review card does not overflow at 320px', async () => {
+  const page = await openServices(320)
+  try {
+    const overflow = await page.evaluate(() => {
+      const cards = Array.from(document.querySelectorAll('.pricing-card'))
+      const reviewCard = cards.find(c => c.textContent?.includes('Free Website Review'))
+      if (!reviewCard) return -1
+      const grid = reviewCard.closest('.pricing-grid')
+      if (!grid) return -1
+      const cr = reviewCard.getBoundingClientRect()
+      const gr = grid.getBoundingClientRect()
+      return Math.round((cr.right - gr.right) * 10) / 10
+    })
+    assert.ok(overflow >= 0, 'Free Website Review card not found in .pricing-grid')
+    assert.ok(overflow <= 1, `Free Website Review card overflows by ${overflow}px at 320px`)
   } finally {
     await page.close()
   }
@@ -597,7 +639,44 @@ test('Payment & Project Terms — 50% deposit language is present', async () => 
   }
 })
 
-// ─── 13. Tool pricing section overflow at all tested widths ───────────────────
+// ─── 13. CTA section wording ─────────────────────────────────────────────────
+
+test('CTA section — "Not sure which option fits?" heading is present', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-cta-inner', el => el.textContent ?? '')
+    assert.ok(/not sure which option fits/i.test(text), 'CTA heading should be present')
+  } finally {
+    await page.close()
+  }
+})
+
+test('CTA section — review paragraph uses approved wording (no "or idea")', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-cta-inner', el => el.textContent ?? '')
+    assert.ok(
+      text.includes("what's working") && text.includes('what could be improved'),
+      'CTA paragraph should describe the practical review'
+    )
+    assert.ok(
+      text.includes('whether it needs any changes at all'),
+      'CTA paragraph should include "whether it needs any changes at all"'
+    )
+    assert.ok(
+      !text.includes('or idea'),
+      'CTA paragraph should not say "or idea"'
+    )
+    assert.ok(
+      !text.includes('next steps'),
+      'CTA paragraph should not say "next steps"'
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+// ─── 14 (was 13). Tool pricing section overflow at all tested widths ───────────────────
 
 for (const viewport of [320, 375, 390, 768, 1280, 1440]) {
   test(`tool pricing section has no horizontal overflow at ${viewport}px`, async () => {
@@ -636,7 +715,102 @@ for (const viewport of [320, 375, 390, 768, 1280, 1440]) {
   })
 }
 
-// ─── 14. Heading hierarchy ────────────────────────────────────────────────────
+// ─── 14. Pricing-clarity panel ───────────────────────────────────────────────
+
+test('pricing clarity — heading "What your tool pricing includes" is present', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
+    assert.ok(/what your tool pricing includes/i.test(text),
+      'Pricing-clarity panel should have the approved heading')
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — setup statement mentions branding, customization, and one revision round', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
+    assert.ok(text.includes('branding'), 'Setup statement should mention branding')
+    assert.ok(text.includes('revision round'), 'Setup statement should mention one revision round')
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — existing-website statement mentions hosted tool link and not included', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
+    assert.ok(text.includes('hosted tool link'), 'Should mention hosted tool link')
+    assert.ok(text.includes('not included'), 'Should state editing existing site is not included')
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — monthly care statement is present with correct wording', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
+    assert.ok(/monthly hosting.*care includes/i.test(text),
+      'Monthly Hosting & Care statement should be present')
+    assert.ok(text.includes('compatibility maintenance'), 'Should mention compatibility maintenance')
+    assert.ok(text.includes('bug fixes'), 'Should mention bug fixes')
+    assert.ok(text.includes('contact-information updates'), 'Should mention contact-information updates')
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — "quoted separately" statement covers major out-of-scope items', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
+    assert.ok(text.includes('quoted separately'), 'Should state out-of-scope items are quoted separately')
+    assert.ok(text.includes('third-party integrations'), 'Should mention third-party integrations')
+    assert.ok(text.includes('payment processing'), 'Should mention payment processing')
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — panel does not overflow at 320px', async () => {
+  const page = await openServices(320)
+  try {
+    const overflow = await page.evaluate(() => {
+      const panel = document.querySelector('.pricing-clarity')
+      const container = document.querySelector('.pricing-tools-inner')
+      if (!panel || !container) return 0
+      const pr = panel.getBoundingClientRect()
+      const cr = container.getBoundingClientRect()
+      return Math.round((pr.right - cr.right) * 10) / 10
+    })
+    assert.ok(overflow <= 1, `pricing-clarity panel overflows by ${overflow}px at 320px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('pricing clarity — all 9 "Starting at" prices remain unchanged in the pricing section', async () => {
+  const page = await openServices(1280)
+  try {
+    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
+    const prices = [
+      'Starting at $250', 'Starting at $600',     'Starting at $1,000',
+      'Starting at $400', 'Starting at $800',     'Starting at $1,500',
+      'Starting at $19/month', 'Starting at $29/month', 'Starting at $49/month',
+    ]
+    for (const price of prices) {
+      assert.ok(text.includes(price), `"${price}" not found in pricing section`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+// ─── 15. Heading hierarchy ────────────────────────────────────────────────────
 
 test('Services page has exactly one h1', async () => {
   const page = await openServices(1280)
