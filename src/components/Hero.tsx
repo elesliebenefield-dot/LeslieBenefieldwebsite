@@ -79,8 +79,8 @@ export default function Hero() {
             <p className="hero-eyebrow">Who I Love to Work With</p>
             <h2 className="hero-fit-title">A great fit for</h2>
             <p className="hero-fit-intro">
-              Small businesses and community-focused people who need a first
-              website, a refresh, or a clearer online presence.
+              Small businesses, service businesses, and community-focused people who need a
+              first website, a refresh, or a clearer online presence.
             </p>
             {fitGroups.map((group) => (
               <div className="hero-fit-group" key={group.title}>

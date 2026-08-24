@@ -137,8 +137,8 @@ test('the page renders the specified copy, all fields (no email field), and the 
 
     const bodyText = await page.evaluate(() => document.body.textContent || '')
     assert.match(bodyText, /Send me your website and I'll take a real, personal look at the basics/)
-    assert.match(bodyText, /I'll let you know whether your website may be a good fit for my services/)
-    assert.match(bodyText, /No pressure, and no automatic score or promise that every issue can be fixed/)
+    assert.match(bodyText, /I'll take a practical look at what's working, what could be improved, and whether your site is good to go as is/)
+    assert.ok(!/good fit for my services/.test(bodyText), 'old "good fit for my services" framing must not appear')
 
     for (const id of ['review-name', 'review-business', 'review-url', 'review-phone', 'review-message']) {
       assert.ok(await page.$(`#${id}`), `expected field #${id} to exist`)
@@ -179,14 +179,14 @@ test('the preferred-contact question is a real, accessible fieldset/legend with 
     const noteText = await page.$eval('.review-contact-note', (el) => el.textContent)
     assert.equal(
       noteText,
-      "I'll use your preferred contact method to follow up. Before we begin planning a website project, we'll schedule a short phone call to talk through the details."
+      "If I find something I can help with, I'll reach out using your preferred contact method to walk you through your options."
     )
   } finally {
     await page.close()
   }
 })
 
-test('submitting with all required fields empty shows the error summary and all four inline errors, without opening anything', async () => {
+test('submitting with all required fields empty shows the error summary and three inline errors (phone not flagged until a contact method is chosen), without opening anything', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -197,12 +197,13 @@ test('submitting with all required fields empty shows the error summary and all 
 
     assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'true')
     assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+    // Phone is only required once a call/text contact method is chosen — not flagged on blank submit.
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
     assert.equal(await page.$eval('.review-fieldset', (el) => el.getAttribute('aria-invalid')), 'true')
 
     assert.match(await page.$eval('#review-name-error', (el) => el.textContent!), /Please enter your name/)
     assert.match(await page.$eval('#review-url-error', (el) => el.textContent!), /Please enter your website address/)
-    assert.match(await page.$eval('#review-phone-error', (el) => el.textContent!), /Please enter your phone number/)
+    assert.ok(!(await page.$('#review-phone-error')), 'phone error must not appear when no contact method is selected')
     assert.match(await page.$eval('#review-contact-method-error', (el) => el.textContent!), /Please choose how you would prefer to be contacted/)
 
     // Focus should move to the error summary so screen-reader users hear it.
@@ -217,7 +218,7 @@ test('submitting with all required fields empty shows the error summary and all 
   }
 })
 
-test('choosing a contact method after a failed submit clears that error independently of the other three', async () => {
+test('choosing a contact method after a failed submit clears that error independently of the others', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
@@ -229,10 +230,12 @@ test('choosing a contact method after a failed submit clears that error independ
 
     assert.equal(await page.$eval('.review-fieldset', (el) => el.getAttribute('aria-invalid')), 'false')
     assert.ok(!(await page.$('#review-contact-method-error')))
-    // The other three required fields are still empty and must still be flagged.
+    // Name and URL are still empty and must still be flagged.
     assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'true')
     assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+    // Phone was not in error state before (no contact method was selected on blank submit),
+    // and updateField only removes errors, never adds them — so phone is still not in error.
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
     assert.match(await page.$eval('.review-error-summary', (el) => el.textContent!), /fields/)
   } finally {
     await page.close()
@@ -252,7 +255,9 @@ test('fixing one text field after a failed submit clears only that field\'s erro
     assert.equal(await page.$eval('#review-name', (el) => el.getAttribute('aria-invalid')), 'false')
     assert.ok(!(await page.$('#review-name-error')))
     assert.equal(await page.$eval('#review-url', (el) => el.getAttribute('aria-invalid')), 'true')
-    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+    // Phone was not in error state on the blank submit (no contact method selected), so it
+    // remains non-error here regardless of what's been typed.
+    assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
     const activeId = await page.evaluate(() => document.activeElement?.id)
     assert.equal(activeId, 'review-name')
 
@@ -417,6 +422,134 @@ test('"Request another review" is styled as a primary button (not outline) and r
     await page.close()
   }
 })
+
+// ── Contact-method × phone-required matrix ───────────────────────────────────
+// Explicit coverage for every contact method the Free Website Review form
+// offers. The three currently-available options and their phone requirements:
+//   Phone call   → phone REQUIRED
+//   Text message → phone REQUIRED
+//   Email        → phone OPTIONAL
+//
+// The "(optional)" label must appear for every optional method. The phone
+// error must clear whenever the visitor switches away from a required method
+// to any optional method. An empty phone number must be omitted from the
+// generated email body for every optional method.
+
+const PHONE_REQUIRED_METHODS = ['Phone call', 'Text message'] as const
+const PHONE_OPTIONAL_METHODS = ['Email'] as const
+
+test('phone label: no "(optional)" shown before any contact method is selected', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+    const label = await page.$eval('label[for="review-phone"]', (el) => el.textContent?.trim())
+    assert.equal(label, 'Phone number', 'label must not show (optional) before a method is chosen')
+  } finally {
+    await page.close()
+  }
+})
+
+for (const method of PHONE_REQUIRED_METHODS) {
+  test(`phone label: no "(optional)" shown for "${method}" (phone is required)`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      const label = await page.$eval('label[for="review-phone"]', (el) => el.textContent?.trim())
+      assert.equal(label, 'Phone number', `label must not show (optional) when ${method} is selected`)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test(`phone is required when "${method}" is selected and phone field is empty`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.type('#review-name', 'Alex Chen')
+      await page.type('#review-url', 'alexchen.com')
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      await page.click('.review-submit')
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+      assert.match(await page.$eval('#review-phone-error', (el) => el.textContent!), /Please enter your phone number/)
+      assert.ok(!(await page.$('.review-confirmation')))
+    } finally {
+      await page.close()
+    }
+  })
+}
+
+for (const method of PHONE_OPTIONAL_METHODS) {
+  test(`phone label: shows "(optional)" when "${method}" is selected`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      const label = await page.$eval('label[for="review-phone"]', (el) => el.textContent?.trim())
+      assert.equal(label, 'Phone number (optional)', `label must show (optional) when ${method} is selected`)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test(`phone is optional when "${method}" is selected — form submits without a phone number`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await installMailtoInterceptor(page)
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.type('#review-name', 'Alex Chen')
+      await page.type('#review-url', 'alexchen.com')
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      // Phone intentionally blank — verify no pre-submit error
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
+      assert.ok(!(await page.$('#review-phone-error')), `no phone error before submit when ${method} is selected`)
+      await page.click('.review-submit')
+      await page.waitForSelector('.review-confirmation', { timeout: 5000 })
+      // Phone error must not appear at any point during this flow
+      assert.ok(!(await page.$('#review-phone-error')), `no phone error should appear for ${method}`)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test(`phone error auto-clears when switching from Phone call to "${method}"`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.type('#review-name', 'Sam Lee')
+      await page.type('#review-url', 'samlee.com')
+      await page.click(`.review-radio-option input[value="Phone call"]`)
+      await page.click('.review-submit')
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+      assert.ok(await page.$('#review-phone-error'), 'phone error must appear after submit with Phone call + no phone')
+
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
+      assert.ok(!(await page.$('#review-phone-error')), `phone error must auto-clear when switching to ${method}`)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test(`phone error auto-clears when switching from Text message to "${method}"`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
+      await page.type('#review-name', 'Sam Lee')
+      await page.type('#review-url', 'samlee.com')
+      await page.click(`.review-radio-option input[value="Text message"]`)
+      await page.click('.review-submit')
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'true')
+      assert.ok(await page.$('#review-phone-error'), 'phone error must appear after submit with Text message + no phone')
+
+      await page.click(`.review-radio-option input[value="${method}"]`)
+      assert.equal(await page.$eval('#review-phone', (el) => el.getAttribute('aria-invalid')), 'false')
+      assert.ok(!(await page.$('#review-phone-error')), `phone error must auto-clear when switching to ${method}`)
+    } finally {
+      await page.close()
+    }
+  })
+}
 
 test('desktop (1280px) and mobile (390px) layouts have no horizontal overflow', async () => {
   for (const width of [390, 1280]) {

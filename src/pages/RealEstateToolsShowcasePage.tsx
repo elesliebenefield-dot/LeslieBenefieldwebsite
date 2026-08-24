@@ -115,7 +115,7 @@ const TOOLS = [
 const CUSTOM_OPTIONS = [
   'Agent or brokerage branding — name, logo, contact information, and color palette',
   'Customized question sets, task libraries, and action-item language',
-  'Integration into an existing website alongside your other content',
+  'Integration into an existing website alongside your other content (quoted separately — not included in the base suite price)',
   'Individual tools or the full six-tool suite, depending on your workflow',
   'Lead-delivery or inquiry workflows (requires custom development — not included in the public demos)',
 ]
@@ -291,8 +291,7 @@ export default function RealEstateToolsShowcasePage() {
           <div className="page-cta-inner" data-reveal>
             <h2 className="section-title">Ready to build a more connected client experience?</h2>
             <p className="section-subtitle">
-              Request a free quote, and I'll take a personal look at how the suite
-              could be adapted for your business before we decide on next steps.
+              I'll build it around your business, your clients, and the way you already work.
             </p>
             <div className="page-cta-buttons">
               <a

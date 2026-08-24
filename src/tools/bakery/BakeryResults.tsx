@@ -246,10 +246,10 @@ export function BakeryResults({ answers, onEditAnswers, onStartOver, onNameChang
           <li>Your products, occasions, and ordering details</li>
           <li>Your colors, fonts, and brand voice</li>
           <li>Order inquiries delivered to your inbox</li>
-          <li>Added to your existing website or built as a standalone page</li>
+          <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
         </ul>
         <a
-          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20order%20planner%20inquiry"
+          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20Bakery%20Order%20Inquiry"
           className="tool-sales-cta-link"
           title="Opens your email application to contact Websites by Leslie"
         >

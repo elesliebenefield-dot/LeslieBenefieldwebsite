@@ -386,6 +386,28 @@ test('prefers-reduced-motion: [data-reveal] elements are fully visible immediate
   }
 })
 
+test('customization list notes that existing-website integration is quoted separately', async () => {
+  const page = await loadPage()
+  try {
+    const listText = await page.$eval('.rts-custom-list', (el) => el.textContent ?? '').catch(() => '')
+    assert.match(listText, /quoted separately/, 'existing-website integration option must note it is quoted separately')
+    assert.match(listText, /not included in the base suite price/, 'must state it is not included in base price')
+  } finally {
+    await page.close()
+  }
+})
+
+test('final CTA paragraph does not contain "next steps" framing', async () => {
+  const page = await loadPage()
+  try {
+    const ctaText = await page.$eval('.page-cta', (el) => el.textContent ?? '').catch(() => '')
+    assert.ok(!/next steps/i.test(ctaText), 'final CTA must not contain "next steps" framing')
+    assert.match(ctaText, /your business.*your clients|clients.*your business/i, 'final CTA must mention clients')
+  } finally {
+    await page.close()
+  }
+})
+
 test('individual tool pages are not affected: all six retain noindex', async () => {
   const toolHtmlFiles = [
     'tools-buyer.html',

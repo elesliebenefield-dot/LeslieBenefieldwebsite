@@ -28,7 +28,7 @@ function bodyLines(values: ReviewFormValues): string[] {
   lines.push(`Name: ${values.name.trim()}`)
   if (values.businessName.trim()) lines.push(`Business name: ${values.businessName.trim()}`)
   lines.push(`Website address: ${values.websiteAddress.trim()}`)
-  lines.push(`Phone number: ${values.phone.trim()}`)
+  if (values.phone.trim()) lines.push(`Phone number: ${values.phone.trim()}`)
   lines.push(`Preferred first contact method: ${values.contactMethod || 'Not specified'}`)
   lines.push('')
   lines.push("What they'd like help with:")

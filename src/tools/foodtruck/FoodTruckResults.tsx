@@ -254,8 +254,14 @@ export function FoodTruckResults({ answers, onEditAnswers, onStartOver, onNameCh
           conversation. Websites by Leslie can customize the branding, questions, and workflow
           for your business.
         </p>
+        <ul className="tool-sales-cta-features" aria-label="What can be customized">
+          <li>Your event types, logistics questions, and service details</li>
+          <li>Your colors, fonts, and brand voice</li>
+          <li>Event inquiries delivered to your inbox</li>
+          <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
+        </ul>
         <a
-          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20order%20planner%20inquiry"
+          href="mailto:websitesbyleslie01@gmail.com?subject=Food%20Truck%20Event%20Inquiry"
           className="tool-sales-cta-link"
           title="Opens your email application to contact Websites by Leslie"
         >

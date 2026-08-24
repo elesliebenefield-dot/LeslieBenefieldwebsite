@@ -1210,13 +1210,32 @@ test('sales CTA heading matches approved wording', async () => {
   }
 })
 
-test('sales CTA button opens mailto to Websites by Leslie', async () => {
+test('sales CTA button opens mailto to Websites by Leslie with correct subject', async () => {
   const page = await openTool()
   try {
     await advanceToResults(page)
     const href = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('href') ?? '')
     assert.ok(href.includes('websitesbyleslie01@gmail.com'), `CTA must link to WBL email, got: "${href}"`)
-    assert.ok(href.includes('planner%20inquiry') || href.includes('planner inquiry'), `CTA must include inquiry subject`)
+    assert.ok(href.includes('Food%20Truck%20Event%20Inquiry'), `CTA subject must be "Food Truck Event Inquiry", got: "${href}"`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('sales CTA has a bullet list with hosted-link bullet using approved delivery wording', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const items = await page.$$eval('.tool-sales-cta-features li', els => els.map(el => el.textContent?.trim() ?? ''))
+    assert.ok(items.length >= 3, `Expected at least 3 CTA bullets, got ${items.length}`)
+    assert.ok(
+      items.some(i => /hosted as a standalone page.*website provider can link/i.test(i)),
+      `Expected hosted-link bullet, got: ${JSON.stringify(items)}`
+    )
+    assert.ok(
+      items.every(i => !/added to your existing website/i.test(i)),
+      'Old "Added to your existing website" wording must not appear in CTA bullets'
+    )
   } finally {
     await page.close()
   }

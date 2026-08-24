@@ -60,6 +60,15 @@ export default function Nav({ variant = 'home' }: NavProps) {
         <a href="/website-checklist" onClick={close}>Website Checklist</a>
         <a href="/check" onClick={close}>Free Website Review</a>
         <a href={sectionHref('#contact')} onClick={close}>Contact</a>
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header"
+          className="nav-mobile-cta"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={close}
+        >
+          Get a Quote
+        </a>
       </div>
     </nav>
   )

@@ -224,10 +224,10 @@ export function PlumbingResults({ answers, onEditAnswers, onStartOver, onNameCha
           <li>Your service types, customer questions, and intake fields</li>
           <li>Your colors, fonts, and brand voice</li>
           <li>Service inquiries delivered to your inbox</li>
-          <li>Added to your existing website or built as a standalone page</li>
+          <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
         </ul>
         <a
-          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20order%20planner%20inquiry"
+          href="mailto:websitesbyleslie01@gmail.com?subject=Plumbing%20Service%20Visit%20Inquiry"
           className="tool-sales-cta-link"
           title="Opens your email application to contact Websites by Leslie"
         >

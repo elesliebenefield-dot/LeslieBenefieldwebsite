@@ -50,7 +50,13 @@ export default function ReviewPage() {
 
   function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [field]: value }))
-    if (errors[field as keyof FieldErrors]) {
+    // Phone is required only for Phone call and Text message. For every other
+    // contact method (Email, or any method added in the future), phone is
+    // optional — auto-clear any lingering phone error the moment the visitor
+    // switches away from a phone-required selection.
+    const isPhoneRequiredMethod = value === 'Phone call' || value === 'Text message'
+    const clearPhone = field === 'contactMethod' && value !== '' && !isPhoneRequiredMethod && !!errors.phone
+    if (errors[field as keyof FieldErrors] || clearPhone) {
       setErrors((prev) => {
         // Delete the key entirely — leaving it present but set to
         // `undefined` would keep it in Object.keys(errors), which drives
@@ -59,6 +65,7 @@ export default function ReviewPage() {
         // summary on every subsequent keystroke).
         const next = { ...prev }
         delete next[field as keyof FieldErrors]
+        if (clearPhone) delete next.phone
         return next
       })
     }
@@ -68,7 +75,8 @@ export default function ReviewPage() {
     const next: FieldErrors = {}
     if (!values.name.trim()) next.name = 'Please enter your name.'
     if (!values.websiteAddress.trim()) next.websiteAddress = 'Please enter your website address.'
-    if (!values.phone.trim()) next.phone = 'Please enter your phone number.'
+    const phoneRequired = values.contactMethod === 'Phone call' || values.contactMethod === 'Text message'
+    if (phoneRequired && !values.phone.trim()) next.phone = 'Please enter your phone number.'
     if (!values.contactMethod) next.contactMethod = 'Please choose how you would prefer to be contacted.'
     return next
   }
@@ -122,8 +130,7 @@ export default function ReviewPage() {
               visitors, mobile friendliness, clarity, contact information, and any obvious opportunities to improve.
             </p>
             <p className="section-subtitle">
-              I'll let you know whether your website may be a good fit for my services. No pressure, and no
-              automatic score or promise that every issue can be fixed.
+              I'll take a practical look at what's working, what could be improved, and whether your site is good to go as is.
             </p>
 
             {!submitted && (
@@ -191,7 +198,7 @@ export default function ReviewPage() {
                 )}
 
                 <label htmlFor="review-phone" className="review-label">
-                  Phone number
+                  Phone number{values.contactMethod !== '' && values.contactMethod !== 'Phone call' && values.contactMethod !== 'Text message' && <span className="review-optional"> (optional)</span>}
                 </label>
                 <input
                   id="review-phone"
@@ -239,8 +246,7 @@ export default function ReviewPage() {
                 )}
 
                 <p className="review-contact-note">
-                  I'll use your preferred contact method to follow up. Before we begin planning a website project,
-                  we'll schedule a short phone call to talk through the details.
+                  If I find something I can help with, I'll reach out using your preferred contact method to walk you through your options.
                 </p>
 
                 <label htmlFor="review-message" className="review-label">

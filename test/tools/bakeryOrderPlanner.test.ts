@@ -1265,12 +1265,31 @@ test('CTA button text is "Ask About a Custom Planner →"', async () => {
   }
 })
 
-test('CTA button opens mailto to websitesbyleslie01@gmail.com', async () => {
+test('CTA button opens mailto to websitesbyleslie01@gmail.com with correct subject', async () => {
   const page = await openTool()
   try {
     await advanceToResults(page)
     const href = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('href') || '')
     assert.match(href, /mailto:websitesbyleslie01@gmail\.com/)
+    assert.ok(href.includes('Custom%20Bakery%20Order%20Inquiry'), `CTA subject must be "Custom Bakery Order Inquiry", got: "${href}"`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('CTA hosted-link bullet uses approved delivery wording', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const items = await page.$$eval('.tool-sales-cta-features li', els => els.map(el => el.textContent?.trim() ?? ''))
+    assert.ok(
+      items.some(i => /hosted as a standalone page.*website provider can link/i.test(i)),
+      `Expected hosted-link bullet, got: ${JSON.stringify(items)}`
+    )
+    assert.ok(
+      items.every(i => !/added to your existing website/i.test(i)),
+      'Old "Added to your existing website" wording must not appear in CTA bullets'
+    )
   } finally {
     await page.close()
   }

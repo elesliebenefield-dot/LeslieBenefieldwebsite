@@ -1294,12 +1294,31 @@ test('CTA button text is "Ask About a Custom Planner →"', async () => {
   }
 })
 
-test('CTA button opens mailto to websitesbyleslie01@gmail.com', async () => {
+test('CTA button opens mailto to websitesbyleslie01@gmail.com with correct subject', async () => {
   const page = await openTool()
   try {
     await advanceToResults(page)
     const href = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('href') || '')
     assert.match(href, /mailto:websitesbyleslie01@gmail\.com/)
+    assert.ok(href.includes('Plumbing%20Service%20Visit%20Inquiry'), `CTA subject must be "Plumbing Service Visit Inquiry", got: "${href}"`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('CTA hosted-link bullet uses approved delivery wording', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const items = await page.$$eval('.tool-sales-cta-features li', els => els.map(el => el.textContent?.trim() ?? ''))
+    assert.ok(
+      items.some(i => /hosted as a standalone page.*website provider can link/i.test(i)),
+      `Expected hosted-link bullet, got: ${JSON.stringify(items)}`
+    )
+    assert.ok(
+      items.every(i => !/added to your existing website/i.test(i)),
+      'Old "Added to your existing website" wording must not appear in CTA bullets'
+    )
   } finally {
     await page.close()
   }
@@ -1332,14 +1351,14 @@ test('disclaimer says it is not a diagnosis or estimate', async () => {
   }
 })
 
-// ─── 18. Services page two-card layout ───────────────────────────────────────
+// ─── 18. Services page four-card layout ──────────────────────────────────────
 
-test('services page has three demo cards', async () => {
+test('services page has four demo cards', async () => {
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
     const cards = await page.$$('.pricing-demo-card')
-    assert.equal(cards.length, 3, 'Should have three demo cards')
+    assert.equal(cards.length, 4, 'Should have four demo cards')
   } finally {
     await page.close()
   }

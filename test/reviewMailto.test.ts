@@ -69,6 +69,11 @@ test('body omits the business-name line entirely when none was supplied, rather 
   assert.ok(!body.includes('Business name:'))
 })
 
+test('body omits the phone-number line when no phone was provided (Email contact method — phone is optional)', () => {
+  const { body } = parseMailtoHref(buildMailtoHref(values({ phone: '', contactMethod: 'Email' })))
+  assert.ok(!body.includes('Phone number:'), 'phone-number line must be absent when phone is empty')
+})
+
 test('body says "Not specified" when no message was supplied, rather than leaving a blank line', () => {
   const { body } = parseMailtoHref(buildMailtoHref(values({ message: '' })))
   assert.match(body, /What they'd like help with:\nNot specified$/)
