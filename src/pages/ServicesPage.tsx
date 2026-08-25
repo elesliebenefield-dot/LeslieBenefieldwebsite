@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
@@ -36,6 +37,17 @@ const pricingItems = [
 
 export default function ServicesPage() {
   useScrollReveal()
+
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash) return
+    const el = document.getElementById(hash.slice(1))
+    if (!el) return
+    // scroll-margin-top: 64px on section[id] already offsets for the sticky nav
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'start', behavior: 'instant' })
+    })
+  }, [])
 
   return (
     <>
@@ -203,7 +215,7 @@ export default function ServicesPage() {
           </div>
         </section>
 
-        <section className="pricing-demo" data-reveal>
+        <section id="interactive-tool-demos" className="pricing-demo" data-reveal>
           <div className="pricing-demo-inner">
             <p className="section-label">See It in Action</p>
             <h2 className="section-title">Interactive web experiences — built for real businesses.</h2>

@@ -278,3 +278,43 @@ test('"Back to Websites by Leslie" link is keyboard-focusable and points home', 
     await page.close()
   }
 })
+
+// ─── Hash navigation ───────────────────────────────────────────────────────────
+
+test('loading /services.html#interactive-tool-demos scrolls the demo section into view below the nav', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1280, height: 900 })
+    await page.goto(`${baseUrl}/services.html#interactive-tool-demos`, { waitUntil: 'load' })
+    // Give the useEffect + rAF time to fire and the instant scroll to settle
+    await new Promise((r) => setTimeout(r, 300))
+    // getBoundingClientRect returns a DOMRect with non-enumerable properties;
+    // extract top explicitly so it survives JSON serialization through evaluate().
+    const sectionTop = await page.evaluate(() => {
+      const el = document.getElementById('interactive-tool-demos')
+      return el ? el.getBoundingClientRect().top : null
+    })
+    assert.ok(sectionTop !== null, '#interactive-tool-demos must exist on the page')
+    // scroll-margin-top: 64px means the section top lands at ~64px from the viewport top.
+    // We allow a ±20px window to accommodate rounding and paint timing.
+    assert.ok(
+      sectionTop! >= 44 && sectionTop! <= 84,
+      `expected section top ~64px from viewport, got ${sectionTop}px`
+    )
+  } finally {
+    await page.close()
+  }
+})
+
+test('loading /services.html without a hash does not scroll to the demo section', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 1280, height: 900 })
+    await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
+    await new Promise((r) => setTimeout(r, 300))
+    const scrollY = await page.evaluate(() => window.scrollY)
+    assert.equal(scrollY, 0, `page without hash must start at scrollY 0, got ${scrollY}`)
+  } finally {
+    await page.close()
+  }
+})
