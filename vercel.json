@@ -14,6 +14,7 @@
     { "source": "/real-estate-tools", "destination": "/tools-real-estate-showcase.html" },
     { "source": "/tools-custom-bakery-order", "destination": "/tools-custom-bakery-order.html" },
     { "source": "/tools-plumbing-visit",      "destination": "/tools-plumbing-visit.html" },
-    { "source": "/tools-food-truck-event",    "destination": "/tools-food-truck-event.html" }
+    { "source": "/tools-food-truck-event",    "destination": "/tools-food-truck-event.html" },
+    { "source": "/tools-bakery-pricing",      "destination": "/tools-bakery-pricing.html" }
   ]
 }

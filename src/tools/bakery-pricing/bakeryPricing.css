@@ -1,0 +1,40 @@
+/* Bakery Pricing Calculator — locally-scoped design tokens.
+   Deliberately NOT defined on :root: this tool's approved bakery-ledger
+   visual identity (warm cream, espresso, raspberry, sage, gold) is its own
+   thing, distinct from the site's shared "Fresh Coastal" tokens in
+   tools.css. Scoping to .bakery-pricing-calculator means both coexist on
+   the same page with zero collision in either direction — tools.css's
+   shared chrome (.tool-header, .tool-sales-cta, .tool-disclaimer) keeps
+   the site's own brand colors outside this container, exactly as intended. */
+
+.bakery-pricing-calculator {
+  --bp-cream: #F6EFE2;
+  --bp-paper: #FBF7EE;
+  --bp-espresso: #3A2B22;
+  --bp-espresso-soft: #6B584B;
+  --bp-raspberry: #A23855;
+  --bp-sage: #8C9C82;
+  --bp-sage-soft: #E4E9DD;
+  --bp-gold: #B8912F;
+  --bp-gold-soft: #F1E4BE;
+  --bp-line: #DCCFB2;
+
+  --bp-font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  --bp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  background: var(--bp-cream);
+  color: var(--bp-espresso);
+  font-family: var(--bp-font-body);
+  min-height: 60vh;
+  padding: 2rem 1.5rem;
+}
+
+.bakery-pricing-calculator h1 {
+  font-family: var(--bp-font-display);
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bakery-pricing-placeholder-note {
+  color: var(--bp-espresso-soft);
+  max-width: 40ch;
+}

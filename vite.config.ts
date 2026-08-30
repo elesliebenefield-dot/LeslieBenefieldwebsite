@@ -20,6 +20,7 @@ const VERCEL_REWRITES: Record<string, string> = {
   '/tools/real-estate/closing-moving':       '/tools-closing-moving.html',
   '/real-estate-tools':                      '/tools-real-estate-showcase.html',
   '/tools-food-truck-event':                 '/tools-food-truck-event.html',
+  '/tools-bakery-pricing':                   '/tools-bakery-pricing.html',
 }
 
 function rewriteMiddleware(): Connect.NextHandleFunction {
@@ -66,6 +67,7 @@ export default defineConfig({
         toolsCustomBakeryOrder:  fileURLToPath(new URL('./tools-custom-bakery-order.html',   import.meta.url)),
         toolsPlumbingVisit:      fileURLToPath(new URL('./tools-plumbing-visit.html',         import.meta.url)),
         toolsFoodTruckEvent:     fileURLToPath(new URL('./tools-food-truck-event.html',        import.meta.url)),
+        toolsBakeryPricing:      fileURLToPath(new URL('./tools-bakery-pricing.html',          import.meta.url)),
       },
     },
   },
