@@ -516,3 +516,150 @@ test('an invalid backup file is rejected with a calm message, not a crash', asyn
     await page.close()
   }
 })
+
+// ─── 9. M6 accessibility & visual-identity audit coverage ──────────────────
+// The M4 saved-data screens and the post-M4 Backup & Restore section were
+// functionally well-tested from the start, but — unlike the M3 UI suite —
+// never got their own dedicated accessibility/responsive/personality
+// checks. This section closes that gap, found during the M6 audit.
+
+test('Saved Recipes, Ingredient Library, and Backup & Restore have no horizontal overflow at mobile widths, empty or populated', async () => {
+  const page = await openFreshTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+
+    await page.click('.bp-app-nav-btn:nth-child(2)')
+    await page.waitForSelector('.bp-empty-state')
+    let overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    assert.equal(overflow, false, 'Saved Recipes (empty) overflows at 320px')
+
+    await page.click('.bp-app-nav-btn:nth-child(3)')
+    await page.waitForSelector('.bp-empty-state')
+    overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    assert.equal(overflow, false, 'Ingredient Library (empty) overflows at 320px')
+
+    await page.click('.bp-app-nav-btn:nth-child(1)')
+    await page.waitForSelector('#bp-recipe-name')
+    await priceAndSaveRecipe(page, 'Overflow Check', '12', FLOUR)
+    overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    assert.equal(overflow, false, 'Saved Recipes (with data) overflows at 320px')
+
+    await page.click('.bp-app-nav-btn:nth-child(3)')
+    await page.waitForSelector('.bp-ingredient-row')
+    overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
+    assert.equal(overflow, false, 'Ingredient Library (with data) overflows at 320px')
+  } finally {
+    await page.close()
+  }
+})
+
+test('Saved Recipes, Ingredient Library, and Backup & Restore controls meet 44px touch targets at mobile width', async () => {
+  const page = await openFreshTool()
+  try {
+    await page.setViewport({ width: 375, height: 900 })
+    await priceAndSaveRecipe(page, 'Touch Target Check', '12', FLOUR)
+
+    const navHeights = await page.$$eval('.bp-app-nav-btn', els => els.map(e => e.getBoundingClientRect().height))
+    for (const h of navHeights) assert.ok(h >= 44, `nav tab height ${h} below 44px`)
+
+    const rowActionHeights = await page.$$eval('.bp-saved-row button, .bp-saved-row a', els => els.map(e => e.getBoundingClientRect().height))
+    for (const h of rowActionHeights) assert.ok(h >= 44, `saved-row action height ${h} below 44px`)
+
+    const backupButtonHeights = await page.$$eval('.bp-backup-restore button', els => els.map(e => e.getBoundingClientRect().height))
+    for (const h of backupButtonHeights) assert.ok(h >= 44, `Backup & Restore button height ${h} below 44px`)
+
+    await page.click('.bp-app-nav-btn:nth-child(3)')
+    await page.waitForSelector('.bp-ingredient-row .bp-link-btn')
+    const libraryRowHeights = await page.$$eval('.bp-saved-row button', els => els.map(e => e.getBoundingClientRect().height))
+    for (const h of libraryRowHeights) assert.ok(h >= 44, `Ingredient Library row action height ${h} below 44px`)
+
+    await page.click('.bp-ingredient-row .bp-link-btn')
+    await page.waitForSelector('.bp-saved-row-editing')
+    const editFormHeights = await page.$$eval(
+      '.bp-saved-row-editing input, .bp-saved-row-editing select, .bp-saved-row-editing button',
+      els => els.map(e => e.getBoundingClientRect().height),
+    )
+    for (const h of editFormHeights) assert.ok(h >= 44, `Ingredient edit form control height ${h} below 44px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('Every visible form control on Saved Recipes and Ingredient Library has an associated plain-language label', async () => {
+  const page = await openFreshTool()
+  try {
+    await priceAndSaveRecipe(page, 'Label Check', '12', FLOUR)
+    const unlabeledSaved = await page.$$eval('.bp-step input:not([hidden]), .bp-step select', els =>
+      els.filter(el => {
+        const id = el.id
+        return !(id && document.querySelector(`label[for="${id}"]`)) && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')
+      }).length,
+    )
+    assert.equal(unlabeledSaved, 0)
+
+    await page.click('.bp-app-nav-btn:nth-child(3)')
+    await page.waitForSelector('.bp-ingredient-row .bp-link-btn')
+    await page.click('.bp-ingredient-row .bp-link-btn')
+    await page.waitForSelector('.bp-saved-row-editing')
+    const unlabeledLibrary = await page.$$eval('.bp-step input:not([hidden]), .bp-step select', els =>
+      els.filter(el => {
+        const id = el.id
+        return !(id && document.querySelector(`label[for="${id}"]`)) && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby')
+      }).length,
+    )
+    assert.equal(unlabeledLibrary, 0)
+  } finally {
+    await page.close()
+  }
+})
+
+test('Backup & Restore and Test a Selling Price show their section icon, decorative and hidden from screen readers', async () => {
+  const page = await openFreshTool()
+  try {
+    await priceAndSaveRecipe(page, 'Icon Check', '12', FLOUR)
+    const backupIcon = await page.$('.bp-backup-restore h2 .bp-section-icon')
+    assert.ok(backupIcon, 'Backup & Restore heading should carry a SectionIcon, matching every other major section')
+    const backupIconHidden = await page.$eval('.bp-backup-restore h2 .bp-section-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(backupIconHidden, 'true')
+
+    await page.click('.bp-app-nav-btn:nth-child(1)')
+    await page.waitForSelector('#bp-recipe-name')
+    await addIngredient(page, FLOUR)
+    await setInputValue(page, '#bp-yield', '12')
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForSelector('#bp-labor-rate')
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForSelector('.bp-completeness-check')
+    const sellingPriceIcon = await page.$('.bp-selling-price-test summary .bp-section-icon')
+    assert.ok(sellingPriceIcon, '"Test a selling price" summary should carry a SectionIcon, matching "See how this was calculated"')
+    const sellingPriceIconHidden = await page.$eval('.bp-selling-price-test summary .bp-section-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(sellingPriceIconHidden, 'true')
+  } finally {
+    await page.close()
+  }
+})
+
+test('localStorage holds only the documented last-hourly-rate preference after a save — nothing else, no tracking-shaped keys', async () => {
+  const page = await openFreshTool()
+  try {
+    await page.type('#bp-recipe-name', 'Storage Check')
+    await setInputValue(page, '#bp-yield', '12')
+    await addIngredient(page, FLOUR)
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForSelector('#bp-labor-rate')
+    await setInputValue(page, '#bp-labor-rate', '18')
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForSelector('.bp-save-row')
+    await page.click('.bp-save-row .bp-btn-primary')
+    await page.waitForFunction(
+      () => document.querySelector('.bp-app-nav-btn.is-active')?.textContent?.includes('Saved Recipes'),
+      { timeout: 5000 },
+    )
+    const keys = await page.evaluate(() => Object.keys(localStorage))
+    assert.deepEqual(keys, ['bakery-pricing-planner:last-hourly-rate'])
+    const sessionKeys = await page.evaluate(() => Object.keys(sessionStorage))
+    assert.deepEqual(sessionKeys, [])
+  } finally {
+    await page.close()
+  }
+})

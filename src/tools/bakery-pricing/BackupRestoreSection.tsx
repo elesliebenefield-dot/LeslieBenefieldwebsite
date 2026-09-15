@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { ConfirmDialog } from '../core/components/ConfirmDialog'
+import { SectionIcon } from './SectionIcon.tsx'
 import { buildExport, downloadExportFile, importAndReplaceAll, parseAndValidateExportFile, type ExportFile } from './data/exportImport.ts'
 
 interface Props {
@@ -56,7 +57,9 @@ export function BackupRestoreSection({ db }: Props) {
   return (
     <div className="bp-backup-restore">
       <hr className="bp-divider" />
-      <h2 className="bp-h2">Backup &amp; Restore</h2>
+      <h2 className="bp-h2">
+        <SectionIcon symbol="💾" tone="gold" /> Backup &amp; Restore
+      </h2>
       <p className="bp-helper">
         Download a backup file of everything saved here, or restore from a backup you downloaded earlier. Restoring
         replaces everything currently saved with the file's contents.

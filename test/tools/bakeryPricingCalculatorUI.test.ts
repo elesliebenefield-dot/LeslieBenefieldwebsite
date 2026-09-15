@@ -343,9 +343,11 @@ test('section icons (Ingredients, Labor, Supplies & Packaging, Cost Breakdown, S
     await page.click('.bp-nav .bp-btn-primary')
     await page.waitForFunction(() => !!document.querySelector('.bp-price-lead'))
 
-    // Step 3: Suggested Pricing, Cost Breakdown
+    // Step 3: Suggested Pricing, Cost Breakdown ("See how this was
+    // calculated"), and Test a Selling Price (added post-M4) each carry
+    // their own icon.
     const step3Icons = await page.$$eval('.bp-h2 .bp-section-icon, .bp-summary-label .bp-section-icon', els => els.map(e => e.getAttribute('aria-hidden')))
-    assert.deepEqual(step3Icons, ['true', 'true'])
+    assert.deepEqual(step3Icons, ['true', 'true', 'true'])
   } finally {
     await page.close()
   }

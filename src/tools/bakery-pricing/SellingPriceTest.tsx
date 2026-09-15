@@ -3,6 +3,7 @@ import { computeSellingPriceTest } from './calc-engine/formulas.ts'
 import { fromStorageString } from './calc-engine/decimal.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
+import { SectionIcon } from './SectionIcon.tsx'
 import type { DecimalString } from './calc-engine/types.ts'
 
 interface Props {
@@ -23,7 +24,7 @@ export function SellingPriceTest({ totalProductionCost, yieldCount }: Props) {
 
   return (
     <details className="bp-cost-group bp-selling-price-test">
-      <summary><span className="bp-summary-label">Test a selling price</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
+      <summary><span className="bp-summary-label"><SectionIcon symbol="🏷️" /> Test a selling price</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
       <div className="bp-details-body">
         <p className="bp-helper">
           Curious what a specific price would actually mean? This is separate from the suggested price above — it
