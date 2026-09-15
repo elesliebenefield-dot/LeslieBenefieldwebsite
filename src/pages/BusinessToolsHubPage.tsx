@@ -122,7 +122,7 @@ function ToolCard({ tool }: { tool: ToolEntry }) {
       <h3 className="bt-tool-name">{tool.name}</h3>
       <p className="bt-tool-desc">{tool.desc}</p>
       <p className="bt-tool-audience">{tool.audience}</p>
-      <a href={tool.url} className="btn btn-outline bt-tool-link">
+      <a href={tool.url} className="btn btn-primary bt-tool-link">
         {tool.kind === 'free' ? 'Use the Free Calculator →' : 'Try the Demo →'}
       </a>
     </li>
