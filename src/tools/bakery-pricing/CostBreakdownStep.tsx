@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { computeBreakEven, computeCostBreakdown, computeSuggestedPricing } from './calc-engine/formulas.ts'
 import { fromStorageString } from './calc-engine/decimal.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
 import { ROUNDING_INCREMENTS } from './bakeryPricingDraftTypes.ts'
+import { SectionIcon } from './SectionIcon.tsx'
 import type { DraftCostInputs } from './bakeryPricingDraftTypes.ts'
 import type { RoundingIncrement } from './calc-engine/types.ts'
 
@@ -15,6 +17,12 @@ interface Props {
   onMarginChange: (value: string) => void
   roundingIncrement: RoundingIncrement
   onRoundingChange: (value: RoundingIncrement) => void
+  // True only while this specific mount should play the one-time
+  // suggested-price highlight — captured once at mount via lazy state
+  // below, so a later remount of this same step (Back, then Next again)
+  // never replays it. See BakeryPricingCalculator.tsx's hasCelebrated gate.
+  celebrateEligible?: boolean
+  onCelebrated?: () => void
 }
 
 const blank = (v: string) => (v.trim() === '' ? '0' : v)
@@ -28,7 +36,21 @@ export function CostBreakdownStep({
   onMarginChange,
   roundingIncrement,
   onRoundingChange,
+  celebrateEligible = false,
+  onCelebrated,
 }: Props) {
+  // Lazy initializer reads celebrateEligible only at the moment THIS
+  // component instance mounts — later prop changes (the parent flipping
+  // its gate once notified) never affect an already-mounted instance, and
+  // a fresh mount after Back/Next again reads the gate's new (false) value.
+  const [shouldCelebrate] = useState(() => celebrateEligible)
+  // Runs exactly once, on mount, by design — see the comment on shouldCelebrate.
+  // Intentionally NOT re-run on prop changes: onCelebrated is only ever
+  // meaningful at the moment this instance first mounts.
+  useEffect(() => {
+    if (shouldCelebrate) onCelebrated?.()
+    // eslint-disable-next-line
+  }, [])
   const breakdown = safeCompute(() =>
     computeCostBreakdown({
       ingredientSubtotal,
@@ -86,8 +108,8 @@ export function CostBreakdownStep({
 
       {pricing.valid && (
         <>
-          <h2 className="bp-h2">Your Suggested Price</h2>
-          <div className="bp-price-callout bp-price-callout-gold bp-price-lead">
+          <h2 className="bp-h2"><SectionIcon symbol="✨" tone="gold" /> Your Suggested Price</h2>
+          <div className={`bp-price-callout bp-price-callout-gold bp-price-lead${shouldCelebrate ? ' bp-price-lead-celebrate' : ''}`}>
             <div className="bp-price-sub">Suggested whole-batch price</div>
             <div className="bp-price-big">{formatMoney(pricing.value.suggestedWholeBatchPrice)}</div>
             <div className="bp-price-sub">Suggested per-item price</div>
@@ -112,7 +134,7 @@ export function CostBreakdownStep({
           </div>
 
           <details className="bp-cost-group bp-breakdown-details">
-            <summary>See how this was calculated <span className="bp-chev" aria-hidden="true">›</span></summary>
+            <summary><span className="bp-summary-label"><SectionIcon symbol="🧾" /> See how this was calculated</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
             <div className="bp-details-body">
               <div className="bp-ledger">
                 <div className="bp-ledger-row">

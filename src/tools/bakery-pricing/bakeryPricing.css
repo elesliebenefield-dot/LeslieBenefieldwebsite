@@ -16,6 +16,7 @@
   --bp-espresso-soft: #6B584B;
   --bp-raspberry: #A23855;
   --bp-raspberry-dark: #832A42;
+  --bp-raspberry-soft: #F2DCE2;
   --bp-sage: #8C9C82;
   --bp-sage-soft: #E4E9DD;
   --bp-gold: #B8912F;
@@ -30,7 +31,16 @@
   --bp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
   display: block;
-  background: var(--bp-cream);
+  position: relative;
+  background-color: var(--bp-cream);
+  /* Very faint, purely decorative dusted-flour texture — two scattered dot
+     layers well under 5% opacity, so it reads as texture, not pattern, and
+     never competes with any calculator number, input, or message. */
+  background-image:
+    radial-gradient(circle, rgba(107, 78, 18, 0.05) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(139, 32, 63, 0.04) 1px, transparent 1.6px);
+  background-size: 26px 26px, 42px 42px;
+  background-position: 0 0, 15px 21px;
   color: var(--bp-espresso);
   font-family: var(--bp-font-body);
   font-size: 16px;
@@ -75,6 +85,29 @@
   margin-top: 0;
 }
 
+/* ---------- Section icon medallions ---------- */
+.bakery-pricing-calculator .bp-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  vertical-align: -0.4rem;
+  margin-right: 0.375rem;
+}
+
+.bakery-pricing-calculator .bp-section-icon-gold {
+  background: var(--bp-gold-soft);
+}
+
+.bakery-pricing-calculator .bp-section-icon-raspberry {
+  background: var(--bp-raspberry-soft);
+}
+
 .bakery-pricing-calculator .bp-helper {
   font-size: 0.875rem;
   color: var(--bp-espresso-soft);
@@ -89,8 +122,16 @@
 
 .bakery-pricing-calculator .bp-divider {
   border: none;
-  border-top: 1px dashed var(--bp-line);
-  margin: 1.25rem 0;
+  border-top: 2px dashed var(--bp-gold);
+  opacity: 0.5;
+  margin: 1.5rem auto;
+  max-width: 520px;
+}
+
+.bakery-pricing-calculator .bp-page-heading-icon {
+  font-size: 1.1em;
+  margin-right: 0.25rem;
+  vertical-align: -0.05em;
 }
 
 /* ---------- Welcome intro (Step 1 only) ---------- */
@@ -123,10 +164,18 @@
   background: var(--bp-paper);
   border: 1px dashed var(--bp-line);
   border-radius: var(--bp-radius);
-  padding: 1rem 1.125rem;
+  padding: 1.25rem 1.125rem;
   margin-bottom: 0.875rem;
   font-size: 0.9375rem;
   color: var(--bp-espresso-soft);
+  text-align: center;
+}
+
+.bakery-pricing-calculator .bp-empty-state-icon {
+  display: block;
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
 }
 
 .bakery-pricing-calculator .bp-empty-state p {
@@ -523,6 +572,14 @@
   display: none;
 }
 
+/* Groups a section's icon with its label as one flex item, so the parent
+   summary's space-between (icon+label on the left, chevron on the right)
+   isn't thrown off by the icon becoming a third item on its own. */
+.bakery-pricing-calculator .bp-summary-label {
+  display: inline-flex;
+  align-items: center;
+}
+
 .bakery-pricing-calculator details.bp-cost-group > summary .bp-chev {
   transition: transform 0.15s ease;
   color: var(--bp-espresso-soft);
@@ -909,4 +966,50 @@
   width: auto;
   min-height: auto;
   accent-color: var(--bp-raspberry);
+}
+
+/* ---------- Gentle hover/focus polish ---------- */
+/* A restrained lift on hover for the controls a baker actually presses —
+   entirely motion, so fully skipped under prefers-reduced-motion rather
+   than merely toned down. */
+@media (prefers-reduced-motion: no-preference) {
+  .bakery-pricing-calculator .bp-btn:not(:disabled),
+  .bakery-pricing-calculator .bp-choice-card,
+  .bakery-pricing-calculator .bp-autocomplete-option {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .bakery-pricing-calculator .bp-btn-primary:hover:not(:disabled),
+  .bakery-pricing-calculator .bp-btn-secondary:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .bakery-pricing-calculator .bp-choice-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(58, 43, 34, 0.12);
+  }
+}
+
+/* ---------- One-time suggested-price completion highlight ---------- */
+/* A brief, subtle glow around the suggested-price card the first time a
+   completed calculation is reached this session (see CostBreakdownStep's
+   shouldCelebrate / BakeryPricingCalculator's hasCelebrated gate) — never
+   replayed on a mere Back/Next revisit, and completely absent under
+   prefers-reduced-motion rather than just shortened. */
+@media (prefers-reduced-motion: no-preference) {
+  .bakery-pricing-calculator .bp-price-lead-celebrate {
+    animation: bp-celebrate-glow 1.4s ease-out 1;
+  }
+
+  @keyframes bp-celebrate-glow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(184, 145, 47, 0);
+    }
+    30% {
+      box-shadow: 0 0 0 8px rgba(184, 145, 47, 0.28);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(184, 145, 47, 0);
+    }
+  }
 }

@@ -221,7 +221,10 @@ test('main page heading shows the full public tool name', async () => {
   const page = await openTool()
   try {
     const heading = await page.$eval('.bp-page-heading', el => el.textContent?.trim())
-    assert.equal(heading, 'Free Home Bakery Pricing Calculator')
+    // The heading also carries a small decorative bakery symbol (see the
+    // personality-pass test below) — matched loosely here so this test
+    // stays about the tool's actual name, not the decoration.
+    assert.match(heading || '', /Free Home Bakery Pricing Calculator/)
   } finally {
     await page.close()
   }
@@ -289,6 +292,116 @@ test('the full disclaimer is reachable via an accessible expandable control, not
     assert.match(fullText, /not accounting, tax, or financial advice/i)
     assert.match(fullText, /does not guarantee a profit/i)
     assert.match(fullText, /never transmitted/i)
+  } finally {
+    await page.close()
+  }
+})
+
+// ─── 1b. Bakery personality pass (visual, M3) ───────────────────────────────
+
+test('the decorative bakery symbol beside the page heading is hidden from screen readers', async () => {
+  const page = await openTool()
+  try {
+    const icon = await page.$('.bp-page-heading-icon')
+    assert.ok(icon, 'a decorative page-heading icon should be present')
+    const hidden = await page.$eval('.bp-page-heading-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(hidden, 'true')
+  } finally {
+    await page.close()
+  }
+})
+
+test('section icons (Ingredients, Labor, Supplies & Packaging, Cost Breakdown, Suggested Pricing) are present and hidden from screen readers, never the only label', async () => {
+  const page = await openTool()
+  try {
+    // Step 1: Ingredients — Step 1 has two h2s ("Your Recipe" and
+    // "Ingredients"), so target the one that actually contains the icon
+    // rather than the first h2 on the page.
+    const ingredientsIconHidden = await page.$eval('.bp-h2 .bp-section-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(ingredientsIconHidden, 'true')
+    const ingredientsHeading = await page.$eval('.bp-h2 .bp-section-icon', el => el.closest('.bp-h2')?.textContent || '')
+    assert.match(ingredientsHeading, /Ingredients/)
+
+    await setYield(page, '24')
+    await addIngredient(page, { name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each', packagePrice: '4', packageQuantity: '4', amountUsed: '2' })
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
+
+    // Step 2: Labor, Supplies & Packaging
+    const summaryIcons = await page.$$eval('.bp-summary-label .bp-section-icon', els => els.map(e => e.getAttribute('aria-hidden')))
+    assert.deepEqual(summaryIcons, ['true', 'true'])
+    const summaryTexts = await page.$$eval('.bp-summary-label', els => els.map(e => e.textContent || ''))
+    assert.ok(summaryTexts.some(t => /Labor/.test(t)))
+    assert.ok(summaryTexts.some(t => /Supplies.*Packaging/.test(t)))
+
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForFunction(() => !!document.querySelector('.bp-price-lead'))
+
+    // Step 3: Suggested Pricing, Cost Breakdown
+    const step3Icons = await page.$$eval('.bp-h2 .bp-section-icon, .bp-summary-label .bp-section-icon', els => els.map(e => e.getAttribute('aria-hidden')))
+    assert.deepEqual(step3Icons, ['true', 'true'])
+  } finally {
+    await page.close()
+  }
+})
+
+test('empty states show a decorative, aria-hidden icon alongside friendly, concise copy', async () => {
+  const page = await openTool()
+  try {
+    const ingredientsIcon = await page.$eval('.bp-empty-state-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(ingredientsIcon, 'true')
+    const ingredientsText = await page.$eval('.bp-empty-state', el => el.textContent || '')
+    assert.match(ingredientsText, /No ingredients yet/)
+
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    const suppliesIcon = await page.$eval('.bp-supplies-section .bp-empty-state-icon', el => el.getAttribute('aria-hidden'))
+    assert.equal(suppliesIcon, 'true')
+    const suppliesText = await page.$eval('.bp-supplies-section .bp-empty-state', el => el.textContent || '')
+    assert.match(suppliesText, /Nothing added yet/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('the suggested-price completion highlight plays once on first reaching the breakdown, and does not replay on a later Back/Next revisit', async () => {
+  const page = await openTool()
+  try {
+    await buildHandVerifiedRecipe(page)
+    const celebratedFirstTime = await page.$eval('.bp-price-lead', el => el.classList.contains('bp-price-lead-celebrate'))
+    assert.equal(celebratedFirstTime, true, 'the first time a completed calculation is reached, the highlight should apply')
+
+    await page.click('.bp-nav .bp-btn-secondary')
+    await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForFunction(() => !!document.querySelector('.bp-price-lead'))
+    const celebratedSecondTime = await page.$eval('.bp-price-lead', el => el.classList.contains('bp-price-lead-celebrate'))
+    assert.equal(celebratedSecondTime, false, 'revisiting the same completed calculation must not replay the highlight')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the completion highlight animation is completely disabled under prefers-reduced-motion', async () => {
+  const page = await openTool()
+  try {
+    await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+    await buildHandVerifiedRecipe(page)
+    const animationName = await page.$eval('.bp-price-lead', el => getComputedStyle(el).animationName)
+    assert.equal(animationName, 'none', 'no animation should be computed at all under prefers-reduced-motion')
+  } finally {
+    await page.close()
+  }
+})
+
+test('no horizontal overflow at 320px with the new decorative elements visible (heading icon, section icons, empty state)', async () => {
+  const page = await openTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no overflow, got ${overflow}px`)
   } finally {
     await page.close()
   }

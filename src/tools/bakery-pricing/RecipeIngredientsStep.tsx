@@ -6,6 +6,8 @@ import { UNIT_GROUPS, VOLUME_UNITS, defaultUnitFor } from './bakeryPricingUnitOp
 import { formatMoney } from './bakeryPricingFormat.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
 import { getCommonIngredientById, searchCommonIngredients } from './bakeryIngredientLibrary.ts'
+import { EmptyState } from './EmptyState.tsx'
+import { SectionIcon } from './SectionIcon.tsx'
 import type { DraftIngredientLine } from './bakeryPricingDraftTypes.ts'
 import type { CustomIngredientConversion, MeasurementType, Unit, VolumeUnit, WeightUnit } from './calc-engine/types.ts'
 
@@ -360,16 +362,14 @@ export function RecipeIngredientsStep({
 
       <hr className="bp-divider" />
 
-      <h2 className="bp-h2">Ingredients</h2>
+      <h2 className="bp-h2"><SectionIcon symbol="🍪" tone="raspberry" /> Ingredients</h2>
 
       {hasNoIngredients ? (
-        <div className={`bp-empty-state${showErrors ? ' bp-empty-state-error' : ''}`} role={showErrors ? 'alert' : undefined}>
-          <p>
-            {showErrors
-              ? 'Add at least one ingredient before continuing — every recipe needs at least one to calculate a cost.'
-              : "No ingredients yet. Add at least one below — this is what your recipe's cost is built from."}
-          </p>
-        </div>
+        <EmptyState icon="🥣" tone={showErrors ? 'alert' : 'neutral'}>
+          {showErrors
+            ? 'Add at least one ingredient before continuing — every recipe needs at least one to calculate a cost.'
+            : "No ingredients yet. Add at least one below — this is what your recipe's cost is built from."}
+        </EmptyState>
       ) : (
         <ul className="bp-ingredient-list">
           {ingredients.map(line => (

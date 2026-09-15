@@ -63,6 +63,11 @@ export function BakeryPricingCalculator() {
   const [costsReviewed, setCostsReviewed] = useState(false)
   const [showStartOverConfirm, setShowStartOverConfirm] = useState(false)
   const [showFullDisclaimer, setShowFullDisclaimer] = useState(false)
+  // Gates the one-time suggested-price highlight — flips true the first
+  // time a completed calculation is reached, and stays true so simply
+  // navigating Back and Next again never replays it. Reset only by Start
+  // Over, which is a genuinely new calculation.
+  const [hasCelebrated, setHasCelebrated] = useState(false)
 
   const scrollTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -117,6 +122,7 @@ export function BakeryPricingCalculator() {
     setShowCostErrors(false)
     setCostsReviewed(false)
     setShowStartOverConfirm(false)
+    setHasCelebrated(false)
     setStep('recipe')
     scrollTop()
   }, [scrollTop])
@@ -135,7 +141,9 @@ export function BakeryPricingCalculator() {
       </header>
 
       <main className="bakery-pricing-calculator">
-        <h1 className="bp-page-heading">Free Home Bakery Pricing Calculator</h1>
+        <h1 className="bp-page-heading">
+          <span className="bp-page-heading-icon" aria-hidden="true">🥖</span> Free Home Bakery Pricing Calculator
+        </h1>
 
         <div className="bp-step-indicator" role="status" aria-label={`Step ${stepIndex + 1} of ${STEP_ORDER.length}: ${STEP_LABELS[step]}`}>
           <span className="bp-pill">Step {stepIndex + 1} of {STEP_ORDER.length}</span>
@@ -182,6 +190,8 @@ export function BakeryPricingCalculator() {
               onMarginChange={setMarginPercent}
               roundingIncrement={roundingIncrement}
               onRoundingChange={setRoundingIncrement}
+              celebrateEligible={!hasCelebrated}
+              onCelebrated={() => setHasCelebrated(true)}
             />
             <button type="button" className="bp-link-btn" onClick={() => setShowStartOverConfirm(true)}>
               Start over with a new recipe

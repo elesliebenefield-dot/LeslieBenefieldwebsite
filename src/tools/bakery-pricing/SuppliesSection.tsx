@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { computeSuppliesSubtotal, computeSupplyDirectCost, computeSupplyItemCost } from './calc-engine/formulas.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
+import { EmptyState } from './EmptyState.tsx'
 import type { DraftSupplyItem } from './bakeryPricingDraftTypes.ts'
 
 interface Props {
@@ -104,6 +105,12 @@ export function SuppliesSection({ items, onAddItem, onUpdateItem, onRemoveItem }
         Reusable equipment — mixers, pans, decorating tools, and similar items you use again and again — doesn't
         belong here. Those costs belong in Overhead instead, not charged fresh to every recipe.
       </p>
+
+      {items.length === 0 && (
+        <EmptyState icon="📦">
+          Nothing added yet. Boxes, liners, and ribbon all belong here.
+        </EmptyState>
+      )}
 
       {items.length > 0 && (
         <ul className="bp-ingredient-list">

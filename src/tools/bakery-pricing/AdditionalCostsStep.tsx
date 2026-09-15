@@ -7,6 +7,7 @@ import {
 } from './calc-engine/validation.ts'
 import { fieldError } from './bakeryPricingValidationDisplay.ts'
 import { SuppliesSection } from './SuppliesSection.tsx'
+import { SectionIcon } from './SectionIcon.tsx'
 import type { DraftCostInputs, DraftSupplyItem, ZeroCostAcknowledgement } from './bakeryPricingDraftTypes.ts'
 
 interface Props {
@@ -66,7 +67,7 @@ export function AdditionalCostsStep({
       )}
 
       <details className="bp-cost-group" open>
-        <summary>Labor <span className="bp-chev" aria-hidden="true">›</span></summary>
+        <summary><span className="bp-summary-label"><SectionIcon symbol="⏱️" /> Labor</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
           <div className="bp-inline-fields">
             <div className="bp-field">
@@ -105,7 +106,7 @@ export function AdditionalCostsStep({
       </details>
 
       <details className="bp-cost-group">
-        <summary>Supplies &amp; Packaging <span className="bp-chev" aria-hidden="true">›</span></summary>
+        <summary><span className="bp-summary-label"><SectionIcon symbol="📦" tone="raspberry" /> Supplies &amp; Packaging</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
           <SuppliesSection
             items={supplyItems}
