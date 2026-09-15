@@ -53,7 +53,7 @@ export default function PricingForProfitArticle() {
 
       <h2>Try it with your own recipe</h2>
       <p>
-        The <a href="/tools-bakery-pricing">Free Home Bakery Pricing Calculator</a> walks through exactly this —
+        The <a href="/tools-bakery-pricing">Free Bakery Pricing Calculator</a> walks through exactly this —
         ingredients, labor, packaging, waste, and overhead — and shows you a suggested price built from your own
         numbers, with the full math laid out so nothing is a black box.
       </p>

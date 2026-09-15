@@ -198,10 +198,10 @@ test('page loads without console or page errors', async () => {
   }
 })
 
-test('page title is "Free Home Bakery Pricing Calculator"', async () => {
+test('page title is "Free Bakery Pricing Calculator"', async () => {
   const page = await openTool()
   try {
-    assert.equal(await page.title(), 'Free Home Bakery Pricing Calculator')
+    assert.equal(await page.title(), 'Free Bakery Pricing Calculator')
   } finally {
     await page.close()
   }
@@ -224,7 +224,7 @@ test('main page heading shows the full public tool name', async () => {
     // The heading also carries a small decorative bakery symbol (see the
     // personality-pass test below) — matched loosely here so this test
     // stays about the tool's actual name, not the decoration.
-    assert.match(heading || '', /Free Home Bakery Pricing Calculator/)
+    assert.match(heading || '', /Free Bakery Pricing Calculator/)
   } finally {
     await page.close()
   }
@@ -1650,7 +1650,7 @@ test('fallback fonts still produce a usable layout if the web fonts are unavaila
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 0, `expected a usable, non-overflowing layout even without the web fonts, got ${overflow}px`)
     const heading = await page.$eval('.bp-page-heading', el => el.textContent || '')
-    assert.match(heading, /Free Home Bakery Pricing Calculator/)
+    assert.match(heading, /Free Bakery Pricing Calculator/)
   } finally {
     await page.close()
   }

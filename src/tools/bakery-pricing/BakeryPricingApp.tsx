@@ -87,7 +87,7 @@ export function BakeryPricingApp() {
 
       <main className="bakery-pricing-calculator">
         <h1 className="bp-page-heading">
-          <span className="bp-page-heading-icon" aria-hidden="true">🥖</span> Free Home Bakery Pricing Calculator
+          <span className="bp-page-heading-icon" aria-hidden="true">🥖</span> Free Bakery Pricing Calculator
         </h1>
 
         <nav className="bp-app-nav" aria-label="Bakery Pricing Calculator sections">

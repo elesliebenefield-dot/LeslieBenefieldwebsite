@@ -62,7 +62,7 @@ export default function LaborCostArticle() {
 
       <h2>Let the calculator do the arithmetic</h2>
       <p>
-        The <a href="/tools-bakery-pricing">Free Home Bakery Pricing Calculator</a> includes an optional
+        The <a href="/tools-bakery-pricing">Free Bakery Pricing Calculator</a> includes an optional
         active-minutes checklist matching the list above, so you can total up your real time without doing the
         math by hand — while your hourly rate always stays something you enter and decide for yourself.
       </p>

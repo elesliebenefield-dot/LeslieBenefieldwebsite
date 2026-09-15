@@ -20,7 +20,7 @@ export function LeadGenCta() {
         <h2 className="tool-sales-cta-heading">Need a website or order form for your bakery?</h2>
         <p className="tool-sales-cta-body">
           I build affordable websites, online order forms, and custom small-business tools — like this
-          calculator — for home bakers turning their hobby into a business.
+          calculator — for bakers and bakery businesses.
         </p>
         <ul className="tool-sales-cta-features" aria-label="What can be built">
           <li>A simple, professional bakery website</li>

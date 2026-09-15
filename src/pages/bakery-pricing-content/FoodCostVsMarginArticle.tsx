@@ -52,7 +52,7 @@ export default function FoodCostVsMarginArticle() {
 
       <h2>Keep the three numbers straight</h2>
       <p>
-        The <a href="/tools-bakery-pricing">Free Home Bakery Pricing Calculator</a> shows your ingredient
+        The <a href="/tools-bakery-pricing">Free Bakery Pricing Calculator</a> shows your ingredient
         subtotal, your full cost breakdown, and your suggested price's margin <em>and</em> its equivalent
         markup side by side — so you can see all three numbers at once instead of guessing which one you're
         actually thinking in.

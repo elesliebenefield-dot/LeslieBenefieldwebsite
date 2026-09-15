@@ -103,7 +103,7 @@ export default function Services() {
         <div className="tools-callout" data-reveal>
           <span className="tools-callout-eyebrow">New from Websites by Leslie</span>
           <p className="tools-callout-text">
-            Free tools and interactive demos for real businesses—including a free pricing calculator for home bakers, plus planning tools for real estate, service, and event businesses.{' '}
+            Free tools and interactive demos for real businesses—including a free pricing calculator for bakers and bakery businesses, plus planning tools for real estate, service, and event businesses.{' '}
             <a href="/business-tools" className="tools-callout-link">Try my business tools →</a>
           </p>
         </div>

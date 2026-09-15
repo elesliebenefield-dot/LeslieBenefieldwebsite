@@ -43,10 +43,10 @@ export default function BakeryPricingLandingPage() {
 
             <div className="faq-header" data-reveal>
               <p className="section-label">Free Tool</p>
-              <h1 className="section-title">Free Home Bakery Pricing Calculator</h1>
+              <h1 className="section-title">Free Bakery Pricing Calculator</h1>
               <p className="section-subtitle">
-                A clear, honest way to find your true recipe cost and a confident selling price — built for home
-                bakers who are tired of guessing.
+                A clear, honest way to find your true recipe cost and a confident selling price — built for
+                bakers and bakery businesses tired of guessing.
               </p>
               <div className="page-cta-buttons" data-reveal>
                 <a href="/tools-bakery-pricing" className="btn btn-primary">
@@ -58,7 +58,9 @@ export default function BakeryPricingLandingPage() {
             <article className="bp-article-body" data-reveal="soft">
               <h2>Why this matters</h2>
               <p>
-                Most home bakers start out pricing by feel — doubling the ingredient cost, or picking a number
+                This calculator is built for bakers and bakery businesses of every kind — including people
+                baking from home, cottage-food businesses, market sellers, and independent bakeries. Most
+                home bakers start out pricing by feel — doubling the ingredient cost, or picking a number
                 that "feels fair." The trouble is that ingredient cost is only one piece of what a recipe
                 really costs. Your time, your packaging, the occasional ruined batch, and the ordinary
                 costs of running a small food business all belong in the number too. This calculator walks
@@ -118,7 +120,7 @@ export default function BakeryPricingLandingPage() {
             <h2 className="section-title">Need a website for your bakery business?</h2>
             <p className="section-subtitle">
               I build affordable websites, online order forms, and custom small-business tools — like this
-              calculator — for home bakers turning their hobby into a business.
+              calculator — for bakers and bakery businesses.
             </p>
             <div className="page-cta-buttons">
               <a

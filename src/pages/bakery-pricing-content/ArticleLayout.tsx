@@ -67,7 +67,7 @@ export function ArticleLayout({ title, intro, children, related }: Props) {
           <div className="page-cta-inner" data-reveal>
             <h2 className="section-title">Ready to price your own recipe?</h2>
             <p className="section-subtitle">
-              The Free Home Bakery Pricing Calculator walks you through your ingredients, labor,
+              The Free Bakery Pricing Calculator walks you through your ingredients, labor,
               packaging, waste, and overhead, and gives you a clear suggested price — free, no
               account required, and everything stays on your device.
             </p>

@@ -56,7 +56,7 @@ export default function PackagingWasteOverheadArticle() {
 
       <h2>Let the calculator carry these for you</h2>
       <p>
-        The <a href="/tools-bakery-pricing">Free Home Bakery Pricing Calculator</a> has a dedicated place for
+        The <a href="/tools-bakery-pricing">Free Bakery Pricing Calculator</a> has a dedicated place for
         each of these three costs, including optional helpers for estimating overhead per batch and converting a
         personal waste estimate into a percentage — so none of them have to be tracked in your head.
       </p>

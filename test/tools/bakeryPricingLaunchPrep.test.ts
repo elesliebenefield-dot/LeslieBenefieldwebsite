@@ -63,7 +63,7 @@ after(async () => {
 })
 
 const NEW_PAGES = [
-  { path: '/bakery-pricing-guide.html', title: /Free Home Bakery Pricing Calculator/ },
+  { path: '/bakery-pricing-guide.html', title: /Free Bakery Pricing Calculator/ },
   { path: '/bakery-pricing-for-profit.html', title: /How to Price Baked Goods for Profit/ },
   { path: '/bakery-food-cost-vs-margin.html', title: /Food Cost vs\. Profit Margin/ },
   { path: '/bakery-labor-cost.html', title: /How to Calculate Labor Cost/ },
@@ -306,7 +306,7 @@ test('the calculator page carries valid WebApplication JSON-LD, describing it as
     const jsonLd = await page.$eval('script[type="application/ld+json"]', el => el.textContent || '')
     const parsed = JSON.parse(jsonLd)
     assert.equal(parsed['@type'], 'WebApplication')
-    assert.equal(parsed.name, 'Free Home Bakery Pricing Calculator')
+    assert.equal(parsed.name, 'Free Bakery Pricing Calculator')
     assert.equal(parsed.offers.price, '0')
     assert.ok(parsed.description.length > 20)
   } finally {

@@ -65,10 +65,10 @@ interface ToolEntry {
 
 const BAKER_TOOLS: ToolEntry[] = [
   {
-    name: 'Free Home Bakery Pricing Calculator',
+    name: 'Free Bakery Pricing Calculator',
     url: '/bakery-pricing-guide',
-    desc: 'A free, complete cost-and-pricing calculator for home bakers — ingredients, labor, packaging, waste, and overhead, with a clear suggested price. No account, no ads, and your data stays on your device.',
-    audience: 'For: home bakers pricing their own recipes',
+    desc: 'A free, complete cost-and-pricing calculator for bakers and bakery businesses — ingredients, labor, packaging, waste, and overhead, with a clear suggested price. No account, no ads, and your data stays on your device.',
+    audience: 'For: bakers and bakery businesses pricing their own recipes',
     kind: 'free',
     Icon: IconCalculator,
   },
@@ -165,7 +165,7 @@ export default function BusinessToolsHubPage() {
         <section className="bt-section" aria-labelledby="bt-bakers-heading">
           <div className="bt-section-inner">
             <div className="bt-section-header" data-reveal>
-              <p className="section-label">For Home Bakers</p>
+              <p className="section-label">For Bakers &amp; Bakery Businesses</p>
               <h2 id="bt-bakers-heading" className="section-title">Pricing and order tools for bakers</h2>
             </div>
             <ul className="bt-tools-grid" role="list">
@@ -205,7 +205,7 @@ export default function BusinessToolsHubPage() {
             <p className="section-subtitle">
               Every tool marked "Live Demo" above is a public example of the kind of interactive
               tool Websites by Leslie can build and customize for your own business — your
-              branding, your questions, your workflow. The Free Home Bakery Pricing Calculator is
+              branding, your questions, your workflow. The Free Bakery Pricing Calculator is
               different: it's a genuinely free, ready-to-use resource, not a demo of custom work.
             </p>
             <div className="bt-custom-cta">

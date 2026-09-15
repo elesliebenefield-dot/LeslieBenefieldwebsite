@@ -310,11 +310,11 @@ export default function ServicesPage() {
             </p>
             <div className="pricing-free-card">
               <span className="pricing-free-tag">Free Tool</span>
-              <h3 className="pricing-free-card-title">Free Home Bakery Pricing Calculator</h3>
+              <h3 className="pricing-free-card-title">Free Bakery Pricing Calculator</h3>
               <p className="pricing-free-card-desc">
-                A free, complete cost-and-pricing calculator for home bakers — ingredients, labor,
-                packaging, waste, and overhead, with a clear suggested price. No account, no ads,
-                and your data stays on your device.
+                A free, complete cost-and-pricing calculator for bakers and bakery businesses —
+                ingredients, labor, packaging, waste, and overhead, with a clear suggested price.
+                No account, no ads, and your data stays on your device.
               </p>
               <a href="/bakery-pricing-guide" className="pricing-free-link">
                 Use the Free Calculator →
