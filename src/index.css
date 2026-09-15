@@ -3877,10 +3877,6 @@ section[id] {
     transform: translateY(-4px);
     border-top-color: var(--color-accent);
   }
-  .bt-tool-card:hover .bt-tool-link {
-    background-color: var(--color-accent-button-hover);
-    border-color: var(--color-accent-button-hover);
-  }
 }
 
 .bt-tool-icon {
@@ -3954,37 +3950,16 @@ section[id] {
   margin-bottom: 1rem;
 }
 
+/* Visual styling (colors, padding, typography, borders, hover, focus,
+   active) comes entirely from the shared .btn/.btn-outline classes — see
+   the "Style 2 SECONDARY" definition near the top of this file, same as
+   every other .btn on the site. The only addition here is staying
+   left-aligned instead of stretching to fill the card's flex column —
+   no nowrap override, so the label wraps at narrow widths exactly like
+   any other .btn would, rather than forcing a minimum width the card
+   can't accommodate at 320px. */
 .bt-tool-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-accent-button);
-  background: #fff;
-  border: 2px solid var(--color-accent-button);
-  border-radius: var(--radius-md);
-  padding: 0.625rem 1.25rem;
-  transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
   align-self: flex-start;
-  text-decoration: none;
-  min-height: 44px;
-  box-shadow: none;
-  white-space: nowrap;
-}
-
-.bt-tool-link:hover {
-  background: var(--color-bg-alt);
-  color: var(--color-accent-button-hover);
-  border-color: var(--color-accent-button-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(77, 163, 168, 0.15);
-}
-
-.bt-tool-link:focus-visible {
-  outline: 2px solid var(--color-accent-button);
-  outline-offset: 2px;
 }
 
 .bt-custom {
