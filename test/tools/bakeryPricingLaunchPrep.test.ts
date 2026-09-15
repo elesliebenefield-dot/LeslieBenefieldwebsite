@@ -131,17 +131,26 @@ test('the live Services page links the free calculator through its distinct free
   }
 })
 
-test('the homepage discovers the tools only through a single "Business Tools" hub link, not a direct bakery-pricing link', async () => {
-  // Per the M7 IA correction: the homepage's featured-tool callout should
-  // point to the general /business-tools hub, not straight to any one
-  // tool. The hub itself is what links onward to the bakery-pricing
-  // landing page.
+test('the homepage callout discovers the tools only through the single "Business Tools" hub link; the mobile nav\'s Tools & Resources group separately provides a direct calculator link', async () => {
+  // Per the M7 IA correction, the homepage's own featured-tool callout
+  // funnels through the general /business-tools hub, not straight to any
+  // one tool — that part is unchanged. The 2026-09-15 mobile-menu redesign
+  // deliberately and separately adds direct tool links inside the shared
+  // Nav's collapsible "Tools & Resources" group, present on every page
+  // including the homepage — an intentional, approved discovery path, not
+  // a regression of the callout's own behavior. This test now checks each
+  // scope on its own terms instead of a single page-wide "no bakery href
+  // anywhere" assertion that the approved nav redesign correctly no longer
+  // satisfies.
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
-    const hrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
-    assert.ok(hrefs.includes('/business-tools'), 'the homepage should link the Business Tools hub')
-    assert.ok(!hrefs.some(h => h.includes('bakery')), 'the homepage must not link any bakery-pricing content directly')
+    assert.ok(await page.$('.tools-callout'), 'the homepage should have its featured-tool callout')
+    const calloutHrefs = await page.$$eval('.tools-callout a[href]', els => els.map(e => e.getAttribute('href') || ''))
+    assert.deepEqual(calloutHrefs, ['/business-tools'], 'the homepage callout itself should link only the Business Tools hub, not any tool directly')
+
+    const navHrefs = await page.$$eval('.nav-mobile a[href]', els => els.map(e => e.getAttribute('href') || ''))
+    assert.ok(navHrefs.includes('/bakery-pricing-guide'), 'the mobile nav\'s Tools & Resources group should link the free calculator directly')
   } finally {
     await page.close()
   }

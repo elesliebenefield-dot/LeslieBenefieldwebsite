@@ -343,6 +343,12 @@ section[id] {
   flex-direction: column;
   padding: 0.5rem 1.5rem 1.25rem;
   border-top: 1px solid rgba(77, 163, 168, 0.15);
+  /* Grouped structure (2026-09-15) can grow taller than a short phone's
+     viewport once several groups are expanded at once — scroll within
+     the panel itself rather than letting it overflow uncontrollably.
+     64px matches .nav-inner's fixed height above it. */
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
 }
 
 .nav-mobile a {
@@ -371,6 +377,85 @@ section[id] {
   border-radius: var(--radius-sm);
   border-bottom: none !important;
   font-weight: 600 !important;
+}
+
+/* Mobile menu groups (2026-09-15) — collapsible table-of-contents
+   sections, independent disclosures (more than one can be open at
+   once), mirroring the /faq accordion's own established pattern
+   (button + aria-expanded/aria-controls, 0fr/1fr grid-rows height
+   animation, chevron rotation as the actual state signal). Colors stay
+   in the same light-on-dark-navy scheme .nav-mobile a already uses,
+   rather than introducing the /faq accordion's light-background teal. */
+.nav-mobile-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nav-mobile-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(251, 252, 253, 0.8);
+  padding: 0.7rem 0;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.nav-mobile-group-toggle:hover {
+  color: #fff;
+}
+
+.nav-mobile-group-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.nav-mobile-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-mobile-group-toggle[aria-expanded='true'] .nav-mobile-chevron {
+  transform: rotate(180deg);
+}
+
+.nav-mobile-group-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.35s;
+}
+
+.nav-mobile-group[data-open='true'] .nav-mobile-group-panel {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s;
+}
+
+.nav-mobile-group-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-mobile-sublink {
+  padding-left: 1rem;
+  font-size: 0.9rem;
+}
+
+.nav-mobile-view-all {
+  font-weight: 600;
+  color: #fff;
 }
 
 
@@ -3250,6 +3335,13 @@ section[id] {
   .faq-panel-wrap,
   .faq-item[data-open='true'] .faq-panel-wrap,
   .faq-chevron {
+    transition: none;
+  }
+  /* Same treatment for the mobile-menu groups (2026-09-15): still
+     open/close, just instantly, matching the /faq accordion above. */
+  .nav-mobile-group-panel,
+  .nav-mobile-group[data-open='true'] .nav-mobile-group-panel,
+  .nav-mobile-chevron {
     transition: none;
   }
   /* Overrides the (hover: hover) and (pointer: fine)-gated starting

@@ -316,10 +316,16 @@ test('showcase page does not describe the suite or tools as "free"', async () =>
 
     // "free quote" (about a business consultation) is permitted.
     // "free to explore", "free tools", "free suite" are prohibited.
-    // Strip allowed occurrences of "free quote" / "free website review" before checking.
+    // Strip allowed occurrences before checking: "free quote" / "free website
+    // review" (existing), plus "free bakery pricing calculator" (2026-09-15
+    // mobile-menu redesign) — the shared Nav's "Tools & Resources" group,
+    // present on every page including this one, genuinely and correctly
+    // describes that one tool as free; it says nothing about the real-estate
+    // suite this test actually cares about.
     const stripped = bodyText
       .replace(/free quote/g, '')
       .replace(/free website review/g, '')
+      .replace(/free bakery pricing calculator/g, '')
 
     const prohibitedPattern = /\bfree\b.{0,30}(tool|suite|demo|implement|integrat|setup|custom|brand)/
     const reversePattern    = /(tool|suite|demo|implement|integrat|setup|custom|brand).{0,30}\bfree\b/

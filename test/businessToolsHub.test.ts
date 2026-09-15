@@ -81,16 +81,25 @@ test('the desktop nav has exactly one "Tools" link, pointing to /business-tools,
   }
 })
 
-test('the mobile nav has exactly one "Business Tools" link, pointing to /business-tools', async () => {
+test('the mobile nav\'s "Tools & Resources" group has exactly one "View all Business Tools" link, pointing to /business-tools (2026-09-15 mobile-menu redesign)', async () => {
+  // Superseded by the mobile-menu redesign: "Business Tools" is no longer
+  // a flat top-level link — it's the "View all Business Tools →" entry
+  // inside the collapsible "Tools & Resources" group. See
+  // test/navMobileMenu.test.ts for the full grouped-menu test coverage.
   const page: Page = await browser.newPage()
   try {
     await page.setViewport({ width: 390, height: 844 })
     await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
     await page.click('.nav-hamburger')
+    const toggles = await page.$$('.nav-mobile-group-toggle')
+    for (const toggle of toggles) {
+      const label = await toggle.$eval('span', el => el.textContent?.trim())
+      if (label === 'Tools & Resources') await toggle.click()
+    }
     const hrefs = await page.$$eval('.nav-mobile a[href]', els => els.map(e => ({ text: e.textContent?.trim(), href: e.getAttribute('href') })))
     const toolsLinks = hrefs.filter(h => h.href === '/business-tools')
     assert.equal(toolsLinks.length, 1, 'mobile nav should have exactly one link to /business-tools')
-    assert.equal(toolsLinks[0].text, 'Business Tools')
+    assert.equal(toolsLinks[0].text, 'View all Business Tools →')
   } finally {
     await page.close()
   }
