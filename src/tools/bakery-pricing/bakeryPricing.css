@@ -1,0 +1,1410 @@
+/* Bakery Pricing Calculator — locally-scoped design tokens and the full
+   guided-flow UI (M3). Deliberately NOT defined on :root: this tool's
+   approved bakery-ledger visual identity (warm cream, espresso, raspberry,
+   sage, gold) is its own thing, distinct from the site's shared
+   "Fresh Coastal" tokens in tools.css. Scoping to .bakery-pricing-calculator
+   means both coexist on the same page with zero collision in either
+   direction — tools.css's shared chrome (.tool-header, .tool-disclaimer)
+   keeps the site's own brand colors outside this container, exactly as
+   intended. Mobile-first throughout: base rules target narrow viewports,
+   with a min-width breakpoint for desktop centering.
+
+   ---------- Typography ("boutique bakery classic") ----------
+   Chosen by Leslie after a three-way visual comparison of real screenshots
+   (see design.md's Typography section) — replaces an earlier Syne/Lora/
+   Sacramento pairing that read as too generic and too heavy. Two font
+   families, reused exactly as tools-bakery-pricing.html's own font <link>
+   requests them, plus one narrow italic-only borrow:
+     - Libre Caslon Display (--bp-font-display): the product title and
+       every major section heading. This family ships exactly one weight
+       (400) and no italic — headings are set at that genuine weight
+       rather than asking the browser to synthesize a fake bold, which
+       reliably looks worse than an honest regular weight.
+     - Karla (--bp-font-interface, the container's own base font): every
+       interface surface — step indicator, form labels, buttons, inputs,
+       nav, badges, ingredient/ledger rows, and all other UI text — plus
+       every cost, quantity, and suggested-price figure, in bold with
+       tabular numerals (applied once, at the container root — a no-op on
+       non-digit text, so it never needs hunting down per number) so
+       changing figures never visually reflow against their neighbors.
+     - Libre Caslon Text, italic only (--bp-font-display-italic): used for
+       the Step 1 intro lead sentence and the single short decorative line
+       ("Priced with confidence.") above the Step 3 suggested-price card.
+       Libre Caslon Display has no italic cut of its own, so both italic
+       moments borrow its companion text face rather than letting the
+       browser synthesize a fake oblique — never used for a label, button,
+       price, or validation message. */
+
+.bakery-pricing-calculator {
+  --bp-cream: #F6EFE2;
+  --bp-paper: #FBF7EE;
+  --bp-espresso: #3A2B22;
+  --bp-espresso-soft: #6B584B;
+  --bp-raspberry: #A23855;
+  --bp-raspberry-dark: #832A42;
+  --bp-raspberry-soft: #F2DCE2;
+  --bp-sage: #8C9C82;
+  --bp-sage-soft: #E4E9DD;
+  --bp-gold: #B8912F;
+  --bp-gold-soft: #F1E4BE;
+  --bp-line: #DCCFB2;
+  --bp-danger-bg: #F7E3DD;
+  --bp-danger-text: #8A3B22;
+  --bp-danger-border: #E0B39D;
+  --bp-radius: 16px;
+
+  /* Fallback stacks are chosen so the layout stays fully usable if the web
+     fonts fail to load: Georgia is a universal serif standing in for Libre
+     Caslon Display at a near-identical measure and weight; the tool's
+     original system-ui sans stack stands in for Karla. */
+  --bp-font-display: 'Libre Caslon Display', Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  --bp-font-interface: 'Karla', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Libre Caslon Display has no italic cut of its own — every italic
+     moment (the Step 1 intro lead, the completion accent) uses this
+     companion text face instead, rather than letting the browser
+     synthesize a fake oblique from the display face. */
+  --bp-font-display-italic: 'Libre Caslon Text', Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+
+  display: block;
+  position: relative;
+  background-color: var(--bp-cream);
+  /* Very faint, purely decorative dusted-flour texture — two scattered dot
+     layers well under 5% opacity, so it reads as texture, not pattern, and
+     never competes with any calculator number, input, or message. */
+  background-image:
+    radial-gradient(circle, rgba(107, 78, 18, 0.05) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(139, 32, 63, 0.04) 1px, transparent 1.6px);
+  background-size: 26px 26px, 42px 42px;
+  background-position: 0 0, 15px 21px;
+  color: var(--bp-espresso);
+  font-family: var(--bp-font-interface);
+  font-size: 16px;
+  line-height: 1.5;
+  /* A no-op on any text without digits, so every cost/quantity/subtotal
+     figure anywhere in the calculator gets fixed-width numerals without
+     needing the rule repeated per element. */
+  font-variant-numeric: tabular-nums;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .bakery-pricing-calculator {
+    padding: 2rem 2rem 3rem;
+  }
+}
+
+.bakery-pricing-calculator .bp-step {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.bakery-pricing-calculator .bp-page-heading {
+  font-family: var(--bp-font-display);
+  font-size: 1.4375rem;
+  /* Libre Caslon Display ships exactly one real weight (400) — asking for
+     600/700 here would only trigger the browser's synthesized ("fake")
+     bold, which reliably looks worse than its own genuine regular cut. */
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0 auto 1rem;
+  max-width: 640px;
+  color: var(--bp-espresso);
+}
+
+@media (min-width: 640px) {
+  .bakery-pricing-calculator .bp-page-heading {
+    font-size: 1.875rem;
+  }
+}
+
+.bakery-pricing-calculator .bp-h2 {
+  font-family: var(--bp-font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  margin: 1.75rem 0 0.625rem;
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-h2:first-child {
+  margin-top: 0;
+}
+
+/* ---------- Section icon medallions ---------- */
+.bakery-pricing-calculator .bp-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  min-width: 1.75rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  vertical-align: -0.4rem;
+  margin-right: 0.375rem;
+}
+
+.bakery-pricing-calculator .bp-section-icon-gold {
+  background: var(--bp-gold-soft);
+}
+
+.bakery-pricing-calculator .bp-section-icon-raspberry {
+  background: var(--bp-raspberry-soft);
+}
+
+.bakery-pricing-calculator .bp-helper {
+  font-size: 0.875rem;
+  color: var(--bp-espresso-soft);
+  margin: 0.375rem 0 0;
+  line-height: 1.5;
+}
+
+.bakery-pricing-calculator .bp-optional {
+  font-weight: 400;
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .bp-divider {
+  border: none;
+  border-top: 2px dashed var(--bp-gold);
+  opacity: 0.5;
+  margin: 1.5rem auto;
+  max-width: 520px;
+}
+
+.bakery-pricing-calculator .bp-page-heading-icon {
+  font-size: 1.1em;
+  margin-right: 0.25rem;
+  vertical-align: -0.05em;
+}
+
+/* ---------- Welcome intro (Step 1 only) ---------- */
+.bakery-pricing-calculator .bp-intro {
+  background: var(--bp-sage-soft);
+  border: 1px solid var(--bp-sage);
+  border-radius: var(--bp-radius);
+  padding: 1rem 1.125rem;
+  margin: 0 auto 1.5rem;
+  max-width: 640px;
+}
+
+.bakery-pricing-calculator .bp-intro-lead {
+  font-family: var(--bp-font-display-italic);
+  font-style: italic;
+  font-size: 1.125rem;
+  color: #3F4A38;
+  margin: 0 0 0.375rem;
+  line-height: 1.45;
+}
+
+.bakery-pricing-calculator .bp-intro-checklist {
+  font-size: 0.875rem;
+  color: #3F4A38;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ---------- Empty state ---------- */
+.bakery-pricing-calculator .bp-empty-state {
+  background: var(--bp-paper);
+  border: 1px dashed var(--bp-line);
+  border-radius: var(--bp-radius);
+  padding: 1.25rem 1.125rem;
+  margin-bottom: 0.875rem;
+  font-size: 0.9375rem;
+  color: var(--bp-espresso-soft);
+  text-align: center;
+}
+
+.bakery-pricing-calculator .bp-empty-state-icon {
+  display: block;
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-empty-state p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.bakery-pricing-calculator .bp-empty-state-error {
+  background: var(--bp-danger-bg);
+  border: 1px solid var(--bp-danger-border);
+  color: var(--bp-danger-text);
+}
+
+/* ---------- Package vs. recipe amount grouping ---------- */
+.bakery-pricing-calculator .bp-amount-compare {
+  background: var(--bp-cream);
+  border: 1px solid var(--bp-line);
+  border-radius: 12px;
+  padding: 0.875rem 1rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.bakery-pricing-calculator .bp-amount-compare-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--bp-espresso);
+  margin: 0 0 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-amount-compare-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.bakery-pricing-calculator .bp-amount-compare-arrow {
+  align-self: center;
+  color: var(--bp-gold);
+  font-size: 1.25rem;
+  transform: rotate(90deg);
+}
+
+.bakery-pricing-calculator .bp-amount-block {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 10px;
+  padding: 0.75rem 0.875rem;
+}
+
+.bakery-pricing-calculator .bp-amount-block-title {
+  display: inline-block;
+  background: var(--bp-gold-soft);
+  color: #6B4E12;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  padding: 0.2rem 0.625rem;
+  margin-bottom: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-amount-block label {
+  margin-bottom: 0.375rem;
+}
+
+@media (min-width: 560px) {
+  .bakery-pricing-calculator .bp-amount-compare-grid {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .bakery-pricing-calculator .bp-amount-block {
+    flex: 1;
+  }
+
+  .bakery-pricing-calculator .bp-amount-compare-arrow {
+    transform: none;
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* ---------- Step indicator ---------- */
+.bakery-pricing-calculator .bp-step-indicator {
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.bakery-pricing-calculator .bp-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bp-sage-soft);
+  color: #3F4A38;
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.bakery-pricing-calculator .bp-step-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bp-espresso-soft);
+}
+
+/* ---------- Buttons ---------- */
+.bakery-pricing-calculator .bp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.75rem 1.125rem;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-family: var(--bp-font-interface);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+.bakery-pricing-calculator .bp-btn-primary {
+  background: var(--bp-raspberry);
+  color: #fff;
+}
+
+.bakery-pricing-calculator .bp-btn-primary:hover {
+  background: var(--bp-raspberry-dark);
+}
+
+.bakery-pricing-calculator .bp-btn-primary:disabled {
+  background: var(--bp-line);
+  color: var(--bp-espresso-soft);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.bakery-pricing-calculator .bp-btn-secondary {
+  background: transparent;
+  border-color: var(--bp-espresso);
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bakery-pricing-calculator .bp-btn-ghost {
+  background: var(--bp-paper);
+  border-color: var(--bp-line);
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-link-btn {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--bp-raspberry);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.625rem 0.25rem;
+  min-height: 44px;
+  text-decoration: underline;
+  margin: 0.5rem auto 0;
+  max-width: 640px;
+  width: 100%;
+  text-align: left;
+}
+
+.bakery-pricing-calculator .bp-remove-btn {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  color: var(--bp-espresso-soft);
+  border-radius: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* Nav footer */
+/* Stacked, full-width at the narrowest phones: an earlier interface font
+   made the longest label ("Continue to Additional Costs →") wrap to three
+   cramped lines — with an orphaned arrow — when squeezed into half of a
+   320px row. Full width keeps it to a clean one- or two-line wrap
+   regardless of which interface font is active, rather than depending on
+   a specific font's character width. Side by side again once there's room
+   for both buttons to stay comfortable. */
+.bakery-pricing-calculator .bp-nav {
+  max-width: 640px;
+  margin: 1.5rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+@media (min-width: 480px) {
+  .bakery-pricing-calculator .bp-nav {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+}
+
+.bakery-pricing-calculator .bp-nav .bp-btn {
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  .bakery-pricing-calculator .bp-nav .bp-btn {
+    width: auto;
+    flex: 1;
+  }
+}
+
+/* ---------- Focus ---------- */
+.bakery-pricing-calculator button:focus-visible,
+.bakery-pricing-calculator input:focus-visible,
+.bakery-pricing-calculator select:focus-visible,
+.bakery-pricing-calculator summary:focus-visible {
+  outline: 3px solid var(--bp-gold);
+  outline-offset: 2px;
+}
+
+/* ---------- Forms ---------- */
+.bakery-pricing-calculator label,
+.bakery-pricing-calculator .bp-group-label {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--bp-espresso);
+  margin-bottom: 0.375rem;
+  line-height: 1.35;
+}
+
+.bakery-pricing-calculator .bp-field {
+  margin-bottom: 1.25rem;
+}
+
+.bakery-pricing-calculator input[type='text'],
+.bakery-pricing-calculator input[type='number'],
+.bakery-pricing-calculator select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--bp-line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 1rem;
+  color: var(--bp-espresso);
+  font-family: inherit;
+  /* Form controls don't reliably inherit font-variant-numeric from an
+     ancestor in every browser, so it's restated explicitly here — every
+     price/quantity field a baker types into keeps fixed-width digits. */
+  font-variant-numeric: tabular-nums;
+}
+
+.bakery-pricing-calculator input[type='range'] {
+  flex: 2;
+  accent-color: var(--bp-raspberry);
+}
+
+.bakery-pricing-calculator .bp-inline-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+@media (min-width: 480px) {
+  .bakery-pricing-calculator .bp-inline-fields {
+    flex-direction: row;
+  }
+
+  .bakery-pricing-calculator .bp-inline-fields > * {
+    flex: 1;
+  }
+}
+
+.bakery-pricing-calculator .bp-error {
+  background: var(--bp-danger-bg);
+  color: var(--bp-danger-text);
+  border: 1px solid var(--bp-danger-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 0;
+  line-height: 1.4;
+}
+
+.bakery-pricing-calculator .bp-error-banner {
+  background: var(--bp-danger-bg);
+  color: var(--bp-danger-text);
+  border: 1px solid var(--bp-danger-border);
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+  max-width: 640px;
+}
+
+.bakery-pricing-calculator .bp-zero-notice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bp-gold-soft);
+  border: 1px solid var(--bp-gold);
+  color: #6B4E12;
+  border-radius: 10px;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  margin-top: 0.625rem;
+}
+
+.bakery-pricing-calculator .bp-zero-notice button {
+  background: #fff;
+  border: 1px solid var(--bp-gold);
+  color: #6B4E12;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+/* ---------- Cards ---------- */
+.bakery-pricing-calculator .bp-card {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: var(--bp-radius);
+  padding: 1rem 1.125rem;
+  margin: 0.75rem auto 0;
+  max-width: 640px;
+}
+
+/* ---------- Ingredient list ---------- */
+.bakery-pricing-calculator .bp-ingredient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bakery-pricing-calculator .bp-ingredient-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 0.625rem;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--bp-line);
+  font-size: 0.875rem;
+}
+
+.bakery-pricing-calculator .bp-row-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.bakery-pricing-calculator .bp-row-actions .bp-remove-btn {
+  margin-left: 0;
+}
+
+.bakery-pricing-calculator .bp-ingredient-row:last-child {
+  border-bottom: none;
+}
+
+.bakery-pricing-calculator .bp-ingredient-amount {
+  color: var(--bp-espresso-soft);
+  font-size: 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-ingredient-cost {
+  color: var(--bp-espresso-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.bakery-pricing-calculator .bp-ingredient-subtotal {
+  border-top: 1px dashed var(--bp-line);
+  border-bottom: none;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
+/* ---------- Progressive disclosure ---------- */
+.bakery-pricing-calculator details.bp-cost-group {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: var(--bp-radius);
+  padding: 0 1.125rem;
+  margin: 0 auto 0.75rem;
+  max-width: 640px;
+}
+
+.bakery-pricing-calculator details.bp-cost-group > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.875rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+}
+
+.bakery-pricing-calculator details.bp-cost-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Groups a section's icon with its label as one flex item, so the parent
+   summary's space-between (icon+label on the left, chevron on the right)
+   isn't thrown off by the icon becoming a third item on its own. */
+.bakery-pricing-calculator .bp-summary-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.bakery-pricing-calculator details.bp-cost-group > summary .bp-chev {
+  transition: transform 0.15s ease;
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator details.bp-cost-group[open] > summary .bp-chev {
+  transform: rotate(90deg);
+}
+
+.bakery-pricing-calculator .bp-details-body {
+  padding-bottom: 1rem;
+}
+
+/* ---------- Ledger ---------- */
+.bakery-pricing-calculator .bp-ledger {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: var(--bp-radius);
+  padding: 1rem 1.125rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.bakery-pricing-calculator .bp-ledger-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  padding: 0.375rem 0;
+}
+
+.bakery-pricing-calculator .bp-ledger-total {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  border-top: 2px solid var(--bp-gold);
+  margin-top: 0.375rem;
+  padding-top: 0.625rem;
+}
+
+.bakery-pricing-calculator .bp-ledger-sub {
+  color: var(--bp-espresso-soft);
+  font-size: 0.75rem;
+  padding: 0.125rem 0 0.375rem 0.625rem;
+}
+
+/* ---------- Markup reference (secondary, inside "See how this was
+   calculated" — margin's own one-sentence explanation lives in .bp-helper
+   right next to the margin input, at equal weight to every other field
+   helper, not as its own callout) ---------- */
+.bakery-pricing-calculator .bp-markup-note {
+  font-size: 0.8125rem;
+  color: var(--bp-espresso-soft);
+  line-height: 1.5;
+  margin: 0.875rem 0 0;
+}
+
+/* ---------- Price callouts ---------- */
+.bakery-pricing-calculator .bp-price-callout {
+  background: var(--bp-sage-soft);
+  border: 1px solid var(--bp-sage);
+  border-radius: var(--bp-radius);
+  padding: 0.875rem 1rem;
+  margin: 0.875rem auto 0;
+  max-width: 640px;
+}
+
+.bakery-pricing-calculator .bp-price-callout-gold {
+  background: var(--bp-gold-soft);
+  border-color: var(--bp-gold);
+  color: #6B4E12;
+}
+
+.bakery-pricing-calculator .bp-price-big {
+  font-family: var(--bp-font-interface);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bakery-pricing-calculator .bp-price-sub {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+/* One short, purely decorative accent line — placed at the completion
+   moment (just above the suggested-price card) rather than the
+   introduction, so it pairs with the existing one-time celebration
+   highlight instead of adding visual noise to the very first screen a
+   baker sees. Never instructions, a label, a button, a price, or anything
+   a baker needs to act on. */
+.bakery-pricing-calculator .bp-script-accent {
+  font-family: var(--bp-font-display-italic);
+  font-style: italic;
+  font-size: 1.375rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--bp-raspberry);
+  margin: -0.25rem 0 0.75rem;
+}
+
+/* The headline result — the two answers a baker actually opened this tool
+   for — gets noticeably more visual weight than every other callout. */
+.bakery-pricing-calculator .bp-price-lead {
+  padding: 1.25rem 1.25rem 1.375rem;
+}
+
+.bakery-pricing-calculator .bp-price-lead .bp-price-big {
+  font-size: 2.125rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-price-lead .bp-price-sub {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-top: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (min-width: 640px) {
+  .bakery-pricing-calculator .bp-price-lead .bp-price-big {
+    font-size: 2.625rem;
+  }
+}
+
+.bakery-pricing-calculator .bp-increment-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+}
+
+.bakery-pricing-calculator .bp-increment-row button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--bp-line);
+  background: #fff;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-increment-row button.is-active {
+  background: var(--bp-espresso);
+  color: #fff;
+  border-color: var(--bp-espresso);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bp-line);
+}
+
+/* ---------- Disclaimer: reduce visual dominance, stay visible ----------
+   .tool-disclaimer itself sits outside .bakery-pricing-calculator (it's
+   shared site chrome in the site's own colors, per the Website-Integration
+   Structure), so this override is intentionally unscoped — .bp-disclaimer-
+   compact is specific enough not to affect any other tool's disclaimer. */
+.tool-disclaimer.bp-disclaimer-compact {
+  padding: 0.875rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.tool-disclaimer.bp-disclaimer-compact .bp-disclaimer-summary {
+  margin-bottom: 0.5rem;
+}
+
+.tool-disclaimer.bp-disclaimer-compact .bp-disclaimer-attribution {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.tool-disclaimer.bp-disclaimer-compact details {
+  margin: 0;
+}
+
+.tool-disclaimer.bp-disclaimer-compact summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-accent-button);
+  display: inline-block;
+}
+
+.tool-disclaimer.bp-disclaimer-compact summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-disclaimer.bp-disclaimer-compact summary:hover {
+  text-decoration: underline;
+}
+
+.tool-disclaimer.bp-disclaimer-compact summary:focus-visible {
+  outline: 2px solid var(--color-accent-button);
+  outline-offset: 2px;
+}
+
+.tool-disclaimer.bp-disclaimer-compact details p {
+  margin-top: 0.625rem;
+  margin-bottom: 0;
+}
+
+/* ---------- Cross-type (weight/volume) resolution help ---------- */
+.bakery-pricing-calculator .bp-cross-type-help {
+  background: var(--bp-gold-soft);
+  border: 1px solid var(--bp-gold);
+  border-radius: 12px;
+  padding: 0.875rem 1rem;
+  margin-top: 0.875rem;
+  color: #6B4E12;
+}
+
+.bakery-pricing-calculator .bp-cross-type-help > p:first-child {
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+/* Two equally-weighted resolution choices — same size, same visual
+   treatment, so neither reads as "the real option" and the other as an
+   afterthought. */
+.bakery-pricing-calculator .bp-choice-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 480px) {
+  .bakery-pricing-calculator .bp-choice-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bakery-pricing-calculator .bp-choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 44px;
+  background: #fff;
+  border: 2px solid var(--bp-gold);
+  border-radius: 10px;
+  padding: 0.75rem 0.875rem;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--bp-font-interface);
+}
+
+.bakery-pricing-calculator .bp-choice-card:hover {
+  background: var(--bp-cream);
+}
+
+.bakery-pricing-calculator .bp-choice-card-selected {
+  background: var(--bp-gold-soft);
+  border-color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-choice-card-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-choice-card-helper {
+  font-size: 0.8125rem;
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .bp-conversion-form {
+  background: #fff;
+  border: 1px solid var(--bp-gold);
+  border-radius: 10px;
+  padding: 0.75rem 0.875rem;
+  margin-top: 0.625rem;
+}
+
+.bakery-pricing-calculator .bp-conversion-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+  margin: 0;
+}
+
+.bakery-pricing-calculator .bp-conversion-row select {
+  width: auto;
+  flex: 1 1 5.5rem;
+}
+
+.bakery-pricing-calculator .bp-conversion-row input {
+  width: auto;
+  flex: 1 1 6rem;
+}
+
+.bakery-pricing-calculator .bp-conversion-row span,
+.bakery-pricing-calculator .bp-conversion-row strong {
+  font-size: 0.875rem;
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .bp-cross-type-unresolved-note {
+  color: #6B4E12;
+  font-weight: 600;
+}
+
+.bakery-pricing-calculator .bp-continue-blocked-note {
+  max-width: 640px;
+  margin: 0.75rem auto 0;
+  color: #6B4E12;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---------- Common-ingredient autocomplete ---------- */
+.bakery-pricing-calculator .bp-autocomplete {
+  position: relative;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-list {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--bp-line);
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(59, 42, 26, 0.15);
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-option {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 0.625rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: var(--bp-espresso);
+  cursor: pointer;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-option-highlighted,
+.bakery-pricing-calculator .bp-autocomplete-option:hover {
+  background: var(--bp-cream);
+}
+
+.bakery-pricing-calculator .bp-autocomplete-badge {
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bp-sage-soft);
+  color: var(--bp-espresso);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bakery-pricing-calculator .bp-saved-ingredient-note {
+  background: var(--bp-sage-soft);
+  border-radius: 10px;
+  padding: 0.625rem 0.75rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+/* ---------- Standard conversion (common-ingredient library) ---------- */
+.bakery-pricing-calculator .bp-standard-conversion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-standard-conversion p {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+
+.bakery-pricing-calculator .bp-standard-conversion-change {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* ---------- Supplies & Packaging ---------- */
+.bakery-pricing-calculator .bp-supplies-equipment-note {
+  background: var(--bp-cream);
+  border-left: 3px solid var(--bp-sage);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-top: 0.625rem;
+}
+
+.bakery-pricing-calculator .bp-mode-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+  font-size: 0.9375rem;
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 10px;
+  padding: 0.625rem 0.75rem;
+  min-height: 44px;
+}
+
+.bakery-pricing-calculator .bp-mode-option input {
+  width: auto;
+  min-height: auto;
+  accent-color: var(--bp-raspberry);
+}
+
+/* ---------- Gentle hover/focus polish ---------- */
+/* A restrained lift on hover for the controls a baker actually presses —
+   entirely motion, so fully skipped under prefers-reduced-motion rather
+   than merely toned down. */
+@media (prefers-reduced-motion: no-preference) {
+  .bakery-pricing-calculator .bp-btn:not(:disabled),
+  .bakery-pricing-calculator .bp-choice-card,
+  .bakery-pricing-calculator .bp-autocomplete-option {
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .bakery-pricing-calculator .bp-btn-primary:hover:not(:disabled),
+  .bakery-pricing-calculator .bp-btn-secondary:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .bakery-pricing-calculator .bp-choice-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(58, 43, 34, 0.12);
+  }
+}
+
+/* ---------- One-time suggested-price completion highlight ---------- */
+/* A brief, subtle glow around the suggested-price card the first time a
+   completed calculation is reached this session (see CostBreakdownStep's
+   shouldCelebrate / BakeryPricingCalculator's hasCelebrated gate) — never
+   replayed on a mere Back/Next revisit, and completely absent under
+   prefers-reduced-motion rather than just shortened. */
+@media (prefers-reduced-motion: no-preference) {
+  .bakery-pricing-calculator .bp-price-lead-celebrate {
+    animation: bp-celebrate-glow 1.4s ease-out 1;
+  }
+
+  @keyframes bp-celebrate-glow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(184, 145, 47, 0);
+    }
+    30% {
+      box-shadow: 0 0 0 8px rgba(184, 145, 47, 0.28);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(184, 145, 47, 0);
+    }
+  }
+}
+
+/* ---------- M4: app-level navigation (Calculator / Saved Recipes / Ingredient Library) ---------- */
+.bakery-pricing-calculator .bp-app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn {
+  font-family: var(--bp-font-interface);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--bp-espresso-soft);
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn:hover {
+  background: var(--bp-cream);
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn.is-active {
+  background: var(--bp-espresso);
+  border-color: var(--bp-espresso);
+  color: var(--bp-paper);
+}
+
+/* ---------- M4: saved-data screens (Saved Recipes, Ingredient Library) ---------- */
+.bakery-pricing-calculator .bp-editing-banner {
+  background: var(--bp-gold-soft);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.bakery-pricing-calculator .bp-save-row {
+  margin: 1rem 0 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-saved-row {
+  align-items: flex-start;
+}
+
+.bakery-pricing-calculator .bp-saved-recipe-name {
+  font-weight: 700;
+  padding: 0;
+}
+
+.bakery-pricing-calculator .bp-saved-recipes-new {
+  margin-bottom: 1rem;
+}
+
+.bakery-pricing-calculator .bp-used-in-note {
+  display: inline;
+}
+
+/* ---------- Beginner-guidance estimators (Labor/Overhead/Waste "Help me estimate this") ---------- */
+.bakery-pricing-calculator .bp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.bakery-pricing-calculator .bp-estimate-mode-toggle {
+  margin-bottom: 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-estimator {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 12px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-estimator-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0.75rem 0;
+}
+
+.bakery-pricing-calculator .bp-estimator-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-estimator-row label {
+  flex: 1 1 12rem;
+  margin-bottom: 0;
+  font-weight: 400;
+}
+
+.bakery-pricing-calculator .bp-estimator-row input,
+.bakery-pricing-calculator .bp-estimator-row select {
+  width: 7rem;
+  flex: 0 0 auto;
+}
+
+.bakery-pricing-calculator .bp-estimator-row-with-period .bp-inline-fields {
+  flex: 0 0 auto;
+}
+
+.bakery-pricing-calculator .bp-estimator-row-with-period input {
+  width: 6rem;
+}
+
+.bakery-pricing-calculator .bp-estimator-row-with-period select {
+  width: auto;
+}
+
+.bakery-pricing-calculator .bp-estimator-total {
+  font-weight: 700;
+  margin: 0.5rem 0;
+}
+
+@media (max-width: 480px) {
+  .bakery-pricing-calculator .bp-estimator-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* flex-basis is a main-axis size — 12rem meant a sane *width* in the
+     row's normal side-by-side layout, but becomes a 12rem *height* once
+     the row above switches to a column direction here. Reset it back to
+     the label's natural (text) height at this width. */
+  .bakery-pricing-calculator .bp-estimator-row label {
+    flex: none;
+  }
+
+  .bakery-pricing-calculator .bp-estimator-row input,
+  .bakery-pricing-calculator .bp-estimator-row select {
+    width: 100%;
+  }
+}
+
+/* ---------- Results: cost completeness check + selling-price test ---------- */
+.bakery-pricing-calculator .bp-completeness-check {
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 12px;
+  padding: 0.875rem 1rem;
+  margin: 1rem 0;
+}
+
+.bakery-pricing-calculator .bp-completeness-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.bakery-pricing-calculator .bp-completeness-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.bakery-pricing-calculator .bp-completeness-icon {
+  font-size: 0.9375rem;
+}
+
+.bakery-pricing-calculator .bp-completeness-item-missing {
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .bp-completeness-note {
+  margin-top: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.bakery-pricing-calculator .bp-selling-price-test .bp-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-selling-price-result {
+  background: var(--bp-cream);
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-selling-price-result p {
+  margin: 0.25rem 0;
+}
+
+.bakery-pricing-calculator .bp-below-break-even {
+  color: var(--bp-danger-text);
+  background: var(--bp-danger-bg);
+  border: 1px solid var(--bp-danger-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  margin-top: 0.5rem;
+}
+
+/* ---------- M7 local prep: cross-link note + lead-gen CTA ---------- */
+.bakery-pricing-calculator .bp-cross-link-note {
+  background: var(--bp-cream);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .bp-cross-link-note a {
+  color: var(--bp-raspberry-dark);
+}
+
+/* The site's .tool-sales-cta is unscoped and defaults to the site's
+   generic teal accent — themed here to the calculator's own bakery-ledger
+   palette so it reads as part of this page, not a mismatched import. Same
+   structure/content shape as every other tool's sales CTA, different
+   colors only. */
+.bakery-pricing-calculator .tool-sales-cta {
+  border-color: var(--bp-gold);
+  border-radius: var(--bp-radius);
+  background: var(--bp-paper);
+  margin: 1.25rem 0;
+}
+
+.bakery-pricing-calculator .tool-sales-cta-eyebrow {
+  font-family: var(--bp-font-interface);
+  color: var(--bp-raspberry-dark);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-heading {
+  font-family: var(--bp-font-display);
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-body,
+.bakery-pricing-calculator .tool-sales-cta-features li {
+  font-family: var(--bp-font-interface);
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-features li::before {
+  color: var(--bp-sage);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link {
+  background: var(--bp-raspberry);
+  font-family: var(--bp-font-interface);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link:hover {
+  background: var(--bp-raspberry-dark);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link:focus-visible {
+  outline-color: var(--bp-gold);
+}

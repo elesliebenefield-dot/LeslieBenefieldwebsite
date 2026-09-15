@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Prepared locally as part of Milestone M7's local launch-preparation
+  phase. Scoped to the Free Home Bakery Pricing Calculator and its
+  supporting content (the calculator itself, its landing page, its four
+  educational articles) plus the Business Tools hub that discovers it
+  (added during the M7 information-architecture correction) — not a
+  full-site sitemap, and not a statement about how the rest of the
+  site's indexing is or should be managed.
+
+  As of the 2026-09-15 final-publication approval, every URL listed here
+  is indexable (noindex, nofollow removed). This file has not been
+  referenced from a robots.txt (none exists site-wide) and has not been
+  submitted to Google Search Console — that submission is Leslie's own
+  account-level step, not done here. See build/v1.0.0-launch/design.md.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://websitesbyleslie.com/business-tools</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/tools-bakery-pricing</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/bakery-pricing-guide</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/bakery-pricing-for-profit</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/bakery-food-cost-vs-margin</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/bakery-labor-cost</loc>
+  </url>
+  <url>
+    <loc>https://websitesbyleslie.com/bakery-packaging-waste-overhead</loc>
+  </url>
+</urlset>

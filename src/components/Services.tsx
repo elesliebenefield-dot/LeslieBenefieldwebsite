@@ -103,8 +103,8 @@ export default function Services() {
         <div className="tools-callout" data-reveal>
           <span className="tools-callout-eyebrow">New from Websites by Leslie</span>
           <p className="tools-callout-text">
-            A suite of six interactive real estate planning tools—built for agents who want to give clients something genuinely useful before, during, and after a transaction.{' '}
-            <a href="/real-estate-tools" className="tools-callout-link">See the tools →</a>
+            Free tools and interactive demos for real businesses—including a free pricing calculator for home bakers, plus planning tools for real estate, service, and event businesses.{' '}
+            <a href="/business-tools" className="tools-callout-link">Try my business tools →</a>
           </p>
         </div>
       </div>

@@ -20,6 +20,13 @@ const VERCEL_REWRITES: Record<string, string> = {
   '/tools/real-estate/closing-moving':       '/tools-closing-moving.html',
   '/real-estate-tools':                      '/tools-real-estate-showcase.html',
   '/tools-food-truck-event':                 '/tools-food-truck-event.html',
+  '/tools-bakery-pricing':                   '/tools-bakery-pricing.html',
+  '/bakery-pricing-guide':                   '/bakery-pricing-guide.html',
+  '/bakery-pricing-for-profit':               '/bakery-pricing-for-profit.html',
+  '/bakery-food-cost-vs-margin':              '/bakery-food-cost-vs-margin.html',
+  '/bakery-labor-cost':                       '/bakery-labor-cost.html',
+  '/bakery-packaging-waste-overhead':         '/bakery-packaging-waste-overhead.html',
+  '/business-tools':                          '/business-tools.html',
 }
 
 function rewriteMiddleware(): Connect.NextHandleFunction {
@@ -66,6 +73,13 @@ export default defineConfig({
         toolsCustomBakeryOrder:  fileURLToPath(new URL('./tools-custom-bakery-order.html',   import.meta.url)),
         toolsPlumbingVisit:      fileURLToPath(new URL('./tools-plumbing-visit.html',         import.meta.url)),
         toolsFoodTruckEvent:     fileURLToPath(new URL('./tools-food-truck-event.html',        import.meta.url)),
+        toolsBakeryPricing:      fileURLToPath(new URL('./tools-bakery-pricing.html',          import.meta.url)),
+        bakeryPricingGuide:      fileURLToPath(new URL('./bakery-pricing-guide.html',           import.meta.url)),
+        bakeryPricingForProfit:  fileURLToPath(new URL('./bakery-pricing-for-profit.html',      import.meta.url)),
+        bakeryFoodCostVsMargin:  fileURLToPath(new URL('./bakery-food-cost-vs-margin.html',     import.meta.url)),
+        bakeryLaborCost:         fileURLToPath(new URL('./bakery-labor-cost.html',              import.meta.url)),
+        bakeryPackagingWasteOverhead: fileURLToPath(new URL('./bakery-packaging-waste-overhead.html', import.meta.url)),
+        businessTools:           fileURLToPath(new URL('./business-tools.html',              import.meta.url)),
       },
     },
   },
