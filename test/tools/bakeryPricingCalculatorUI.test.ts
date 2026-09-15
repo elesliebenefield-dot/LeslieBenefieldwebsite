@@ -405,6 +405,40 @@ test('removing an ingredient takes it out of the list and updates the subtotal',
   }
 })
 
+test('Continue to Additional Costs is disabled with an explanatory note while the add-ingredient form is open, and re-enables once added or cancelled', async () => {
+  const page = await openTool()
+  try {
+    await setYield(page, '24')
+    await addIngredient(page, {
+      name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each',
+      packagePrice: '4.00', packageQuantity: '4', amountUsed: '2',
+    })
+    // The form is open but not yet added/cancelled — Continue must be blocked.
+    const disabledWhileOpen = await page.$eval('.bp-nav .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(disabledWhileOpen, true, 'Continue must be disabled while an ingredient form is still open')
+    const note = await page.$eval('.bp-continue-blocked-note', el => el.textContent || '')
+    assert.match(note, /Add or cancel this ingredient before continuing\./)
+
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const disabledAfterAdd = await page.$eval('.bp-nav .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(disabledAfterAdd, false, 'Continue should re-enable once the ingredient is added')
+    const noteGoneAfterAdd = await page.$('.bp-continue-blocked-note')
+    assert.equal(noteGoneAfterAdd, null)
+
+    // Reopen the form and cancel instead of adding — must also re-enable Continue.
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
+    const disabledWhileOpenAgain = await page.$eval('.bp-nav .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(disabledWhileOpenAgain, true)
+    await page.click('.bp-add-ingredient-form .bp-btn-secondary')
+    const disabledAfterCancel = await page.$eval('.bp-nav .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(disabledAfterCancel, false, 'Continue should re-enable once the open ingredient form is cancelled')
+  } finally {
+    await page.close()
+  }
+})
+
 // Package and recipe-usage units are independent selects, each offering
 // every unit from every measurement type (grouped under optgroups) — a
 // baker can buy flour by the pound and use it by the cup in one line.
@@ -653,6 +687,39 @@ test('typing "All-purpose flour" and selecting it applies the standard conversio
     // 3.49 * (240 g / 2267.96185 g) ≈ $0.37 — same hand-verified figure as
     // the manual-conversion cross-type test, since both use 1 cup = 120g.
     assert.match(rowText, /\$0\.37/, `expected ~$0.37, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('the explanation reads "converted using a standard baking estimate" once a standard conversion applies, not "we need one more detail"', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'All-purpose flour')
+    await selectSuggestionByText(page, 'All-purpose flour')
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '2')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-standard-conversion'))
+    const explanation = await page.$eval('.bp-cross-type-help > p', el => el.textContent || '')
+    assert.match(explanation, /We've converted it using a standard baking estimate\./)
+    assert.doesNotMatch(explanation, /we need one more detail/i, 'the "manual resolution needed" wording must not appear once a standard applies')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the explanation still reads "we need one more detail" for an unknown ingredient that genuinely requires manual resolution', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'My Secret Spice Blend', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '9.99', packageQuantity: '1', amountUsed: '1' })
+    const explanation = await page.$eval('.bp-cross-type-help > p', el => el.textContent || '')
+    assert.match(explanation, /we need one more detail to calculate its cost accurately/i)
+    assert.doesNotMatch(explanation, /converted it using a standard baking estimate/i)
   } finally {
     await page.close()
   }

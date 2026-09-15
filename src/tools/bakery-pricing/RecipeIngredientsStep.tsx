@@ -35,6 +35,11 @@ interface Props {
   onAddIngredient: (line: DraftIngredientLine) => void
   onRemoveIngredient: (id: string) => void
   showErrors: boolean
+  // Reports whether the add-ingredient form is currently open (unfinished
+  // or not-yet-added information visible) so the parent can block
+  // continuing to Additional Costs — a baker must not be able to assume a
+  // still-open, unadded ingredient is already part of the recipe.
+  onAddFormOpenChange?: (open: boolean) => void
 }
 
 interface DraftForm {
@@ -92,6 +97,7 @@ export function RecipeIngredientsStep({
   onAddIngredient,
   onRemoveIngredient,
   showErrors,
+  onAddFormOpenChange,
 }: Props) {
   const [isAdding, setIsAdding] = useState(false)
   const [form, setForm] = useState<DraftForm>(initialForm())
@@ -306,6 +312,7 @@ export function RecipeIngredientsStep({
     setForm(initialForm())
     setAddError(null)
     setIsAdding(false)
+    onAddFormOpenChange?.(false)
     resetIngredientIdentity()
   }
 
@@ -389,7 +396,7 @@ export function RecipeIngredientsStep({
       )}
 
       {!isAdding ? (
-        <button type="button" className="bp-btn bp-btn-ghost" onClick={() => setIsAdding(true)}>
+        <button type="button" className="bp-btn bp-btn-ghost" onClick={() => { setIsAdding(true); onAddFormOpenChange?.(true) }}>
           + Add an ingredient
         </button>
       ) : (
@@ -502,8 +509,12 @@ export function RecipeIngredientsStep({
             {isBridgeable && (
               <div className="bp-cross-type-help" role="status">
                 <p>
-                  This ingredient is sold by {packageType}, but your recipe measures it by {usageType}. Because
-                  every ingredient weighs differently, we need one more detail to calculate its cost accurately.
+                  {useStandardConversion ? (
+                    <>This ingredient is sold by {packageType}, while your recipe measures it by {usageType}. We've converted it using a standard baking estimate.</>
+                  ) : (
+                    <>This ingredient is sold by {packageType}, but your recipe measures it by {usageType}. Because
+                    every ingredient weighs differently, we need one more detail to calculate its cost accurately.</>
+                  )}
                 </p>
 
                 {useStandardConversion ? (
@@ -607,7 +618,7 @@ export function RecipeIngredientsStep({
             <button
               type="button"
               className="bp-btn bp-btn-secondary"
-              onClick={() => { setIsAdding(false); setForm(initialForm()); setAddError(null); resetIngredientIdentity() }}
+              onClick={() => { setIsAdding(false); onAddFormOpenChange?.(false); setForm(initialForm()); setAddError(null); resetIngredientIdentity() }}
             >
               Cancel
             </button>

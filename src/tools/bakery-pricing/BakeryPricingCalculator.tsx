@@ -58,6 +58,7 @@ export function BakeryPricingCalculator() {
   const [marginPercent, setMarginPercent] = useState('35')
   const [roundingIncrement, setRoundingIncrement] = useState<RoundingIncrement>('0.25')
   const [showRecipeErrors, setShowRecipeErrors] = useState(false)
+  const [ingredientFormOpen, setIngredientFormOpen] = useState(false)
   const [showCostErrors, setShowCostErrors] = useState(false)
   const [costsReviewed, setCostsReviewed] = useState(false)
   const [showStartOverConfirm, setShowStartOverConfirm] = useState(false)
@@ -69,6 +70,11 @@ export function BakeryPricingCalculator() {
 
   const handleNext = useCallback(() => {
     if (step === 'recipe') {
+      // The button is already disabled while the add-ingredient form is
+      // open (see below) — this guards any other path to the same action,
+      // so a visible, not-yet-added ingredient can never be mistaken for
+      // one already included in the recipe.
+      if (ingredientFormOpen) return
       if (!yieldIsValid(yieldStr) || ingredients.length === 0) {
         setShowRecipeErrors(true)
         return
@@ -88,7 +94,7 @@ export function BakeryPricingCalculator() {
       setStep('breakdown')
       scrollTop()
     }
-  }, [step, yieldStr, ingredients.length, costs, scrollTop])
+  }, [step, ingredientFormOpen, yieldStr, ingredients.length, costs, scrollTop])
 
   const handleBack = useCallback(() => {
     if (step === 'costs') setCostsReviewed(true)
@@ -107,6 +113,7 @@ export function BakeryPricingCalculator() {
     setMarginPercent('35')
     setRoundingIncrement('0.25')
     setShowRecipeErrors(false)
+    setIngredientFormOpen(false)
     setShowCostErrors(false)
     setCostsReviewed(false)
     setShowStartOverConfirm(false)
@@ -145,6 +152,7 @@ export function BakeryPricingCalculator() {
             onAddIngredient={line => setIngredients(prev => [...prev, line])}
             onRemoveIngredient={id => setIngredients(prev => prev.filter(i => i.id !== id))}
             showErrors={showRecipeErrors}
+            onAddFormOpenChange={setIngredientFormOpen}
           />
         )}
 
@@ -181,12 +189,21 @@ export function BakeryPricingCalculator() {
           </>
         )}
 
+        {step === 'recipe' && ingredientFormOpen && (
+          <p className="bp-helper bp-continue-blocked-note" role="status">Add or cancel this ingredient before continuing.</p>
+        )}
+
         <nav className="bp-nav" aria-label="Step navigation">
           <button type="button" className="bp-btn bp-btn-secondary" onClick={handleBack} disabled={isFirst}>
             ← Back
           </button>
           {!isLast && (
-            <button type="button" className="bp-btn bp-btn-primary" onClick={handleNext}>
+            <button
+              type="button"
+              className="bp-btn bp-btn-primary"
+              onClick={handleNext}
+              disabled={step === 'recipe' && ingredientFormOpen}
+            >
               {step === 'recipe' ? 'Continue to Additional Costs →' : 'See Cost Breakdown & Pricing →'}
             </button>
           )}

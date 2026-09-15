@@ -807,6 +807,14 @@
   font-weight: 600;
 }
 
+.bakery-pricing-calculator .bp-continue-blocked-note {
+  max-width: 640px;
+  margin: 0.75rem auto 0;
+  color: #6B4E12;
+  font-weight: 600;
+  text-align: center;
+}
+
 /* ---------- Common-ingredient autocomplete ---------- */
 .bakery-pricing-calculator .bp-autocomplete {
   position: relative;
