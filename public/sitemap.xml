@@ -9,31 +9,35 @@
   site's indexing is or should be managed.
 
   As of the 2026-09-15 final-publication approval, every URL listed here
-  is indexable (noindex, nofollow removed). This file has not been
-  referenced from a robots.txt (none exists site-wide) and has not been
-  submitted to Google Search Console — that submission is Leslie's own
-  account-level step, not done here. See build/v1.0.0-launch/design.md.
+  is indexable (noindex, nofollow removed). URLs use the www subdomain —
+  discovered post-deploy that the production domain 308-redirects the
+  apex to www, so a non-www canonical/sitemap URL would point to a
+  redirecting address instead of the actual served page. This file has
+  not been referenced from a robots.txt (none exists site-wide) and has
+  not been submitted to Google Search Console — that submission is
+  Leslie's own account-level step, not done here. See
+  build/v1.0.0-launch/design.md.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://websitesbyleslie.com/business-tools</loc>
+    <loc>https://www.websitesbyleslie.com/business-tools</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/tools-bakery-pricing</loc>
+    <loc>https://www.websitesbyleslie.com/tools-bakery-pricing</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/bakery-pricing-guide</loc>
+    <loc>https://www.websitesbyleslie.com/bakery-pricing-guide</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/bakery-pricing-for-profit</loc>
+    <loc>https://www.websitesbyleslie.com/bakery-pricing-for-profit</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/bakery-food-cost-vs-margin</loc>
+    <loc>https://www.websitesbyleslie.com/bakery-food-cost-vs-margin</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/bakery-labor-cost</loc>
+    <loc>https://www.websitesbyleslie.com/bakery-labor-cost</loc>
   </url>
   <url>
-    <loc>https://websitesbyleslie.com/bakery-packaging-waste-overhead</loc>
+    <loc>https://www.websitesbyleslie.com/bakery-packaging-waste-overhead</loc>
   </url>
 </urlset>

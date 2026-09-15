@@ -87,15 +87,15 @@ test('every M7 page is indexable — no noindex directive anywhere in the cluste
   }
 })
 
-test('the calculator, the landing page, every article, and the Business Tools hub each carry a non-www canonical URL matching their own route', async () => {
+test('the calculator, the landing page, every article, and the Business Tools hub each carry a www canonical URL matching their own route (2026-09-15: fixed from non-www after discovering the production domain redirects apex to www)', async () => {
   const PAGES_WITH_CANONICAL = [
-    { path: '/tools-bakery-pricing.html', canonical: 'https://websitesbyleslie.com/tools-bakery-pricing' },
-    { path: '/bakery-pricing-guide.html', canonical: 'https://websitesbyleslie.com/bakery-pricing-guide' },
-    { path: '/bakery-pricing-for-profit.html', canonical: 'https://websitesbyleslie.com/bakery-pricing-for-profit' },
-    { path: '/bakery-food-cost-vs-margin.html', canonical: 'https://websitesbyleslie.com/bakery-food-cost-vs-margin' },
-    { path: '/bakery-labor-cost.html', canonical: 'https://websitesbyleslie.com/bakery-labor-cost' },
-    { path: '/bakery-packaging-waste-overhead.html', canonical: 'https://websitesbyleslie.com/bakery-packaging-waste-overhead' },
-    { path: '/business-tools.html', canonical: 'https://websitesbyleslie.com/business-tools' },
+    { path: '/tools-bakery-pricing.html', canonical: 'https://www.websitesbyleslie.com/tools-bakery-pricing' },
+    { path: '/bakery-pricing-guide.html', canonical: 'https://www.websitesbyleslie.com/bakery-pricing-guide' },
+    { path: '/bakery-pricing-for-profit.html', canonical: 'https://www.websitesbyleslie.com/bakery-pricing-for-profit' },
+    { path: '/bakery-food-cost-vs-margin.html', canonical: 'https://www.websitesbyleslie.com/bakery-food-cost-vs-margin' },
+    { path: '/bakery-labor-cost.html', canonical: 'https://www.websitesbyleslie.com/bakery-labor-cost' },
+    { path: '/bakery-packaging-waste-overhead.html', canonical: 'https://www.websitesbyleslie.com/bakery-packaging-waste-overhead' },
+    { path: '/business-tools.html', canonical: 'https://www.websitesbyleslie.com/business-tools' },
   ]
   const page = await browser.newPage()
   try {
@@ -281,17 +281,17 @@ test('the calculator disclaimer still leads with the concise, non-alarming notic
   }
 })
 
-test('sitemap.xml lists the Business Tools hub alongside the calculator, landing page, and every article', async () => {
+test('sitemap.xml lists the Business Tools hub alongside the calculator, landing page, and every article, using the www domain that matches production', async () => {
   const res = await fetch(`${baseUrl}/sitemap.xml`)
   const xml = await res.text()
   for (const loc of [
-    'https://websitesbyleslie.com/business-tools',
-    'https://websitesbyleslie.com/tools-bakery-pricing',
-    'https://websitesbyleslie.com/bakery-pricing-guide',
-    'https://websitesbyleslie.com/bakery-pricing-for-profit',
-    'https://websitesbyleslie.com/bakery-food-cost-vs-margin',
-    'https://websitesbyleslie.com/bakery-labor-cost',
-    'https://websitesbyleslie.com/bakery-packaging-waste-overhead',
+    'https://www.websitesbyleslie.com/business-tools',
+    'https://www.websitesbyleslie.com/tools-bakery-pricing',
+    'https://www.websitesbyleslie.com/bakery-pricing-guide',
+    'https://www.websitesbyleslie.com/bakery-pricing-for-profit',
+    'https://www.websitesbyleslie.com/bakery-food-cost-vs-margin',
+    'https://www.websitesbyleslie.com/bakery-labor-cost',
+    'https://www.websitesbyleslie.com/bakery-packaging-waste-overhead',
   ]) {
     assert.ok(xml.includes(`<loc>${loc}</loc>`), `sitemap.xml should list ${loc}`)
   }
