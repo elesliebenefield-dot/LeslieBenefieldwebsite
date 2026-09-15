@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { computeIngredientCost, computeIngredientSubtotal } from './calc-engine/formulas.ts'
 import { validateConversionWeightQuantity, validateYield } from './calc-engine/validation.ts'
 import { measurementTypeOf, UNIT_MISMATCH_MESSAGE } from './calc-engine/units.ts'
 import { UNIT_GROUPS, VOLUME_UNITS, defaultUnitFor } from './bakeryPricingUnitOptions.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
+import { getCommonIngredientById, searchCommonIngredients } from './bakeryIngredientLibrary.ts'
 import type { DraftIngredientLine } from './bakeryPricingDraftTypes.ts'
 import type { CustomIngredientConversion, MeasurementType, Unit, VolumeUnit, WeightUnit } from './calc-engine/types.ts'
 
@@ -96,11 +97,24 @@ export function RecipeIngredientsStep({
   const [form, setForm] = useState<DraftForm>(initialForm())
   const [addError, setAddError] = useState<string | null>(null)
 
+  // Common-ingredient library autocomplete state. `selectedCommonIngredientId`
+  // is set ONLY by an explicit selection (click, or Enter on a highlighted
+  // suggestion) — never inferred from typed text alone, so an ambiguous
+  // name like "flour" or "salt" can never resolve itself silently.
+  const [selectedCommonIngredientId, setSelectedCommonIngredientId] = useState<string | null>(null)
+  const [manualOverrideRequested, setManualOverrideRequested] = useState(false)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+
   const yieldResult = yieldStr.trim() === '' ? null : validateYield(Number.parseInt(yieldStr, 10))
   const yieldError = showErrors && (yieldStr.trim() === '' ? 'Enter how many items or servings this recipe makes.' : yieldResult && !yieldResult.valid ? yieldResult.reason : null)
   const hasNoIngredients = ingredients.length === 0
 
   const subtotal = computeIngredientSubtotal(ingredients.map(i => i.cost))
+
+  const suggestions = suggestionsOpen ? searchCommonIngredients(form.name) : []
+  const matchedCommonIngredient = selectedCommonIngredientId ? getCommonIngredientById(selectedCommonIngredientId) : undefined
+  const standardConversion = matchedCommonIngredient?.standardConversion
 
   const packageType = measurementTypeOf(form.packageUnit)
   const usageType = measurementTypeOf(form.amountUsedUnit)
@@ -108,12 +122,19 @@ export function RecipeIngredientsStep({
   const isBridgeable = !typesMatch && isBridgeableCrossType(packageType, usageType)
   const isHardMismatch = !typesMatch && !isBridgeable
 
-  const hasValidConversion =
+  // Automatically use the library's standard estimate whenever it applies —
+  // unless the baker asked to change it. Recipe-provided values that
+  // already match the package's own type never reach this at all (isBridgeable
+  // is false), so a baker's own precise weight entry always wins over any
+  // library estimate, per design.md section 12.
+  const useStandardConversion = isBridgeable && !!standardConversion && !manualOverrideRequested
+
+  const hasValidManualConversion =
     form.conversionWeightQuantity.trim() !== '' &&
     safeCompute(() => validateConversionWeightQuantity(form.conversionWeightQuantity)).valid
 
-  const customConversion: CustomIngredientConversion | undefined =
-    isBridgeable && hasValidConversion
+  const manualConversion: CustomIngredientConversion | undefined =
+    isBridgeable && hasValidManualConversion
       ? {
           volumeUnit: form.conversionVolumeUnit,
           weightQuantity: form.conversionWeightQuantity,
@@ -121,7 +142,14 @@ export function RecipeIngredientsStep({
         }
       : undefined
 
-  const crossTypeUnresolved = isBridgeable && !customConversion
+  // The conversion actually fed to the calc engine: the library standard
+  // (translated into the same shape a baker's own entry would take) unless
+  // overridden, otherwise whatever the baker has manually entered.
+  const effectiveConversion: CustomIngredientConversion | undefined = useStandardConversion
+    ? { volumeUnit: standardConversion!.volumeUnit, weightQuantity: standardConversion!.weightGrams, weightUnit: 'g' }
+    : manualConversion
+
+  const crossTypeUnresolved = isBridgeable && !effectiveConversion
   const ingredientLabel = form.name.trim() || 'this ingredient'
   // "the Flour" once named, but plain "this ingredient" (no dangling "the")
   // before a name has been entered.
@@ -137,6 +165,63 @@ export function RecipeIngredientsStep({
       setFocusUsagePending(false)
     }
   }, [focusUsagePending])
+
+  function resetIngredientIdentity() {
+    setSelectedCommonIngredientId(null)
+    setManualOverrideRequested(false)
+    setSuggestionsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  function handleNameChange(value: string) {
+    setForm(f => ({ ...f, name: value }))
+    // Typing invalidates any previous explicit selection — a library match
+    // is only ever attached by choosing a suggestion again, never carried
+    // forward from stale typed text.
+    setSelectedCommonIngredientId(null)
+    setManualOverrideRequested(false)
+    setSuggestionsOpen(true)
+    setHighlightedIndex(-1)
+  }
+
+  function selectCommonIngredient(id: string) {
+    const entry = getCommonIngredientById(id)
+    if (!entry) return
+    setForm(f => ({ ...f, name: entry.name }))
+    setSelectedCommonIngredientId(id)
+    setManualOverrideRequested(false)
+    setSuggestionsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  function handleNameFocus() {
+    if (form.name.trim().length > 0) setSuggestionsOpen(true)
+  }
+
+  function handleNameBlur() {
+    // Delayed so a click on a suggestion (which fires its own mousedown
+    // before this blur completes) still registers as a selection.
+    window.setTimeout(() => setSuggestionsOpen(false), 120)
+  }
+
+  function handleNameKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!suggestionsOpen || suggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightedIndex(i => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightedIndex(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+        e.preventDefault()
+        selectCommonIngredient(suggestions[highlightedIndex]!.id)
+      }
+    } else if (e.key === 'Escape') {
+      setSuggestionsOpen(false)
+      setHighlightedIndex(-1)
+    }
+  }
 
   function handlePackageUnitChange(unit: Unit) {
     setForm(f => ({ ...f, packageUnit: unit }))
@@ -174,7 +259,7 @@ export function RecipeIngredientsStep({
             packageUnit: form.packageUnit,
             amountUsed: form.amountUsed,
             usageUnit: form.amountUsedUnit,
-            customConversion,
+            customConversion: effectiveConversion,
           }),
         )
       : null
@@ -199,7 +284,7 @@ export function RecipeIngredientsStep({
         packageUnit: form.packageUnit,
         amountUsed: form.amountUsed,
         usageUnit: form.amountUsedUnit,
-        customConversion,
+        customConversion: effectiveConversion,
       }),
     )
     if (!result.valid) {
@@ -214,12 +299,14 @@ export function RecipeIngredientsStep({
       packageUnit: form.packageUnit,
       amountUsed: form.amountUsed,
       amountUsedUnit: form.amountUsedUnit,
-      customConversion,
+      commonIngredientId: selectedCommonIngredientId ?? undefined,
+      customConversion: effectiveConversion,
       cost: result.value,
     })
     setForm(initialForm())
     setAddError(null)
     setIsAdding(false)
+    resetIngredientIdentity()
   }
 
   const addDisabled = isHardMismatch || crossTypeUnresolved
@@ -307,15 +394,41 @@ export function RecipeIngredientsStep({
         </button>
       ) : (
         <div className="bp-card bp-add-ingredient-form">
-          <div className="bp-field">
+          <div className="bp-field bp-autocomplete">
             <label htmlFor="bp-ing-name">Ingredient name</label>
             <input
               id="bp-ing-name"
               type="text"
               value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              onChange={e => handleNameChange(e.target.value)}
+              onFocus={handleNameFocus}
+              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
               placeholder="e.g., All-Purpose Flour"
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={suggestions.length > 0}
+              aria-controls="bp-ing-name-listbox"
+              aria-autocomplete="list"
+              aria-activedescendant={highlightedIndex >= 0 ? `bp-ing-name-option-${highlightedIndex}` : undefined}
             />
+            {suggestions.length > 0 && (
+              <ul id="bp-ing-name-listbox" role="listbox" className="bp-autocomplete-list">
+                {suggestions.map((entry, i) => (
+                  <li
+                    key={entry.id}
+                    id={`bp-ing-name-option-${i}`}
+                    role="option"
+                    aria-selected={i === highlightedIndex}
+                    className={`bp-autocomplete-option${i === highlightedIndex ? ' bp-autocomplete-option-highlighted' : ''}`}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => selectCommonIngredient(entry.id)}
+                  >
+                    {entry.name}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="bp-field">
@@ -393,65 +506,90 @@ export function RecipeIngredientsStep({
                   every ingredient weighs differently, we need one more detail to calculate its cost accurately.
                 </p>
 
-                <div className="bp-choice-group" role="group" aria-label="How to resolve this weight/volume difference">
-                  <button type="button" className="bp-choice-card bp-choice-card-weigh" onClick={handleMatchPackageType}>
-                    <span className="bp-choice-card-title">
-                      {packageType === 'weight' ? `I can weigh ${weighSubject}` : `I can measure ${weighSubject} by volume`}
-                    </span>
-                    <span className="bp-choice-card-helper">
-                      {packageType === 'weight'
-                        ? 'Switch to grams and enter the amount you use.'
-                        : 'Switch to cups and enter the amount you use.'}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`bp-choice-card bp-choice-card-convert${form.showConversionForm ? ' bp-choice-card-selected' : ''}`}
-                    onClick={handleOpenConversionForm}
-                  >
-                    <span className="bp-choice-card-title">
-                      I measure {ingredientLabel} in {VOLUME_UNIT_WORDS[volumeSideUnit].plural}
-                    </span>
-                    <span className="bp-choice-card-helper">
-                      Tell us what one {VOLUME_UNIT_WORDS[volumeSideUnit].singular} of this ingredient weighs.
-                    </span>
-                  </button>
-                </div>
-
-                {form.showConversionForm && (
-                  <div className="bp-conversion-form">
-                    <p className="bp-conversion-row">
-                      <span>1</span>
-                      <select
-                        aria-label="Conversion volume unit"
-                        value={form.conversionVolumeUnit}
-                        onChange={e => setForm(f => ({ ...f, conversionVolumeUnit: e.target.value as VolumeUnit }))}
-                      >
-                        {VOLUME_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                      </select>
-                      <span>of</span>
-                      <strong>{ingredientLabel}</strong>
-                      <span>weighs</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        aria-label="Conversion weight amount"
-                        value={form.conversionWeightQuantity}
-                        onChange={e => setForm(f => ({ ...f, conversionWeightQuantity: e.target.value }))}
-                        placeholder="e.g., 120"
-                      />
-                      <span>grams.</span>
+                {useStandardConversion ? (
+                  <div className="bp-standard-conversion">
+                    <p>
+                      <strong>{matchedCommonIngredient!.name}</strong>: using the standard estimate of 1{' '}
+                      {VOLUME_UNIT_WORDS[standardConversion!.volumeUnit].singular} = {standardConversion!.weightGrams} grams.
                     </p>
-                    <p className="bp-helper">
-                      Use the weight provided by your recipe or flour brand, or weigh one cup with a kitchen scale.
-                      We won't guess this value.
-                    </p>
+                    <button type="button" className="bp-link-btn bp-standard-conversion-change" onClick={() => setManualOverrideRequested(true)}>
+                      Change
+                    </button>
                   </div>
-                )}
+                ) : (
+                  <>
+                    {matchedCommonIngredient && !standardConversion && (
+                      <p className="bp-helper">
+                        We don't have a standard estimate for {matchedCommonIngredient.name.toLowerCase()} — enter one below, or switch units.
+                      </p>
+                    )}
+                    {matchedCommonIngredient && standardConversion && manualOverrideRequested && (
+                      <button type="button" className="bp-link-btn" onClick={() => setManualOverrideRequested(false)}>
+                        Use the standard estimate instead (1 {VOLUME_UNIT_WORDS[standardConversion.volumeUnit].singular} = {standardConversion.weightGrams}g)
+                      </button>
+                    )}
 
-                {crossTypeUnresolved && (
-                  <p className="bp-helper bp-cross-type-unresolved-note">Choose one of the options above before adding this ingredient.</p>
+                    <div className="bp-choice-group" role="group" aria-label="How to resolve this weight/volume difference">
+                      <button type="button" className="bp-choice-card bp-choice-card-weigh" onClick={handleMatchPackageType}>
+                        <span className="bp-choice-card-title">
+                          {packageType === 'weight' ? `I can weigh ${weighSubject}` : `I can measure ${weighSubject} by volume`}
+                        </span>
+                        <span className="bp-choice-card-helper">
+                          {packageType === 'weight'
+                            ? 'Switch to grams and enter the amount you use.'
+                            : 'Switch to cups and enter the amount you use.'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`bp-choice-card bp-choice-card-convert${form.showConversionForm ? ' bp-choice-card-selected' : ''}`}
+                        onClick={handleOpenConversionForm}
+                      >
+                        <span className="bp-choice-card-title">
+                          I measure {ingredientLabel} in {VOLUME_UNIT_WORDS[volumeSideUnit].plural}
+                        </span>
+                        <span className="bp-choice-card-helper">
+                          Tell us what one {VOLUME_UNIT_WORDS[volumeSideUnit].singular} of this ingredient weighs.
+                        </span>
+                      </button>
+                    </div>
+
+                    {form.showConversionForm && (
+                      <div className="bp-conversion-form">
+                        <p className="bp-conversion-row">
+                          <span>1</span>
+                          <select
+                            aria-label="Conversion volume unit"
+                            value={form.conversionVolumeUnit}
+                            onChange={e => setForm(f => ({ ...f, conversionVolumeUnit: e.target.value as VolumeUnit }))}
+                          >
+                            {VOLUME_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                          <span>of</span>
+                          <strong>{ingredientLabel}</strong>
+                          <span>weighs</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            aria-label="Conversion weight amount"
+                            value={form.conversionWeightQuantity}
+                            onChange={e => setForm(f => ({ ...f, conversionWeightQuantity: e.target.value }))}
+                            placeholder="e.g., 120"
+                          />
+                          <span>grams.</span>
+                        </p>
+                        <p className="bp-helper">
+                          Use the weight provided by your recipe or flour brand, or weigh one cup with a kitchen scale.
+                          We won't guess this value.
+                        </p>
+                      </div>
+                    )}
+
+                    {crossTypeUnresolved && (
+                      <p className="bp-helper bp-cross-type-unresolved-note">Choose one of the options above before adding this ingredient.</p>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -466,7 +604,11 @@ export function RecipeIngredientsStep({
           </div>
 
           <div className="bp-inline-fields">
-            <button type="button" className="bp-btn bp-btn-secondary" onClick={() => { setIsAdding(false); setForm(initialForm()); setAddError(null) }}>
+            <button
+              type="button"
+              className="bp-btn bp-btn-secondary"
+              onClick={() => { setIsAdding(false); setForm(initialForm()); setAddError(null); resetIngredientIdentity() }}
+            >
               Cancel
             </button>
             <button type="button" className="bp-btn bp-btn-primary" onClick={handleAdd} disabled={addDisabled}>

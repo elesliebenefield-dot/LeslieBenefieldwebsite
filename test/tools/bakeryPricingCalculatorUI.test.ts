@@ -602,6 +602,327 @@ test('a count vs. weight/volume mismatch is still blocked with the plain technic
   }
 })
 
+// ─── 3c. Common-ingredient library (autocomplete + standard conversions) ────
+
+// Types into the ingredient-name combobox and waits for the suggestion
+// dropdown to appear. Does NOT select anything — matches how a baker's
+// typed text alone must never silently resolve to a specific ingredient.
+async function typeIngredientName(page: Page, text: string) {
+  await page.click('.bp-btn-ghost')
+  await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
+  await page.type('#bp-ing-name', text)
+  await page.waitForFunction(() => !!document.querySelector('.bp-autocomplete-list'))
+}
+
+async function selectSuggestionByText(page: Page, text: string) {
+  await page.evaluate((t: string) => {
+    const options = Array.from(document.querySelectorAll('.bp-autocomplete-option'))
+    const match = options.find(o => o.textContent?.trim() === t)
+    if (!match) throw new Error(`no suggestion found with text "${t}"`)
+    ;(match as HTMLElement).click()
+  }, text)
+}
+
+test('typing "All-purpose flour" and selecting it applies the standard conversion automatically', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'All-purpose flour')
+    await selectSuggestionByText(page, 'All-purpose flour')
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '2')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+
+    await page.waitForFunction(() => !!document.querySelector('.bp-standard-conversion'))
+    const bannerText = await page.$eval('.bp-standard-conversion', el => el.textContent || '')
+    assert.match(bannerText, /All-purpose flour: using the standard estimate of 1 cup = 120 grams\./)
+
+    // The two-choice manual panel must NOT appear in this common path.
+    const choiceGroup = await page.$('.bp-choice-group')
+    assert.equal(choiceGroup, null, 'the manual two-choice panel must not show when a standard conversion applies')
+
+    const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(addDisabled, false, 'Add to recipe should be enabled automatically once the standard applies')
+
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    // 3.49 * (240 g / 2267.96185 g) ≈ $0.37 — same hand-verified figure as
+    // the manual-conversion cross-type test, since both use 1 cup = 120g.
+    assert.match(rowText, /\$0\.37/, `expected ~$0.37, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('granulated sugar and packed brown sugar apply their own distinct standard conversions', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'white sugar')
+    await selectSuggestionByText(page, 'Granulated white sugar')
+    await page.type('#bp-ing-price', '2.50')
+    await page.type('#bp-ing-pkg-qty', '4')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '1')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-standard-conversion'))
+    const sugarBanner = await page.$eval('.bp-standard-conversion', el => el.textContent || '')
+    assert.match(sugarBanner, /1 cup = 198 grams/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('packed brown sugar alias applies its own standard conversion, distinct from granulated sugar', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'packed brown sugar')
+    await selectSuggestionByText(page, 'Packed light or dark brown sugar')
+    await page.type('#bp-ing-price', '3.00')
+    await page.type('#bp-ing-pkg-qty', '2')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '1')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-standard-conversion'))
+    const brownSugarBanner = await page.$eval('.bp-standard-conversion', el => el.textContent || '')
+    assert.match(brownSugarBanner, /1 cup = 213 grams/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('ingredient aliases resolve to the correct canonical suggestion: "AP flour" and "powdered sugar"', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'AP flour')
+    const apSuggestions = await page.$$eval('.bp-autocomplete-option', els => els.map(e => e.textContent?.trim()))
+    assert.deepEqual(apSuggestions, ['All-purpose flour'])
+  } finally {
+    await page.close()
+  }
+})
+
+test('"powdered sugar" alias suggests confectioners\' sugar', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'powdered sugar')
+    const suggestions = await page.$$eval('.bp-autocomplete-option', els => els.map(e => e.textContent?.trim()))
+    assert.ok(suggestions.includes("Confectioners' sugar"))
+  } finally {
+    await page.close()
+  }
+})
+
+test('typing the ambiguous word "flour" offers multiple specific suggestions, never a single silent match', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'flour')
+    const suggestions = await page.$$eval('.bp-autocomplete-option', els => els.map(e => e.textContent?.trim()))
+    assert.ok(suggestions.includes('All-purpose flour'))
+    assert.ok(suggestions.includes('Bread flour'))
+    assert.ok(suggestions.includes('Cake flour'))
+    assert.ok(suggestions.length >= 3)
+  } finally {
+    await page.close()
+  }
+})
+
+test('typing "flour" alone and never selecting a suggestion leaves no ingredient identity attached — the manual panel still governs a cross-type mismatch', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'flour')
+    // Deliberately do not click a suggestion — dismiss the open dropdown
+    // with Escape (a real click here could land on the dropdown itself,
+    // since like any overlay autocomplete it covers the field beneath it).
+    await page.keyboard.press('Escape')
+    await page.click('#bp-ing-price')
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '2')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-cross-type-help'))
+    const standardBanner = await page.$('.bp-standard-conversion')
+    assert.equal(standardBanner, null, 'no standard conversion may apply without an explicit selection')
+    const choiceGroup = await page.$('.bp-choice-group')
+    assert.ok(choiceGroup, 'the manual resolution panel must still be offered')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the small "Change" control lets the baker enter a brand-specific conversion, overriding the standard', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'All-purpose flour')
+    await selectSuggestionByText(page, 'All-purpose flour')
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '2')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-standard-conversion'))
+
+    await page.click('.bp-standard-conversion-change')
+    await page.waitForFunction(() => !!document.querySelector('.bp-choice-group'))
+    // The standard-estimate banner is gone; the manual panel (with a
+    // "use the standard instead" escape hatch) takes over.
+    const bannerGone = await page.$('.bp-standard-conversion')
+    assert.equal(bannerGone, null)
+    const revertLink = await page.$eval('.bp-cross-type-help', el => el.textContent || '')
+    assert.match(revertLink, /Use the standard estimate instead \(1 cup = 120g\)/)
+
+    await enterConversion(page, 'cup', '130')
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    // 3.49 * (260 g / 2267.96185 g) ≈ $0.40, using the overridden 130 g/cup —
+    // never the standard 120 g/cup once overridden.
+    assert.match(rowText, /\$0\.40/, `expected ~$0.40 with the override, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('a recipe amount already given as a weight is used directly — the library is never consulted', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'All-purpose flour')
+    await selectSuggestionByText(page, 'All-purpose flour')
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    // Recipe usage given directly in grams — same measurement type as the
+    // package, so this is never a cross-type case at all.
+    await page.type('#bp-ing-use-qty', '280')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('g')
+    const crossTypeHelp = await page.$('.bp-cross-type-help')
+    assert.equal(crossTypeHelp, null, 'a same-type (weight-to-weight) entry must never show any cross-type UI')
+    const standardBanner = await page.$('.bp-standard-conversion')
+    assert.equal(standardBanner, null)
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    // 3.49 * (280 g / 2267.96185 g) ≈ $0.43 — computed straight from the
+    // recipe's own weight entry, with no density conversion involved.
+    assert.match(rowText, /\$0\.43/, `expected ~$0.43, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('an unknown custom ingredient falls back to the manual resolution panel, with no standard-conversion banner', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'My Secret Spice Blend', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '9.99', packageQuantity: '1', amountUsed: '1' })
+    const standardBanner = await page.$('.bp-standard-conversion')
+    assert.equal(standardBanner, null)
+    const choiceGroup = await page.$('.bp-choice-group')
+    assert.ok(choiceGroup, 'an unrecognized ingredient must fall back to the manual two-choice panel')
+  } finally {
+    await page.close()
+  }
+})
+
+test('a recognized ingredient without a trustworthy reference conversion (unpacked brown sugar) still falls back to manual resolution', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'unpacked brown sugar')
+    await selectSuggestionByText(page, 'Brown sugar (lightly spooned, not packed)')
+    await page.type('#bp-ing-price', '3.00')
+    await page.type('#bp-ing-pkg-qty', '2')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '1')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    await page.waitForFunction(() => !!document.querySelector('.bp-cross-type-help'))
+    const standardBanner = await page.$('.bp-standard-conversion')
+    assert.equal(standardBanner, null, 'an ingredient with no reference conversion must never guess one')
+    const helpText = await page.$eval('.bp-cross-type-help', el => el.textContent || '')
+    assert.match(helpText, /don't have a standard estimate/i)
+    const choiceGroup = await page.$('.bp-choice-group')
+    assert.ok(choiceGroup, 'manual resolution must still be offered')
+  } finally {
+    await page.close()
+  }
+})
+
+test('a bare "salt" query never silently picks one salt type — all distinct salts are offered, including two different kosher-salt brands', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'salt')
+    const suggestions = await page.$$eval('.bp-autocomplete-option', els => els.map(e => e.textContent?.trim()))
+    assert.ok(suggestions.includes('Table salt'))
+    assert.ok(suggestions.includes('Kosher salt (Diamond Crystal)'))
+    assert.ok(suggestions.includes("Kosher salt (Morton's)"))
+    assert.ok(suggestions.includes('Fine sea salt'))
+  } finally {
+    await page.close()
+  }
+})
+
+test('the ingredient-name field is a keyboard-accessible combobox: ArrowDown highlights, Enter selects', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'flour')
+    await page.keyboard.press('ArrowDown')
+    const activeDescendant = await page.$eval('#bp-ing-name', el => el.getAttribute('aria-activedescendant'))
+    assert.equal(activeDescendant, 'bp-ing-name-option-0')
+    await page.keyboard.press('Enter')
+    const nameValue = await page.$eval('#bp-ing-name', el => (el as HTMLInputElement).value)
+    assert.equal(nameValue, 'All-purpose flour', 'Enter on the first highlighted suggestion should select it')
+    const listGone = await page.$('.bp-autocomplete-list')
+    assert.equal(listGone, null, 'the suggestion list should close once a selection is made')
+  } finally {
+    await page.close()
+  }
+})
+
+test('Escape closes the suggestion list without selecting anything', async () => {
+  const page = await openTool()
+  try {
+    await typeIngredientName(page, 'flour')
+    await page.keyboard.press('Escape')
+    const listGone = await page.$('.bp-autocomplete-list')
+    assert.equal(listGone, null)
+    const nameValue = await page.$eval('#bp-ing-name', el => (el as HTMLInputElement).value)
+    assert.equal(nameValue, 'flour', 'typed text is preserved, unchanged, after Escape')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the autocomplete list has no horizontal overflow and meets 44px touch targets at 320px', async () => {
+  const page = await openTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+    await typeIngredientName(page, 'flour')
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no overflow with the suggestion list open, got ${overflow}px`)
+    const smallOptions = await page.evaluate(() => {
+      const els = Array.from(document.querySelectorAll('.bp-autocomplete-option'))
+      return els.filter(el => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 44).map(el => el.textContent)
+    })
+    assert.deepEqual(smallOptions, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('the ingredient form uses plain-language questions instead of technical field labels', async () => {
   const page = await openTool()
   try {

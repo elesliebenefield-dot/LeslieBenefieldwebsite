@@ -19,6 +19,12 @@ export interface DraftIngredientLine {
   packageUnit: Unit
   amountUsed: DecimalString
   amountUsedUnit: Unit
+  // Set only when the baker selected a specific entry from the common-
+  // ingredient library (bakeryIngredientLibrary.ts) — never inferred from
+  // typed text alone. Carried so M4 can save and re-offer this identity
+  // (and its standard/overridden conversion) the next time this ingredient
+  // is used, instead of asking the baker to resolve it again.
+  commonIngredientId?: string
   customConversion?: CustomIngredientConversion
   cost: DecimalString
 }

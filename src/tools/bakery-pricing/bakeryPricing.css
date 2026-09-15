@@ -807,6 +807,68 @@
   font-weight: 600;
 }
 
+/* ---------- Common-ingredient autocomplete ---------- */
+.bakery-pricing-calculator .bp-autocomplete {
+  position: relative;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-list {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--bp-line);
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(59, 42, 26, 0.15);
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-option {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.5rem 0.625rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: var(--bp-espresso);
+  cursor: pointer;
+}
+
+.bakery-pricing-calculator .bp-autocomplete-option-highlighted,
+.bakery-pricing-calculator .bp-autocomplete-option:hover {
+  background: var(--bp-cream);
+}
+
+/* ---------- Standard conversion (common-ingredient library) ---------- */
+.bakery-pricing-calculator .bp-standard-conversion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.bakery-pricing-calculator .bp-standard-conversion p {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+
+.bakery-pricing-calculator .bp-standard-conversion-change {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+  white-space: nowrap;
+}
+
 /* ---------- Supplies & Packaging ---------- */
 .bakery-pricing-calculator .bp-supplies-equipment-note {
   background: var(--bp-cream);

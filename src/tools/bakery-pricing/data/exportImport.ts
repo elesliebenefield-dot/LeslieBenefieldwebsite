@@ -23,7 +23,7 @@
 import Decimal from 'decimal.js'
 import { fromStorageString } from '../calc-engine/decimal.ts'
 import { COUNT_TO_EACH, VOLUME_TO_ML, WEIGHT_TO_GRAMS, areCompatible, measurementTypeOf } from '../calc-engine/units.ts'
-import type { DecimalString, Unit } from '../calc-engine/types.ts'
+import type { CustomIngredientConversion, DecimalString, Unit, VolumeUnit, WeightUnit } from '../calc-engine/types.ts'
 import { promisifyRequest, promisifyTransaction } from './db.ts'
 import { nowIso } from './clock.ts'
 import { DB_NAME, DB_VERSION, STORE_INGREDIENTS, STORE_RECIPES, STORE_USAGES } from './schema.ts'
@@ -145,6 +145,40 @@ function requireId(obj: Record<string, unknown>, field: string, context: string)
   return value
 }
 
+// `commonIngredientId` is intentionally NOT checked against the current
+// ingredient library's contents — the library can be extended, renamed, or
+// restructured over time without invalidating an older export file.
+function validateOptionalCommonIngredientId(obj: Record<string, unknown>, context: string): string | undefined {
+  const value = obj.commonIngredientId
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new ImportFormatError(`${context}: "commonIngredientId" must be a non-empty string when present.`)
+  }
+  return value
+}
+
+function isVolumeUnit(value: unknown): value is VolumeUnit {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(VOLUME_TO_ML, value)
+}
+
+function isWeightUnit(value: unknown): value is WeightUnit {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(WEIGHT_TO_GRAMS, value)
+}
+
+function validateOptionalCustomConversion(
+  entity: string,
+  id: string,
+  obj: Record<string, unknown>,
+): CustomIngredientConversion | undefined {
+  const value = obj.customConversion
+  if (value === undefined) return undefined
+  if (!isPlainObject(value)) throw new ImportFormatError(`${entity} ${id}: "customConversion" must be an object.`)
+  if (!isVolumeUnit(value.volumeUnit)) throw new InvalidUnitError(entity, id, 'customConversion.volumeUnit', value.volumeUnit)
+  const weightQuantity = requireDecimalString(entity, id, value, 'weightQuantity')
+  if (!isWeightUnit(value.weightUnit)) throw new InvalidUnitError(entity, id, 'customConversion.weightUnit', value.weightUnit)
+  return { volumeUnit: value.volumeUnit, weightQuantity, weightUnit: value.weightUnit }
+}
+
 function validateIngredient(raw: unknown, index: number, seenIds: Set<string>): StoredIngredient {
   if (!isPlainObject(raw)) throw new ImportFormatError(`ingredients[${index}] is not an object.`)
   const id = requireId(raw, 'id', `ingredients[${index}]`)
@@ -155,6 +189,8 @@ function validateIngredient(raw: unknown, index: number, seenIds: Set<string>): 
   const packagePrice = requireDecimalString('Ingredient', id, raw, 'packagePrice')
   const packageQuantity = requireDecimalString('Ingredient', id, raw, 'packageQuantity')
   const packageUnit = requireUnit('Ingredient', id, raw, 'packageUnit')
+  const commonIngredientId = validateOptionalCommonIngredientId(raw, `Ingredient ${id}`)
+  const customConversion = validateOptionalCustomConversion('Ingredient', id, raw)
   const createdAt = requireString(raw, 'createdAt', `Ingredient ${id}`)
   const updatedAt = requireString(raw, 'updatedAt', `Ingredient ${id}`)
 
@@ -168,6 +204,8 @@ function validateIngredient(raw: unknown, index: number, seenIds: Set<string>): 
     // and must always agree with packageUnit. Safe to call unguarded:
     // requireUnit above has already guaranteed packageUnit is known.
     measurementType: measurementTypeOf(packageUnit),
+    ...(commonIngredientId !== undefined ? { commonIngredientId } : {}),
+    ...(customConversion !== undefined ? { customConversion } : {}),
     createdAt,
     updatedAt,
   }
@@ -290,7 +328,13 @@ function validateUsage(
   const ingredient = ingredientsById.get(ingredientId)
   if (!ingredient) throw new MissingReferenceError(id, 'ingredientId', ingredientId)
 
-  if (!areCompatible(amountUsedUnit, ingredient.packageUnit)) {
+  // A weight/volume mismatch is allowed when the ingredient carries a
+  // customConversion to bridge it (the same rule the M3 guided UI applies
+  // live) — count never bridges with either, matching computeIngredientCost.
+  const usageType = measurementTypeOf(amountUsedUnit)
+  const packageType = measurementTypeOf(ingredient.packageUnit)
+  const bridgeable = (packageType === 'weight' && usageType === 'volume') || (packageType === 'volume' && usageType === 'weight')
+  if (!areCompatible(amountUsedUnit, ingredient.packageUnit) && !(bridgeable && ingredient.customConversion)) {
     throw new IncompatibleUnitError(id, ingredientId)
   }
 

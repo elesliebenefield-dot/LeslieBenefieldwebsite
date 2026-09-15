@@ -14,6 +14,8 @@ export async function createIngredient(db: IDBDatabase, input: NewIngredient): P
     packageQuantity: input.packageQuantity,
     packageUnit: input.packageUnit,
     measurementType: measurementTypeOf(input.packageUnit),
+    ...(input.commonIngredientId !== undefined ? { commonIngredientId: input.commonIngredientId } : {}),
+    ...(input.customConversion !== undefined ? { customConversion: input.customConversion } : {}),
     createdAt: timestamp,
     updatedAt: timestamp,
   }

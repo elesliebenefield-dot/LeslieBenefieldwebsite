@@ -181,6 +181,106 @@ test('round trip through serializeExport/parseAndValidateExportFile (a real file
 })
 
 // ---------------------------------------------------------------------
+// Common-ingredient identity and custom (or overridden standard) weight/
+// volume conversions must survive export/import — see the common-
+// ingredient library correction in design.md.
+// ---------------------------------------------------------------------
+
+test('a common-ingredient id and a custom weight/volume conversion round-trip through export/import', async () => {
+  const db = await freshDb()
+  try {
+    const flour = await createIngredient(db, {
+      name: 'All-purpose flour',
+      packagePrice: '3.49',
+      packageQuantity: '5',
+      packageUnit: 'lb',
+      commonIngredientId: 'all-purpose-flour',
+      customConversion: { volumeUnit: 'cup', weightQuantity: '120', weightUnit: 'g' },
+    })
+    // Package (weight) and recipe usage (volume) are a cross-type pair —
+    // only valid because the ingredient carries a customConversion.
+    const { recipe } = await createRecipe(db, baseRecipe, [
+      { ingredientId: flour.id, amountUsed: '2', amountUsedUnit: 'cup' },
+    ])
+    const file = await buildExport(db)
+
+    const text = serializeExport(file)
+    const reparsed = parseAndValidateExportFile(text)
+    const reparsedIngredient = reparsed.data.ingredients.find((i) => i.id === flour.id)
+    assert.equal(reparsedIngredient?.commonIngredientId, 'all-purpose-flour')
+    assert.deepEqual(reparsedIngredient?.customConversion, { volumeUnit: 'cup', weightQuantity: '120', weightUnit: 'g' })
+
+    db.close()
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(DB_NAME)
+      req.onsuccess = () => resolve()
+      req.onerror = () => reject(req.error)
+    })
+    const freshDbInstance = await openAppDatabase()
+    try {
+      await importAndReplaceAll(freshDbInstance, file, { confirmed: true })
+      const restoredIngredients = await listIngredients(freshDbInstance)
+      assert.equal(restoredIngredients[0]?.commonIngredientId, 'all-purpose-flour')
+      assert.deepEqual(restoredIngredients[0]?.customConversion, { volumeUnit: 'cup', weightQuantity: '120', weightUnit: 'g' })
+      const restoredRecipe = await getRecipeWithUsages(freshDbInstance, recipe.id)
+      assert.equal(restoredRecipe.usages[0]?.amountUsedUnit, 'cup', 'the cross-type usage itself must also survive the round trip')
+    } finally {
+      freshDbInstance.close()
+      indexedDB.deleteDatabase(DB_NAME)
+    }
+  } finally {
+    // db was already closed above; guard against double-close.
+  }
+})
+
+test('an ingredient with no commonIngredientId or customConversion (a fully custom ingredient) still round-trips cleanly', async () => {
+  const db = await freshDb()
+  try {
+    const { flour } = await seedDb(db)
+    const file = await buildExport(db)
+    const reparsed = parseAndValidateExportFile(serializeExport(file))
+    const reparsedIngredient = reparsed.data.ingredients.find((i) => i.id === flour.id)
+    assert.equal(reparsedIngredient?.commonIngredientId, undefined)
+    assert.equal(reparsedIngredient?.customConversion, undefined)
+  } finally {
+    closeAndWipe(db)
+  }
+})
+
+test('rejects an ingredient whose customConversion has an invalid weight quantity', async () => {
+  const db = await freshDb()
+  try {
+    const { recipe } = await seedDb(db)
+    const file = await buildExport(db)
+    const broken = cloneExport(file)
+    broken.data.ingredients[0] = {
+      ...broken.data.ingredients[0]!,
+      customConversion: { volumeUnit: 'cup', weightQuantity: 'not-a-number', weightUnit: 'g' },
+    }
+    assert.throws(() => validateExportFile(broken), InvalidDecimalStringError)
+    void recipe
+  } finally {
+    closeAndWipe(db)
+  }
+})
+
+test('rejects an ingredient whose customConversion has an invalid volume unit', async () => {
+  const db = await freshDb()
+  try {
+    await seedDb(db)
+    const file = await buildExport(db)
+    const broken = cloneExport(file)
+    broken.data.ingredients[0] = {
+      ...broken.data.ingredients[0]!,
+      customConversion: { volumeUnit: 'lb', weightQuantity: '120', weightUnit: 'g' } as never,
+    }
+    assert.throws(() => validateExportFile(broken), InvalidUnitError)
+  } finally {
+    closeAndWipe(db)
+  }
+})
+
+// ---------------------------------------------------------------------
 // Import requires explicit confirmation
 // ---------------------------------------------------------------------
 

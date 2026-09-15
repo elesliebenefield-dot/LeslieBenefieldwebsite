@@ -1,4 +1,4 @@
-import type { DecimalString, MeasurementType, RoundingIncrement, Unit } from '../calc-engine/types.ts'
+import type { CustomIngredientConversion, DecimalString, MeasurementType, RoundingIncrement, Unit } from '../calc-engine/types.ts'
 
 // Every decimal/currency quantity below is stored as an exact DecimalString
 // — never a native JavaScript number — all the way into IndexedDB. Only
@@ -11,6 +11,18 @@ export interface StoredIngredient {
   packageQuantity: DecimalString
   packageUnit: Unit
   measurementType: MeasurementType
+  // Set only when this ingredient was identified from the common-ingredient
+  // reference library (bakeryIngredientLibrary.ts, not this data layer) —
+  // absent for a fully custom ingredient. Never validated against the
+  // library's current contents on import: the library can change shape
+  // over time without invalidating an older export.
+  commonIngredientId?: string
+  // A baker-supplied (or baker-overridden) weight/volume bridge for this
+  // ingredient — see CustomIngredientConversion. Present only when the
+  // package and recipe-usage units are different measurement types and a
+  // conversion was supplied, whether that came from the library's standard
+  // estimate or the baker's own "Change" entry. Never guessed here.
+  customConversion?: CustomIngredientConversion
   createdAt: string
   updatedAt: string
 }
