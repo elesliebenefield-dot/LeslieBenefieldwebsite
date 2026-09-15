@@ -1,9 +1,18 @@
 // Real-browser integration tests for Milestone M7: the calculator's
-// attribution + lead-gen CTA + cross-link, the landing page, the four
-// educational articles, structured data, and — as of the 2026-09-15
-// final-publication approval — that every one of these pages is now
-// indexable (noindex, nofollow removed) and discoverable from the live
-// site. Runs against the production build (dist/) via a lightweight
+// attribution + lead-gen CTA + cross-link, the landing page, structured
+// data, and — as of the 2026-09-15 final-publication approval — that
+// every one of these pages is indexable (noindex, nofollow removed) and
+// discoverable from the live site.
+//
+// The four educational articles ("How to Price Baked Goods for Profit",
+// "Food Cost vs. Profit Margin", "How to Calculate Labor Cost", and
+// "Packaging, Waste & Overhead") were removed in a 2026-09-15 post-launch
+// correction — Websites by Leslie is not presenting itself as a source
+// of bakery-pricing advice. Their old URLs now permanently redirect to
+// the landing page (see vercel.json's "redirects", mirrored below for
+// local testing) rather than 404ing or serving content.
+//
+// Runs against the production build (dist/) via a lightweight
 // static HTTP server, driven by real headless Chrome — the same pattern
 // as the other UI test files.
 //
@@ -31,6 +40,12 @@ const MIME: Record<string, string> = {
   '.jpeg': 'image/jpeg',
 }
 
+// Mirrors vercel.json's "redirects" and "rewrites" exactly — read from
+// that file at startup rather than hardcoded a second time, so this test
+// can never silently drift from the actual production routing config.
+let REDIRECTS: Record<string, string> = {}
+let REWRITES: Record<string, string> = {}
+
 let server: Server
 let browser: Browser
 let baseUrl: string
@@ -38,9 +53,25 @@ let baseUrl: string
 before(async () => {
   execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' })
 
+  const vercelConfig = JSON.parse(await readFile(path.join(ROOT, 'vercel.json'), 'utf-8'))
+  for (const { source, destination } of vercelConfig.redirects ?? []) {
+    REDIRECTS[source] = destination
+  }
+  for (const { source, destination } of vercelConfig.rewrites ?? []) {
+    REWRITES[source] = destination
+  }
+
   server = createServer(async (req, res) => {
     const urlPath = req.url || '/'
-    const filePath = path.join(DIST, decodeURIComponent(urlPath.split('?')[0]))
+    const cleanPath = urlPath.split('?')[0]
+    const redirectTarget = REDIRECTS[cleanPath]
+    if (redirectTarget) {
+      res.writeHead(308, { Location: redirectTarget })
+      res.end()
+      return
+    }
+    const resolvedPath = REWRITES[cleanPath] ?? cleanPath
+    const filePath = path.join(DIST, decodeURIComponent(resolvedPath))
     try {
       const data = await readFile(filePath)
       const ext = path.extname(filePath)
@@ -62,12 +93,18 @@ after(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()))
 })
 
+// Only the landing page remains here — the four articles were removed
+// 2026-09-15. Kept as an array (rather than inlining a single page) so
+// every test below that loops over it needed no structural changes.
 const NEW_PAGES = [
   { path: '/bakery-pricing-guide.html', title: /Free Bakery Pricing Calculator/ },
-  { path: '/bakery-pricing-for-profit.html', title: /How to Price Baked Goods for Profit/ },
-  { path: '/bakery-food-cost-vs-margin.html', title: /Food Cost vs\. Profit Margin/ },
-  { path: '/bakery-labor-cost.html', title: /How to Calculate Labor Cost/ },
-  { path: '/bakery-packaging-waste-overhead.html', title: /Packaging, Waste/ },
+]
+
+const REMOVED_ARTICLE_URLS = [
+  '/bakery-pricing-for-profit',
+  '/bakery-food-cost-vs-margin',
+  '/bakery-labor-cost',
+  '/bakery-packaging-waste-overhead',
 ]
 
 // ─── 1. Everything is now indexable (2026-09-15 final publication) ────────
@@ -87,14 +124,10 @@ test('every M7 page is indexable — no noindex directive anywhere in the cluste
   }
 })
 
-test('the calculator, the landing page, every article, and the Business Tools hub each carry a www canonical URL matching their own route (2026-09-15: fixed from non-www after discovering the production domain redirects apex to www)', async () => {
+test('the calculator, the landing page, and the Business Tools hub each carry a www canonical URL matching their own route', async () => {
   const PAGES_WITH_CANONICAL = [
     { path: '/tools-bakery-pricing.html', canonical: 'https://www.websitesbyleslie.com/tools-bakery-pricing' },
     { path: '/bakery-pricing-guide.html', canonical: 'https://www.websitesbyleslie.com/bakery-pricing-guide' },
-    { path: '/bakery-pricing-for-profit.html', canonical: 'https://www.websitesbyleslie.com/bakery-pricing-for-profit' },
-    { path: '/bakery-food-cost-vs-margin.html', canonical: 'https://www.websitesbyleslie.com/bakery-food-cost-vs-margin' },
-    { path: '/bakery-labor-cost.html', canonical: 'https://www.websitesbyleslie.com/bakery-labor-cost' },
-    { path: '/bakery-packaging-waste-overhead.html', canonical: 'https://www.websitesbyleslie.com/bakery-packaging-waste-overhead' },
     { path: '/business-tools.html', canonical: 'https://www.websitesbyleslie.com/business-tools' },
   ]
   const page = await browser.newPage()
@@ -109,7 +142,7 @@ test('the calculator, the landing page, every article, and the Business Tools hu
   }
 })
 
-test('the live Services page links the free calculator through its distinct free-tools section, funneled via the landing page (not the individual articles or the raw calculator route directly)', async () => {
+test('the live Services page links the free calculator through its distinct free-tools section, funneled via the landing page (not the raw calculator route directly)', async () => {
   // Built during the M7 information-architecture correction, discovering
   // the calculator from an already-live, indexed page (/services) — and
   // as of the 2026-09-15 final-publication approval, the target itself is
@@ -119,7 +152,6 @@ test('the live Services page links the free calculator through its distinct free
     await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
     const hrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
     assert.ok(hrefs.includes('/bakery-pricing-guide'), 'Services page should link the free calculator via the landing page')
-    assert.ok(!hrefs.some(h => h.includes('bakery-pricing-for-profit') || h.includes('bakery-food-cost-vs-margin') || h.includes('bakery-labor-cost') || h.includes('bakery-packaging-waste-overhead')), 'Services page must not link individual articles directly — only through the landing page')
     // The free-tools card is in its own section, distinct from the existing
     // customizable-demo cards grid.
     const freeToolSection = await page.$('#free-tools .pricing-free-card')
@@ -138,10 +170,7 @@ test('the homepage callout discovers the tools only through the single "Business
   // deliberately and separately adds direct tool links inside the shared
   // Nav's collapsible "Tools & Resources" group, present on every page
   // including the homepage — an intentional, approved discovery path, not
-  // a regression of the callout's own behavior. This test now checks each
-  // scope on its own terms instead of a single page-wide "no bakery href
-  // anywhere" assertion that the approved nav redesign correctly no longer
-  // satisfies.
+  // a regression of the callout's own behavior.
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
@@ -156,7 +185,7 @@ test('the homepage callout discovers the tools only through the single "Business
   }
 })
 
-// ─── 2. New pages load correctly ───────────────────────────────────────────
+// ─── 2. Landing page loads correctly ───────────────────────────────────────
 
 for (const { path: p, title } of NEW_PAGES) {
   test(`${p} loads without console or page errors, with the expected title`, async () => {
@@ -176,7 +205,7 @@ for (const { path: p, title } of NEW_PAGES) {
   })
 }
 
-test('every new page has a meta description', async () => {
+test('the landing page has a meta description', async () => {
   const page = await browser.newPage()
   try {
     for (const { path: p } of NEW_PAGES) {
@@ -191,7 +220,7 @@ test('every new page has a meta description', async () => {
 
 // ─── 3. Content quality guards ──────────────────────────────────────────────
 
-test('articles make no market-price, profitability-guarantee, or legal-compliance claims', async () => {
+test('the landing page makes no market-price, profitability-guarantee, or legal-compliance claims', async () => {
   const page = await browser.newPage()
   try {
     for (const { path: p } of NEW_PAGES) {
@@ -206,39 +235,24 @@ test('articles make no market-price, profitability-guarantee, or legal-complianc
   }
 })
 
-test('the landing page and articles no longer make the corrected unsupported/double-counting claims (2026-09-15 content fixes)', async () => {
+test('the landing page no longer makes the corrected unsupported-generalization claim (2026-09-15 content fix)', async () => {
+  // The equipment-double-counting and "worth taking" claim fixes (also
+  // from 2026-09-15) lived only in the pricing-for-profit and
+  // food-cost-vs-margin articles, both removed in the later post-launch
+  // article-removal correction — nothing left to check for those here.
   const page = await browser.newPage()
   try {
-    // 1 & 2: no page claims ingredients are "usually the smallest piece" of
-    // a recipe's cost — an unsupported generalization about every recipe.
     for (const { path: p } of NEW_PAGES) {
       await page.goto(`${baseUrl}${p}`, { waitUntil: 'load' })
       const bodyText = await page.$eval('body', el => el.textContent || '')
       assert.doesNotMatch(bodyText, /ingredients?\s+(are|is)\s+usually\s+the\s+smallest/i, `${p} must not claim ingredients are usually the smallest piece of cost`)
     }
-
-    // 3: the pricing-for-profit article must not describe margin as
-    // covering equipment replacement — that's already covered by the
-    // Overhead estimator, so stating it here double-counts the same cost.
-    await page.goto(`${baseUrl}/bakery-pricing-for-profit.html`, { waitUntil: 'load' })
-    const forProfitText = await page.$eval('body', el => el.textContent || '')
-    assert.doesNotMatch(forProfitText, /replace\s+worn\s+equipment/i, 'pricing-for-profit article must not describe margin as covering equipment replacement (already in Overhead)')
-    assert.match(forProfitText, /business risk|risk of running it/i, 'pricing-for-profit article should describe margin as covering business risk')
-    assert.match(forProfitText, /reserve|grow/i, 'pricing-for-profit article should describe margin as supporting reserves/growth')
-
-    // 4: the food-cost-vs-margin article must not claim margin tells you
-    // whether an order was "worth taking" — softened to evaluating whether
-    // a price supports the business.
-    await page.goto(`${baseUrl}/bakery-food-cost-vs-margin.html`, { waitUntil: 'load' })
-    const marginText = await page.$eval('body', el => el.textContent || '')
-    assert.doesNotMatch(marginText, /worth\s+taking/i, 'food-cost-vs-margin article must not claim margin tells you whether an order was "worth taking"')
-    assert.match(marginText, /supports?\s+your\s+business|supports?\s+the\s+business/i, 'food-cost-vs-margin article should describe margin as helping evaluate whether a price supports the business')
   } finally {
     await page.close()
   }
 })
 
-test('no article or the landing page mentions offline use, installing, or a home-screen app (M5/M8 deferred)', async () => {
+test('the landing page does not mention offline use, installing, or a home-screen app (M5/M8 deferred)', async () => {
   const page = await browser.newPage()
   try {
     for (const { path: p } of NEW_PAGES) {
@@ -253,21 +267,17 @@ test('no article or the landing page mentions offline use, installing, or a home
   }
 })
 
-test('every article links into the calculator, and the landing page links every article', async () => {
+test('the landing page links directly into the calculator, and no longer links (or mentions) any of the four removed articles', async () => {
   const page = await browser.newPage()
   try {
-    for (const { path: p } of NEW_PAGES.slice(1)) {
-      await page.goto(`${baseUrl}${p}`, { waitUntil: 'load' })
-      const hrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
-      assert.ok(hrefs.includes('/tools-bakery-pricing'), `${p} should link directly into the calculator`)
-    }
-
     await page.goto(`${baseUrl}/bakery-pricing-guide.html`, { waitUntil: 'load' })
-    const landingHrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
-    for (const articleHref of ['/bakery-pricing-for-profit', '/bakery-food-cost-vs-margin', '/bakery-labor-cost', '/bakery-packaging-waste-overhead']) {
-      assert.ok(landingHrefs.includes(articleHref), `landing page should link ${articleHref}`)
+    const hrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
+    assert.ok(hrefs.includes('/tools-bakery-pricing'), 'landing page should link directly into the calculator')
+    for (const removedArticle of REMOVED_ARTICLE_URLS) {
+      assert.ok(!hrefs.includes(removedArticle), `landing page must not link the removed article ${removedArticle}`)
     }
-    assert.ok(landingHrefs.includes('/tools-bakery-pricing'), 'landing page should link directly into the calculator')
+    const bodyText = await page.$eval('body', el => el.textContent || '')
+    assert.doesNotMatch(bodyText, /learn more about pricing your bakes/i, 'the removed "Learn more about pricing your bakes" section must not reappear')
   } finally {
     await page.close()
   }
@@ -290,23 +300,54 @@ test('the calculator disclaimer still leads with the concise, non-alarming notic
   }
 })
 
-test('sitemap.xml lists the Business Tools hub alongside the calculator, landing page, and every article, using the www domain that matches production', async () => {
+test('sitemap.xml lists the Business Tools hub, the calculator, and the landing page — no removed article URLs', async () => {
   const res = await fetch(`${baseUrl}/sitemap.xml`)
   const xml = await res.text()
   for (const loc of [
     'https://www.websitesbyleslie.com/business-tools',
     'https://www.websitesbyleslie.com/tools-bakery-pricing',
     'https://www.websitesbyleslie.com/bakery-pricing-guide',
-    'https://www.websitesbyleslie.com/bakery-pricing-for-profit',
-    'https://www.websitesbyleslie.com/bakery-food-cost-vs-margin',
-    'https://www.websitesbyleslie.com/bakery-labor-cost',
-    'https://www.websitesbyleslie.com/bakery-packaging-waste-overhead',
   ]) {
     assert.ok(xml.includes(`<loc>${loc}</loc>`), `sitemap.xml should list ${loc}`)
   }
+  for (const removedArticle of REMOVED_ARTICLE_URLS) {
+    assert.ok(!xml.includes(removedArticle), `sitemap.xml must not list the removed article ${removedArticle}`)
+  }
 })
 
-// ─── 4. Structured data ─────────────────────────────────────────────────────
+// ─── 4. Removed-article redirects (2026-09-15 post-launch correction) ─────
+
+test('each removed article URL permanently redirects to the landing page, and no article content is reachable', async () => {
+  const page = await browser.newPage()
+  try {
+    for (const oldUrl of REMOVED_ARTICLE_URLS) {
+      const response = await page.goto(`${baseUrl}${oldUrl}`, { waitUntil: 'load' })
+      const chain = response?.request().redirectChain() ?? []
+      assert.ok(chain.length >= 1, `${oldUrl} should redirect (not just resolve directly)`)
+      assert.equal(chain[0].response()?.status(), 308, `${oldUrl} should redirect with a permanent (308) status`)
+      assert.equal(chain[0].response()?.headers()['location'], '/bakery-pricing-guide', `${oldUrl} should redirect to /bakery-pricing-guide`)
+
+      const finalTitle = await page.title()
+      assert.match(finalTitle, /Free Bakery Pricing Calculator/, `${oldUrl} should land on the calculator's landing page`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('the four removed articles\' .html files no longer exist in the production build', async () => {
+  for (const removedHtmlFile of [
+    '/bakery-pricing-for-profit.html',
+    '/bakery-food-cost-vs-margin.html',
+    '/bakery-labor-cost.html',
+    '/bakery-packaging-waste-overhead.html',
+  ]) {
+    const res = await fetch(`${baseUrl}${removedHtmlFile}`)
+    assert.equal(res.status, 404, `${removedHtmlFile} should no longer exist in the build (a redirect only covers the clean URL, not the raw .html file)`)
+  }
+})
+
+// ─── 5. Structured data ─────────────────────────────────────────────────────
 
 test('the calculator page carries valid WebApplication JSON-LD, describing it as free', async () => {
   const page = await browser.newPage()
@@ -323,9 +364,9 @@ test('the calculator page carries valid WebApplication JSON-LD, describing it as
   }
 })
 
-// ─── 5. Accessibility & responsive on the new pages ────────────────────────
+// ─── 6. Accessibility & responsive on the landing page ─────────────────────
 
-test('no horizontal overflow at 320px on the landing page or any article', async () => {
+test('no horizontal overflow at 320px on the landing page', async () => {
   const page = await browser.newPage()
   try {
     await page.setViewport({ width: 320, height: 900 })

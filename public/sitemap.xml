@@ -2,11 +2,17 @@
 <!--
   Prepared locally as part of Milestone M7's local launch-preparation
   phase. Scoped to the Free Bakery Pricing Calculator and its
-  supporting content (the calculator itself, its landing page, its four
-  educational articles) plus the Business Tools hub that discovers it
-  (added during the M7 information-architecture correction) — not a
-  full-site sitemap, and not a statement about how the rest of the
-  site's indexing is or should be managed.
+  supporting content (the calculator itself and its landing page) plus
+  the Business Tools hub that discovers it (added during the M7
+  information-architecture correction) — not a full-site sitemap, and
+  not a statement about how the rest of the site's indexing is or
+  should be managed.
+
+  The four educational articles previously listed here were removed
+  (2026-09-15 post-launch correction) — Websites by Leslie is not
+  presenting itself as a source of bakery-pricing advice. Their old
+  URLs now permanently redirect to the landing page (see vercel.json's
+  "redirects") rather than appearing here or serving content.
 
   As of the 2026-09-15 final-publication approval, every URL listed here
   is indexable (noindex, nofollow removed). URLs use the www subdomain —
@@ -27,17 +33,5 @@
   </url>
   <url>
     <loc>https://www.websitesbyleslie.com/bakery-pricing-guide</loc>
-  </url>
-  <url>
-    <loc>https://www.websitesbyleslie.com/bakery-pricing-for-profit</loc>
-  </url>
-  <url>
-    <loc>https://www.websitesbyleslie.com/bakery-food-cost-vs-margin</loc>
-  </url>
-  <url>
-    <loc>https://www.websitesbyleslie.com/bakery-labor-cost</loc>
-  </url>
-  <url>
-    <loc>https://www.websitesbyleslie.com/bakery-packaging-waste-overhead</loc>
   </url>
 </urlset>

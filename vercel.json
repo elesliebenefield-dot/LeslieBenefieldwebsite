@@ -1,4 +1,10 @@
 {
+  "redirects": [
+    { "source": "/bakery-pricing-for-profit", "destination": "/bakery-pricing-guide", "permanent": true },
+    { "source": "/bakery-food-cost-vs-margin", "destination": "/bakery-pricing-guide", "permanent": true },
+    { "source": "/bakery-labor-cost", "destination": "/bakery-pricing-guide", "permanent": true },
+    { "source": "/bakery-packaging-waste-overhead", "destination": "/bakery-pricing-guide", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/check", "destination": "/check.html" },
     { "source": "/services", "destination": "/services.html" },
@@ -17,10 +23,6 @@
     { "source": "/tools-food-truck-event",    "destination": "/tools-food-truck-event.html" },
     { "source": "/tools-bakery-pricing",      "destination": "/tools-bakery-pricing.html" },
     { "source": "/bakery-pricing-guide",      "destination": "/bakery-pricing-guide.html" },
-    { "source": "/bakery-pricing-for-profit", "destination": "/bakery-pricing-for-profit.html" },
-    { "source": "/bakery-food-cost-vs-margin", "destination": "/bakery-food-cost-vs-margin.html" },
-    { "source": "/bakery-labor-cost",         "destination": "/bakery-labor-cost.html" },
-    { "source": "/bakery-packaging-waste-overhead", "destination": "/bakery-packaging-waste-overhead.html" },
     { "source": "/business-tools",             "destination": "/business-tools.html" }
   ]
 }

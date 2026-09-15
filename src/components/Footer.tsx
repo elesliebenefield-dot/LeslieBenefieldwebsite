@@ -24,6 +24,14 @@ export default function Footer() {
       <div className="footer-links">
         <a href="/privacy-policy" className="footer-link">Privacy Policy</a>
         <a href="/business-tools" className="footer-link">Business Tools</a>
+        <a
+          href="https://www.facebook.com/share/1EB3v8j1Fz/"
+          className="footer-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Facebook
+        </a>
       </div>
       <p className="footer-contact">
         <a href="tel:8505659114" className="footer-phone">850-565-9114</a>

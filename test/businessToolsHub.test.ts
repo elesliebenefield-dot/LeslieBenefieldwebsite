@@ -184,14 +184,14 @@ test('the hub hero has an opaque backing behind its text, consistent with the .f
   }
 })
 
-test('the bakery-pricing landing page still links the calculator and all four articles (unaffected by the IA correction)', async () => {
+test('the bakery-pricing landing page still links the calculator (the four educational articles were removed 2026-09-15 — Websites by Leslie is not presenting itself as a source of bakery-pricing advice)', async () => {
   const page: Page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/bakery-pricing-guide.html`, { waitUntil: 'load' })
     const hrefs = await page.$$eval('a[href]', els => els.map(e => e.getAttribute('href') || ''))
     assert.ok(hrefs.includes('/tools-bakery-pricing'))
-    for (const article of ['/bakery-pricing-for-profit', '/bakery-food-cost-vs-margin', '/bakery-labor-cost', '/bakery-packaging-waste-overhead']) {
-      assert.ok(hrefs.includes(article))
+    for (const removedArticle of ['/bakery-pricing-for-profit', '/bakery-food-cost-vs-margin', '/bakery-labor-cost', '/bakery-packaging-waste-overhead']) {
+      assert.ok(!hrefs.includes(removedArticle), `landing page must no longer link the removed article ${removedArticle}`)
     }
   } finally {
     await page.close()

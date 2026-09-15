@@ -3,13 +3,6 @@ import Footer from '../../components/Footer'
 import beachBg from '../../assets/backgrounds/beach-background.jpeg'
 import { useScrollReveal } from '../../hooks/useScrollReveal'
 
-const ARTICLES = [
-  { href: '/bakery-pricing-for-profit', title: 'How to Price Baked Goods for Profit (Without Guessing)' },
-  { href: '/bakery-food-cost-vs-margin', title: 'Food Cost vs. Profit Margin: What’s the Difference for Bakers?' },
-  { href: '/bakery-labor-cost', title: 'How to Calculate Your Labor Cost for Cakes and Baked Goods' },
-  { href: '/bakery-packaging-waste-overhead', title: 'Packaging, Waste, and Overhead: The Costs Bakers Forget to Charge For' },
-]
-
 const VALUE_POINTS = [
   'Every cost accounted for — ingredients, labor, packaging, waste, and overhead',
   'A clear per-item and whole-batch suggested price, not just a single number',
@@ -91,16 +84,6 @@ export default function BakeryPricingLandingPage() {
                   per-item price, with a cost-completeness check showing exactly what was and wasn't included.
                 </li>
               </ol>
-
-              <h2>Learn more about pricing your bakes</h2>
-              <p>Four short guides, each focused on one part of getting your price right:</p>
-              <ul>
-                {ARTICLES.map((article) => (
-                  <li key={article.href}>
-                    <a href={article.href}>{article.title}</a>
-                  </li>
-                ))}
-              </ul>
             </article>
 
             <p className="bp-landing-disclaimer">
