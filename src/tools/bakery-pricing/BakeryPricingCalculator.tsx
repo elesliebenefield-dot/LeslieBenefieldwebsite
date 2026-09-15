@@ -8,13 +8,14 @@ import {
   validateWastePercent,
   validateYield,
 } from './calc-engine/validation.ts'
-import { fieldError } from './bakeryPricingValidationDisplay.ts'
+import { fieldError, isZeroOrBlank } from './bakeryPricingValidationDisplay.ts'
 import { RecipeIngredientsStep } from './RecipeIngredientsStep'
 import { AdditionalCostsStep } from './AdditionalCostsStep'
 import { CostBreakdownStep } from './CostBreakdownStep'
 import { createIngredient, listIngredients, updateIngredient } from './data/ingredientRepository.ts'
 import { createRecipe, getRecipeWithUsages, setRecipeUsages, updateRecipe } from './data/recipeRepository.ts'
 import { resolveRecipeIngredientLines, supplyItemCost } from './bakeryPricingRecipeSummary.ts'
+import { getLastHourlyRate, setLastHourlyRate } from './bakeryPricingLocalPreferences.ts'
 import {
   EMPTY_DRAFT_COST_INPUTS,
   EMPTY_ZERO_COST_ACK,
@@ -76,7 +77,13 @@ export function BakeryPricingCalculator({ db, recipeIdToEdit, onSaved, onDiscard
   const [yieldStr, setYieldStr] = useState('')
   const [ingredients, setIngredients] = useState<DraftIngredientLine[]>([])
   const [supplyItems, setSupplyItems] = useState<DraftSupplyItem[]>([])
-  const [costs, setCosts] = useState<DraftCostInputs>(EMPTY_DRAFT_COST_INPUTS)
+  // A brand-new draft's hourly rate is pre-filled from the last rate
+  // actually used on a saved recipe (a small, local convenience — see
+  // bakeryPricingLocalPreferences.ts) — never for an existing recipe being
+  // edited, since the load-for-edit effect below sets the real saved value.
+  const [costs, setCosts] = useState<DraftCostInputs>(() =>
+    isEditing ? EMPTY_DRAFT_COST_INPUTS : { ...EMPTY_DRAFT_COST_INPUTS, laborHourlyRate: getLastHourlyRate() ?? '' },
+  )
   const [ack, setAck] = useState<ZeroCostAcknowledgement>(EMPTY_ZERO_COST_ACK)
   const [marginPercent, setMarginPercent] = useState('35')
   const [roundingIncrement, setRoundingIncrement] = useState<RoundingIncrement>('0.25')
@@ -325,6 +332,7 @@ export function BakeryPricingCalculator({ db, recipeIdToEdit, onSaved, onDiscard
       } else {
         await createRecipe(db, recipeFields, usages)
       }
+      if (!isZeroOrBlank(costs.laborHourlyRate)) setLastHourlyRate(recipeFields.laborHourlyRate)
       setSaving(false)
       onSaved()
     } catch {
@@ -409,6 +417,7 @@ export function BakeryPricingCalculator({ db, recipeIdToEdit, onSaved, onDiscard
           onAcknowledge={(key) => setAck((prev) => ({ ...prev, [key]: true }))}
           showErrors={showCostErrors}
           reviewed={costsReviewed}
+          ingredientSubtotal={ingredientSubtotal}
         />
       )}
 

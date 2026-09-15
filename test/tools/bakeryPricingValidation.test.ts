@@ -16,6 +16,7 @@ import {
   validatePackageQuantity,
   validatePackagePrice,
   validateRoundingIncrement,
+  validateSellingPrice,
   validateSupplyDirectCost,
   validateUnitCompatibility,
   validateWastePercent,
@@ -107,4 +108,10 @@ test('passes a same-type unit pairing', () => {
   assert.equal(validateUnitCompatibility('g', 'kg').valid, true)
   assert.equal(validateUnitCompatibility('cup', 'tsp').valid, true)
   assert.equal(validateUnitCompatibility('each', 'dozen').valid, true)
+})
+
+test('rejects a negative selling price, accepts zero and positive (post-M4 selling-price test)', () => {
+  assert.equal(validateSellingPrice('-0.01').valid, false)
+  assert.equal(validateSellingPrice('0').valid, true)
+  assert.equal(validateSellingPrice('40').valid, true)
 })

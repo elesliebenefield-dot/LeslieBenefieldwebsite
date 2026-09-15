@@ -1,14 +1,19 @@
-import { fromStorageString } from './calc-engine/decimal.ts'
+import { useState } from 'react'
 import {
   validateHourlyRate,
   validateLaborMinutes,
   validateOverhead,
   validateWastePercent,
 } from './calc-engine/validation.ts'
-import { fieldError } from './bakeryPricingValidationDisplay.ts'
+import { fieldError, isZeroOrBlank } from './bakeryPricingValidationDisplay.ts'
 import { SuppliesSection } from './SuppliesSection.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
+import { EstimateModeToggle, type EstimateMode } from './EstimateModeToggle.tsx'
+import { LaborEstimator } from './LaborEstimator.tsx'
+import { OverheadEstimator } from './OverheadEstimator.tsx'
+import { WasteEstimator } from './WasteEstimator.tsx'
 import type { DraftCostInputs, DraftSupplyItem, ZeroCostAcknowledgement } from './bakeryPricingDraftTypes.ts'
+import type { DecimalString } from './calc-engine/types.ts'
 
 interface Props {
   costs: DraftCostInputs
@@ -24,15 +29,10 @@ interface Props {
   // step (Back or Next) — never while a section is merely being opened or
   // typed into. Set by the parent when that first happens.
   reviewed: boolean
-}
-
-function isZeroOrBlank(raw: string): boolean {
-  if (raw.trim() === '') return true
-  try {
-    return fromStorageString(raw).isZero()
-  } catch {
-    return false
-  }
+  // Read-only — used only by the Waste "Help me estimate this" panel to
+  // convert a baker-entered dollar amount into a percentage of this
+  // recipe's own ingredient cost. Never written to from this step.
+  ingredientSubtotal: DecimalString
 }
 
 export function AdditionalCostsStep({
@@ -46,6 +46,7 @@ export function AdditionalCostsStep({
   onAcknowledge,
   showErrors,
   reviewed,
+  ingredientSubtotal,
 }: Props) {
   const laborIsZero = isZeroOrBlank(costs.laborHourlyRate) || isZeroOrBlank(costs.laborMinutes)
   const suppliesIsZero = supplyItems.length === 0
@@ -56,6 +57,15 @@ export function AdditionalCostsStep({
   const laborMinutesError = fieldError(costs.laborMinutes, validateLaborMinutes)
   const overheadError = fieldError(costs.overheadFlatCost, validateOverhead)
   const wasteError = fieldError(costs.wastePercent, validateWastePercent)
+
+  // Each estimator is its own optional, progressively-disclosed path — the
+  // direct-entry field is what's shown by default in every group, exactly
+  // as before this enhancement. Switching to 'estimate' never clears or
+  // hides a value already entered directly; applying an estimate switches
+  // back to 'direct' so the result is visible in the ordinary field.
+  const [laborMinutesMode, setLaborMinutesMode] = useState<EstimateMode>('direct')
+  const [overheadMode, setOverheadMode] = useState<EstimateMode>('direct')
+  const [wasteMode, setWasteMode] = useState<EstimateMode>('direct')
 
   return (
     <div className="bp-step">
@@ -69,19 +79,37 @@ export function AdditionalCostsStep({
       <details className="bp-cost-group" open>
         <summary><span className="bp-summary-label"><SectionIcon symbol="⏱️" /> Labor</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
-          <div className="bp-inline-fields">
-            <div className="bp-field">
-              <label htmlFor="bp-labor-rate">Hourly rate</label>
-              <input
-                id="bp-labor-rate"
-                type="text"
-                inputMode="decimal"
-                value={costs.laborHourlyRate}
-                onChange={e => onChange({ laborHourlyRate: e.target.value })}
-                aria-invalid={!!hourlyRateError}
-              />
-              {hourlyRateError && <p className="bp-error" role="alert">{hourlyRateError}</p>}
-            </div>
+          <p className="bp-helper">
+            Labor pays you for the time you spend on this order. Profit — the margin you'll choose in the next
+            step — is different: it belongs to the business itself, to cover risk, growth, and rebuilding a
+            financial cushion.
+          </p>
+
+          <div className="bp-field">
+            <label htmlFor="bp-labor-rate">Hourly rate</label>
+            <input
+              id="bp-labor-rate"
+              type="text"
+              inputMode="decimal"
+              value={costs.laborHourlyRate}
+              onChange={e => onChange({ laborHourlyRate: e.target.value })}
+              aria-invalid={!!hourlyRateError}
+            />
+            {hourlyRateError && <p className="bp-error" role="alert">{hourlyRateError}</p>}
+            <p className="bp-helper">
+              Thinking about what to charge yourself? Consider what would make this work worth your time, and
+              what you might need to pay someone else with comparable skill.
+            </p>
+          </div>
+
+          <EstimateModeToggle
+            name="bp-labor-minutes-mode"
+            mode={laborMinutesMode}
+            onChange={setLaborMinutesMode}
+            estimateLabel="Help me estimate my minutes"
+          />
+
+          {laborMinutesMode === 'direct' ? (
             <div className="bp-field">
               <label htmlFor="bp-labor-minutes">Active minutes</label>
               <input
@@ -93,9 +121,17 @@ export function AdditionalCostsStep({
                 aria-invalid={!!laborMinutesError}
               />
               {laborMinutesError && <p className="bp-error" role="alert">{laborMinutesError}</p>}
+              <p className="bp-helper">Active time only — prep, decorating, packaging, cleanup. Passive baking or cooling time isn't included automatically.</p>
             </div>
-          </div>
-          <p className="bp-helper">Active time only — prep, decorating, packaging, cleanup. Passive baking or cooling time isn't included automatically.</p>
+          ) : (
+            <LaborEstimator
+              onApply={minutes => {
+                onChange({ laborMinutes: minutes })
+                setLaborMinutesMode('direct')
+              }}
+            />
+          )}
+
           {reviewed && laborIsZero && !ack.labor && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
@@ -126,19 +162,31 @@ export function AdditionalCostsStep({
       <details className="bp-cost-group">
         <summary>Overhead <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
-          <div className="bp-field">
-            <label htmlFor="bp-overhead">Flat amount for this batch</label>
-            <input
-              id="bp-overhead"
-              type="text"
-              inputMode="decimal"
-              value={costs.overheadFlatCost}
-              onChange={e => onChange({ overheadFlatCost: e.target.value })}
-              aria-invalid={!!overheadError}
+          <EstimateModeToggle name="bp-overhead-mode" mode={overheadMode} onChange={setOverheadMode} />
+
+          {overheadMode === 'direct' ? (
+            <div className="bp-field">
+              <label htmlFor="bp-overhead">Flat amount for this batch</label>
+              <input
+                id="bp-overhead"
+                type="text"
+                inputMode="decimal"
+                value={costs.overheadFlatCost}
+                onChange={e => onChange({ overheadFlatCost: e.target.value })}
+                aria-invalid={!!overheadError}
+              />
+              {overheadError && <p className="bp-error" role="alert">{overheadError}</p>}
+              <p className="bp-helper">A flat dollar amount covering this batch's share of rent, utilities, and similar costs.</p>
+            </div>
+          ) : (
+            <OverheadEstimator
+              onApply={amount => {
+                onChange({ overheadFlatCost: amount })
+                setOverheadMode('direct')
+              }}
             />
-            {overheadError && <p className="bp-error" role="alert">{overheadError}</p>}
-          </div>
-          <p className="bp-helper">A flat dollar amount covering this batch's share of rent, utilities, and similar costs.</p>
+          )}
+
           {reviewed && overheadIsZero && !ack.overhead && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
@@ -151,19 +199,37 @@ export function AdditionalCostsStep({
       <details className="bp-cost-group">
         <summary>Ingredient Waste Allowance <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
-          <div className="bp-field">
-            <label htmlFor="bp-waste">Waste percentage</label>
-            <input
-              id="bp-waste"
-              type="text"
-              inputMode="decimal"
-              value={costs.wastePercent}
-              onChange={e => onChange({ wastePercent: e.target.value })}
-              aria-invalid={!!wasteError}
+          <p className="bp-helper">
+            Waste can include spills, trimming, broken or rejected products, leftovers, test batches, and failed
+            batches. The most reliable personal estimate comes from tracking a few real batches over time.
+          </p>
+
+          <EstimateModeToggle name="bp-waste-mode" mode={wasteMode} onChange={setWasteMode} />
+
+          {wasteMode === 'direct' ? (
+            <div className="bp-field">
+              <label htmlFor="bp-waste">Waste percentage</label>
+              <input
+                id="bp-waste"
+                type="text"
+                inputMode="decimal"
+                value={costs.wastePercent}
+                onChange={e => onChange({ wastePercent: e.target.value })}
+                aria-invalid={!!wasteError}
+              />
+              {wasteError && <p className="bp-error" role="alert">{wasteError}</p>}
+              <p className="bp-helper">Applied to your ingredient cost only — covers spoilage, burnt batches, or trimmed scraps. Not every recipe needs this set above zero.</p>
+            </div>
+          ) : (
+            <WasteEstimator
+              ingredientSubtotal={ingredientSubtotal}
+              onApply={percent => {
+                onChange({ wastePercent: percent })
+                setWasteMode('direct')
+              }}
             />
-            {wasteError && <p className="bp-error" role="alert">{wasteError}</p>}
-          </div>
-          <p className="bp-helper">Applied to your ingredient cost only — covers spoilage, burnt batches, or trimmed scraps. Not every recipe needs this set above zero.</p>
+          )}
+
           {reviewed && wasteIsZero && !ack.waste && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>

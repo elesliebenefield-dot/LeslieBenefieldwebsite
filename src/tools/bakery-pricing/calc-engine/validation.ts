@@ -90,6 +90,12 @@ export function validateRoundingIncrement(raw: DecimalString): ValidationResult<
   return positive(raw, "Rounding increment");
 }
 
+// A baker-entered hypothetical selling price, for the separate "Test a
+// selling price" panel — not part of the cost-plus-margin calculation.
+export function validateSellingPrice(raw: DecimalString): ValidationResult<Decimal> {
+  return nonNegative(raw, "Selling price");
+}
+
 export function validateUnitCompatibility(packageUnit: Unit, usageUnit: Unit): ValidationResult<true> {
   if (!areCompatible(packageUnit, usageUnit)) {
     return { valid: false, reason: UNIT_MISMATCH_MESSAGE };

@@ -98,8 +98,8 @@ export function SuppliesSection({ items, onAddItem, onUpdateItem, onRemoveItem }
   return (
     <div className="bp-supplies-section">
       <p className="bp-helper">
-        Include anything that is used up or leaves with the order — boxes, cake boards, supports, sticks,
-        liners, bags, labels, ribbon, and similar items.
+        Include anything that is used up or leaves with the order — easy ones to forget are boxes, cake boards,
+        bags, liners, labels, ribbon, parchment, sticks, dowels, and disposable trays.
       </p>
       <p className="bp-helper bp-supplies-equipment-note">
         Reusable equipment — mixers, pans, decorating tools, and similar items you use again and again — doesn't

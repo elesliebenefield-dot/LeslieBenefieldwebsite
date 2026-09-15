@@ -13,6 +13,7 @@ import {
   computeCostBreakdown,
   computeIngredientCost,
   computeIngredientSubtotal,
+  computeSellingPriceTest,
   computeSuggestedPricing,
   computeSuppliesSubtotal,
   computeSupplyDirectCost,
@@ -476,4 +477,70 @@ test('suggested prices never round downward relative to the exact target, for an
     ),
     { numRuns: 200 },
   )
+})
+
+// ── computeSellingPriceTest (post-M4 beginner-guidance enhancement) ────────
+
+test('a selling price above total production cost reports the correct per-item price, remainder, and margin', () => {
+  // 24 items, $30 total production cost, tested at $60/batch.
+  const result = computeSellingPriceTest('60', '30', 24)
+  assert.equal(result.valid, true)
+  if (!result.valid) return
+  assert.equal(result.value.batchPrice, '60')
+  assert.equal(result.value.perItemPrice, '2.5')
+  assert.equal(result.value.remainingAfterCosts, '30')
+  assert.equal(result.value.actualMarginPercent, '50')
+  assert.equal(result.value.belowBreakEven, false)
+})
+
+test('a selling price below total production cost is flagged belowBreakEven, with a negative remainder', () => {
+  const result = computeSellingPriceTest('20', '30', 24)
+  assert.equal(result.valid, true)
+  if (!result.valid) return
+  assert.equal(result.value.remainingAfterCosts, '-10')
+  assert.equal(result.value.belowBreakEven, true)
+  assert.equal(result.value.actualMarginPercent, '-50')
+})
+
+test('a selling price exactly equal to total production cost is at break-even, not below it', () => {
+  const result = computeSellingPriceTest('30', '30', 24)
+  assert.equal(result.valid, true)
+  if (!result.valid) return
+  assert.equal(result.value.remainingAfterCosts, '0')
+  assert.equal(result.value.actualMarginPercent, '0')
+  assert.equal(result.value.belowBreakEven, false)
+})
+
+test('a zero selling price reports 0% actual margin rather than dividing by zero', () => {
+  const result = computeSellingPriceTest('0', '30', 24)
+  assert.equal(result.valid, true)
+  if (!result.valid) return
+  assert.equal(result.value.actualMarginPercent, '0')
+  assert.equal(result.value.belowBreakEven, true)
+})
+
+test('rejects a negative selling price with a calm, specific message', () => {
+  const result = computeSellingPriceTest('-5', '30', 24)
+  assert.equal(result.valid, false)
+  if (result.valid) return
+  assert.match(result.reason, /Selling price/)
+})
+
+test('never lets an invalid yield through to the selling-price test', () => {
+  const result = computeSellingPriceTest('60', '30', 0)
+  assert.equal(result.valid, false)
+})
+
+test('computeSellingPriceTest never feeds into or reads from computeSuggestedPricing', () => {
+  // Independence check: an arbitrary margin/rounding choice must have zero
+  // effect on the selling-price test's own numbers for the same costs.
+  const withOneMargin = computeSuggestedPricing('30', 24, '35', '0.25')
+  const sellingTest = computeSellingPriceTest('60', '30', 24)
+  assert.equal(withOneMargin.valid, true)
+  assert.equal(sellingTest.valid, true)
+  if (!withOneMargin.valid || !sellingTest.valid) return
+  // The selling-price test's per-item price is a pure division of the
+  // tested batch price, independent of whatever suggestedPerItemPrice was.
+  assert.notEqual(sellingTest.value.perItemPrice, withOneMargin.value.suggestedPerItemPrice)
+  assert.equal(sellingTest.value.perItemPrice, '2.5')
 })

@@ -15,6 +15,7 @@ import {
   validatePackageQuantity,
   validatePackagePrice,
   validateRoundingIncrement,
+  validateSellingPrice,
   validateSupplyDirectCost,
   validateWastePercent,
   validateYield,
@@ -24,6 +25,7 @@ import type {
   DecimalString,
   IngredientInput,
   RecipeCostInputs,
+  SellingPriceTestResult,
   SuggestedPricing,
   SupplyPackageInput,
   ValidationResult,
@@ -230,6 +232,43 @@ export function computeSuggestedPricing(
       suggestedWholeBatchPrice: toStorageString(suggestedWholeBatchPrice),
       suggestedPerItemPrice: toStorageString(suggestedPerItemPrice),
       equivalentMarkupRate: toStorageString(equivalentMarkupRate),
+    },
+  };
+}
+
+/**
+ * Tests an arbitrary, baker-entered whole-batch selling price against the
+ * already-computed total production cost — reporting what that price would
+ * actually mean (per-item equivalent, dollars remaining, actual margin, and
+ * whether it's below break-even). This is deliberately independent of
+ * computeSuggestedPricing: it never feeds a result back into the
+ * calculator's own cost-plus-margin recommendation, and the pricing formula
+ * itself is untouched — this only reports against costs already computed.
+ */
+export function computeSellingPriceTest(
+  batchPrice: DecimalString,
+  totalProductionCost: DecimalString,
+  yieldCount: number,
+): ValidationResult<SellingPriceTestResult> {
+  const price = validateSellingPrice(batchPrice);
+  if (!price.valid) return fail(price.reason);
+
+  const yieldResult = validateYield(yieldCount);
+  if (!yieldResult.valid) return fail(yieldResult.reason);
+
+  const cost = fromStorageString(totalProductionCost);
+  const perItemPrice = price.value.dividedBy(yieldResult.value);
+  const remaining = price.value.minus(cost);
+  const actualMarginPercent = price.value.isZero() ? new Decimal(0) : remaining.dividedBy(price.value).times(100);
+
+  return {
+    valid: true,
+    value: {
+      batchPrice: toStorageString(price.value),
+      perItemPrice: toStorageString(perItemPrice),
+      remainingAfterCosts: toStorageString(remaining),
+      actualMarginPercent: toStorageString(actualMarginPercent),
+      belowBreakEven: remaining.isNegative(),
     },
   };
 }

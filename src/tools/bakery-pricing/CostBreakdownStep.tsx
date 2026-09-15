@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { computeBreakEven, computeCostBreakdown, computeSuggestedPricing } from './calc-engine/formulas.ts'
 import { fromStorageString } from './calc-engine/decimal.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
-import { safeCompute } from './bakeryPricingValidationDisplay.ts'
+import { isZeroOrBlank, safeCompute } from './bakeryPricingValidationDisplay.ts'
 import { ROUNDING_INCREMENTS } from './bakeryPricingDraftTypes.ts'
 import { SectionIcon } from './SectionIcon.tsx'
+import { CostCompletenessCheck } from './CostCompletenessCheck.tsx'
+import { SellingPriceTest } from './SellingPriceTest.tsx'
 import type { DraftCostInputs } from './bakeryPricingDraftTypes.ts'
 import type { RoundingIncrement } from './calc-engine/types.ts'
 
@@ -78,6 +80,11 @@ export function CostBreakdownStep({
 
   const marginRaw = marginPercent.trim() === '' ? '0' : marginPercent
 
+  const laborIncluded = !isZeroOrBlank(costs.laborHourlyRate) && !isZeroOrBlank(costs.laborMinutes)
+  const overheadIncluded = !isZeroOrBlank(costs.overheadFlatCost)
+  const wasteIncluded = !isZeroOrBlank(costs.wastePercent)
+  const suppliesIncluded = !fromStorageString(suppliesSubtotal).isZero()
+
   return (
     <div className="bp-step">
       <h2 className="bp-h2">Choose Your Profit Margin</h2>
@@ -134,6 +141,13 @@ export function CostBreakdownStep({
             </p>
           </div>
 
+          <CostCompletenessCheck
+            laborIncluded={laborIncluded}
+            overheadIncluded={overheadIncluded}
+            wasteIncluded={wasteIncluded}
+            suppliesIncluded={suppliesIncluded}
+          />
+
           <details className="bp-cost-group bp-breakdown-details">
             <summary><span className="bp-summary-label"><SectionIcon symbol="🧾" /> See how this was calculated</span> <span className="bp-chev" aria-hidden="true">›</span></summary>
             <div className="bp-details-body">
@@ -185,6 +199,8 @@ export function CostBreakdownStep({
               </p>
             </div>
           </details>
+
+          <SellingPriceTest totalProductionCost={breakdown.value.totalProductionCost} yieldCount={yieldCount} />
         </>
       )}
     </div>

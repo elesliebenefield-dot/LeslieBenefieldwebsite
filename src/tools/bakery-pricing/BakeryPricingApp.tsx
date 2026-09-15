@@ -142,16 +142,24 @@ export function BakeryPricingApp() {
 
       <div className="tool-disclaimer bp-disclaimer-compact" role="note">
         <p className="bp-disclaimer-summary">
-          Planning estimates only, not financial advice. Calculations stay on your device and are never
-          transmitted anywhere.
+          Planning estimates only — not financial, accounting, tax, legal, or business advice. Calculations stay
+          on your device and are never transmitted anywhere.
         </p>
         <details onToggle={(e) => setShowFullDisclaimer(e.currentTarget.open)}>
           <summary>{showFullDisclaimer ? 'Hide full disclaimer' : 'Read the full disclaimer'}</summary>
           <p>
-            These figures are planning estimates based on what you entered. Bakery Pricing Planner is not
-            accounting, tax, or financial advice, does not guarantee a profit, and does not replace your own
-            judgment about your costs, local rules, and final pricing. All calculations happen on your device —
-            what you enter here is never transmitted anywhere.
+            These figures are planning estimates based entirely on the information and assumptions you enter.
+            Suggested prices, hourly-rate considerations, overhead allocations, waste estimates, margins, and the
+            cost-completeness indicators are educational planning tools — not promises of profitability, not
+            guarantees of accuracy, and not market-rate recommendations for your area or business. You are
+            responsible for verifying your own expenses, applicable taxes, permits and licenses, wage and labor
+            requirements, food-business regulations, local market conditions, and any final business or pricing
+            decisions. Websites by Leslie does not guarantee the accuracy, completeness, profitability, or
+            suitability of any calculation for your particular business and, to the extent permitted by
+            applicable law, is not responsible for losses or business decisions arising from reliance on this
+            calculator. When you need professional guidance, consult an accountant, attorney, tax professional,
+            or your local regulatory authority. All calculations happen on your device — what you enter here is
+            never transmitted anywhere.
           </p>
         </details>
       </div>

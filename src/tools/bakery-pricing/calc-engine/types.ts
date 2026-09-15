@@ -77,3 +77,16 @@ export interface SuggestedPricing {
   suggestedPerItemPrice: DecimalString;
   equivalentMarkupRate: DecimalString;
 }
+
+// The result of testing an arbitrary, baker-entered selling price against
+// the already-computed cost breakdown — deliberately separate from
+// SuggestedPricing (the calculator's own cost-plus-margin recommendation).
+// This never feeds back into the suggested price; it only reports what a
+// hypothetical price would mean given the costs already entered.
+export interface SellingPriceTestResult {
+  batchPrice: DecimalString;
+  perItemPrice: DecimalString;
+  remainingAfterCosts: DecimalString;
+  actualMarginPercent: DecimalString;
+  belowBreakEven: boolean;
+}
