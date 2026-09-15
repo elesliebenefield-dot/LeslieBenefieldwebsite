@@ -1,10 +1,11 @@
-// Real-browser integration tests for the M7 local launch-preparation phase:
-// the calculator's attribution + lead-gen CTA + cross-link, the landing
-// page, the four educational articles, structured data, and — most
-// importantly — that none of this is actually exposed yet (noindex stays,
-// nothing is linked from the live Services page). Runs against the
-// production build (dist/) via a lightweight static HTTP server, driven by
-// real headless Chrome — the same pattern as the other UI test files.
+// Real-browser integration tests for Milestone M7: the calculator's
+// attribution + lead-gen CTA + cross-link, the landing page, the four
+// educational articles, structured data, and — as of the 2026-09-15
+// final-publication approval — that every one of these pages is now
+// indexable (noindex, nofollow removed) and discoverable from the live
+// site. Runs against the production build (dist/) via a lightweight
+// static HTTP server, driven by real headless Chrome — the same pattern
+// as the other UI test files.
 //
 // Run with: node --test test/tools/bakeryPricingLaunchPrep.test.ts
 
@@ -69,27 +70,18 @@ const NEW_PAGES = [
   { path: '/bakery-packaging-waste-overhead.html', title: /Packaging, Waste/ },
 ]
 
-// ─── 1. Nothing new is exposed yet ─────────────────────────────────────────
+// ─── 1. Everything is now indexable (2026-09-15 final publication) ────────
 
-test('every new M7 page still carries noindex, nofollow', async () => {
+test('every M7 page is indexable — no noindex directive anywhere in the cluster', async () => {
   const page = await browser.newPage()
   try {
-    for (const { path: p } of NEW_PAGES) {
+    const ALL_PAGES = [...NEW_PAGES.map(n => n.path), '/tools-bakery-pricing.html', '/business-tools.html']
+    for (const p of ALL_PAGES) {
       await page.goto(`${baseUrl}${p}`, { waitUntil: 'load' })
-      const content = await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content)
-      assert.match(content, /noindex/, `${p} must stay noindex`)
-      assert.match(content, /nofollow/, `${p} must stay nofollow`)
+      const robotsEl = await page.$('meta[name="robots"]')
+      const content = robotsEl ? await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content) : null
+      assert.ok(!content || !content.includes('noindex'), `${p} expected no noindex directive, got: "${content}"`)
     }
-    // The calculator itself must still be noindex too — unaffected by M7's local prep.
-    await page.goto(`${baseUrl}/tools-bakery-pricing.html`, { waitUntil: 'load' })
-    const calcRobots = await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content)
-    assert.match(calcRobots, /noindex/)
-    assert.match(calcRobots, /nofollow/)
-    // The new Business Tools hub (added during the M7 IA correction) too.
-    await page.goto(`${baseUrl}/business-tools.html`, { waitUntil: 'load' })
-    const hubRobots = await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content)
-    assert.match(hubRobots, /noindex/)
-    assert.match(hubRobots, /nofollow/)
   } finally {
     await page.close()
   }
@@ -118,13 +110,10 @@ test('the calculator, the landing page, every article, and the Business Tools hu
 })
 
 test('the live Services page links the free calculator through its distinct free-tools section, funneled via the landing page (not the individual articles or the raw calculator route directly)', async () => {
-  // Superseded by the M7 information-architecture correction: the discovery
-  // path is now built deliberately from already-live, indexed pages (like
-  // /services), the same way the existing demo tools (e.g.
-  // /tools-custom-bakery-order) are already linked from the Services page's
-  // demo-cards grid while still carrying noindex, nofollow. Indexing is
-  // controlled by the target page's own robots meta tag, not by whether a
-  // link to it exists — see the noindex test above, which still passes.
+  // Built during the M7 information-architecture correction, discovering
+  // the calculator from an already-live, indexed page (/services) — and
+  // as of the 2026-09-15 final-publication approval, the target itself is
+  // indexable too, so this link is now a genuine, fully live discovery path.
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
@@ -145,8 +134,8 @@ test('the live Services page links the free calculator through its distinct free
 test('the homepage discovers the tools only through a single "Business Tools" hub link, not a direct bakery-pricing link', async () => {
   // Per the M7 IA correction: the homepage's featured-tool callout should
   // point to the general /business-tools hub, not straight to any one
-  // tool. The hub itself (still noindex, nofollow) is what links onward to
-  // the bakery-pricing landing page.
+  // tool. The hub itself is what links onward to the bakery-pricing
+  // landing page.
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })

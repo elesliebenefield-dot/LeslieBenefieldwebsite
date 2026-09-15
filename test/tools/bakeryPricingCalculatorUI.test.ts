@@ -243,12 +243,12 @@ test('welcome intro explains the three-step process and what to have ready', asy
   }
 })
 
-test('noindex, nofollow meta tag is present', async () => {
+test('page is indexable — no noindex directive (2026-09-15 final publication)', async () => {
   const page = await openTool()
   try {
-    const content = await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content)
-    assert.match(content, /noindex/)
-    assert.match(content, /nofollow/)
+    const robotsEl = await page.$('meta[name="robots"]')
+    const content = robotsEl ? await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content) : null
+    assert.ok(!content || !content.includes('noindex'), `expected no noindex directive, got: "${content}"`)
   } finally {
     await page.close()
   }

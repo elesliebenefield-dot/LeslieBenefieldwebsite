@@ -8,11 +8,11 @@
   full-site sitemap, and not a statement about how the rest of the
   site's indexing is or should be managed.
 
-  Every URL listed here is still marked noindex, nofollow as of this file
-  being created, and this file has not been referenced from a robots.txt
-  (none exists site-wide) or submitted to Google Search Console. Both of
-  those are final-publication actions requiring separate explicit
-  approval — see build/v1.0.0-launch/design.md.
+  As of the 2026-09-15 final-publication approval, every URL listed here
+  is indexable (noindex, nofollow removed). This file has not been
+  referenced from a robots.txt (none exists site-wide) and has not been
+  submitted to Google Search Console — that submission is Leslie's own
+  account-level step, not done here. See build/v1.0.0-launch/design.md.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>

@@ -131,7 +131,7 @@ test('the homepage featured-tool callout points to /business-tools, not directly
   }
 })
 
-test('the Business Tools hub loads, stays noindex, and accurately distinguishes the one free tool from every live demo', async () => {
+test('the Business Tools hub loads, is indexable (2026-09-15 final publication), and accurately distinguishes the one free tool from every live demo', async () => {
   const page: Page = await browser.newPage()
   const errors: string[] = []
   page.on('pageerror', err => errors.push(String(err)))
@@ -139,9 +139,9 @@ test('the Business Tools hub loads, stays noindex, and accurately distinguishes 
     await page.goto(`${baseUrl}/business-tools.html`, { waitUntil: 'load' })
     assert.deepEqual(errors, [])
 
-    const robots = await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content)
-    assert.match(robots, /noindex/)
-    assert.match(robots, /nofollow/)
+    const robotsEl = await page.$('meta[name="robots"]')
+    const robots = robotsEl ? await page.$eval('meta[name="robots"]', el => (el as HTMLMetaElement).content) : null
+    assert.ok(!robots || !robots.includes('noindex'), `expected no noindex directive, got: "${robots}"`)
 
     const tags = await page.$$eval('.bt-tool-tag', els => els.map(e => e.textContent?.trim()))
     assert.ok(tags.includes('Free Tool'), 'the hub should mark the bakery calculator as a Free Tool')
