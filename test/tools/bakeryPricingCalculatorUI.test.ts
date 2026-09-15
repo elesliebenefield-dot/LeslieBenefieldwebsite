@@ -1801,7 +1801,7 @@ test('localStorage and sessionStorage stay empty throughout the entire flow', as
   }
 })
 
-test('no IndexedDB database is created during the M3 flow', async () => {
+test('the app opens its own namespaced IndexedDB database (Milestone M4 saved-data persistence)', async () => {
   const page = await openTool()
   try {
     await buildHandVerifiedRecipe(page)
@@ -1810,7 +1810,7 @@ test('no IndexedDB database is created during the M3 flow', async () => {
       const dbs = await indexedDB.databases()
       return dbs.map(d => d.name)
     })
-    assert.deepEqual(dbNames, [], 'M3 must not touch IndexedDB — persistence is Milestone M4')
+    assert.deepEqual(dbNames, ['bakery-pricing-planner'], 'M4 opens exactly one, distinctly-namespaced IndexedDB database')
   } finally {
     await page.close()
   }

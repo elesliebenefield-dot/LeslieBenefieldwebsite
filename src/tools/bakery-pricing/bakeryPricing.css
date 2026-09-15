@@ -1009,6 +1009,25 @@
   background: var(--bp-cream);
 }
 
+.bakery-pricing-calculator .bp-autocomplete-badge {
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--bp-sage-soft);
+  color: var(--bp-espresso);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bakery-pricing-calculator .bp-saved-ingredient-note {
+  background: var(--bp-sage-soft);
+  border-radius: 10px;
+  padding: 0.625rem 0.75rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
 /* ---------- Standard conversion (common-ingredient library) ---------- */
 .bakery-pricing-calculator .bp-standard-conversion {
   display: flex;
@@ -1111,4 +1130,64 @@
       box-shadow: 0 0 0 0 rgba(184, 145, 47, 0);
     }
   }
+}
+
+/* ---------- M4: app-level navigation (Calculator / Saved Recipes / Ingredient Library) ---------- */
+.bakery-pricing-calculator .bp-app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn {
+  font-family: var(--bp-font-interface);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--bp-espresso-soft);
+  background: var(--bp-paper);
+  border: 1px solid var(--bp-line);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn:hover {
+  background: var(--bp-cream);
+}
+
+.bakery-pricing-calculator .bp-app-nav-btn.is-active {
+  background: var(--bp-espresso);
+  border-color: var(--bp-espresso);
+  color: var(--bp-paper);
+}
+
+/* ---------- M4: saved-data screens (Saved Recipes, Ingredient Library) ---------- */
+.bakery-pricing-calculator .bp-editing-banner {
+  background: var(--bp-gold-soft);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.bakery-pricing-calculator .bp-save-row {
+  margin: 1rem 0 0.5rem;
+}
+
+.bakery-pricing-calculator .bp-saved-row {
+  align-items: flex-start;
+}
+
+.bakery-pricing-calculator .bp-saved-recipe-name {
+  font-weight: 700;
+  padding: 0;
+}
+
+.bakery-pricing-calculator .bp-saved-recipes-new {
+  margin-bottom: 1rem;
+}
+
+.bakery-pricing-calculator .bp-used-in-note {
+  display: inline;
 }

@@ -2,7 +2,7 @@ import { measurementTypeOf } from '../calc-engine/units.ts'
 import { promisifyRequest, promisifyTransaction } from './db.ts'
 import { nowIso } from './clock.ts'
 import { STORE_INGREDIENTS, STORE_RECIPES, STORE_USAGES, INDEX_USAGES_BY_INGREDIENT } from './schema.ts'
-import { IncompatibleMeasurementTypeError, IngredientInUseError, NotFoundError } from './errors.ts'
+import { IncompatibleMeasurementTypeError, IngredientInUseError, NotFoundError, type ReferencingRecipe } from './errors.ts'
 import type { IngredientPatch, NewIngredient, StoredIngredient, StoredRecipeIngredientUsage } from './types.ts'
 
 export async function createIngredient(db: IDBDatabase, input: NewIngredient): Promise<StoredIngredient> {
@@ -90,6 +90,22 @@ export async function updateIngredient(
   store.put(updated)
   await promisifyTransaction(tx)
   return updated
+}
+
+// Read-only preview of which saved recipes reference this ingredient, by
+// name — used by the UI to show "this ingredient is used in N recipes;
+// updating it will change their costs" *before* an edit is saved, and
+// again before a delete is attempted (deleteIngredient itself still blocks
+// the delete outright; this is for the softer, non-blocking edit warning).
+export async function getReferencingRecipes(db: IDBDatabase, ingredientId: string): Promise<ReferencingRecipe[]> {
+  const tx = db.transaction([STORE_RECIPES, STORE_USAGES], 'readonly')
+  const usages = await usagesForIngredient(tx, ingredientId)
+  const recipeIds = [...new Set(usages.map((u) => u.recipeId))]
+  const recipeStore = tx.objectStore(STORE_RECIPES)
+  const recipes = await Promise.all(
+    recipeIds.map((rid) => promisifyRequest<{ id: string; name: string } | undefined>(recipeStore.get(rid))),
+  )
+  return recipes.filter((r): r is { id: string; name: string } => r != null).map((r) => ({ id: r.id, name: r.name }))
 }
 
 // Blocks deletion while any saved recipe still references this ingredient,

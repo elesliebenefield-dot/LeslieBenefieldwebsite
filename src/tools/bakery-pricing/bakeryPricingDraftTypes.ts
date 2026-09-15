@@ -26,6 +26,12 @@ export interface DraftIngredientLine {
   // is used, instead of asking the baker to resolve it again.
   commonIngredientId?: string
   customConversion?: CustomIngredientConversion
+  // Set only when this line was added by picking an entry from the baker's
+  // own saved ingredients (data/ingredientRepository.ts), never by typing a
+  // name — mirrors commonIngredientId's "selection only ever explicit" rule.
+  // When present, saving this recipe reuses that ingredient record instead
+  // of creating a new one, per the PRD's "looked up live, not copied" rule.
+  savedIngredientId?: string
   cost: DecimalString
 }
 

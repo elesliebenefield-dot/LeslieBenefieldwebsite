@@ -5,10 +5,11 @@ import { measurementTypeOf, UNIT_MISMATCH_MESSAGE } from './calc-engine/units.ts
 import { UNIT_GROUPS, VOLUME_UNITS, defaultUnitFor } from './bakeryPricingUnitOptions.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
-import { getCommonIngredientById, searchCommonIngredients } from './bakeryIngredientLibrary.ts'
+import { getCommonIngredientById, searchCommonIngredients, type CommonIngredientEntry } from './bakeryIngredientLibrary.ts'
 import { EmptyState } from './EmptyState.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 import type { DraftIngredientLine } from './bakeryPricingDraftTypes.ts'
+import type { StoredIngredient } from './data/types.ts'
 import type { CustomIngredientConversion, MeasurementType, Unit, VolumeUnit, WeightUnit } from './calc-engine/types.ts'
 
 // Display words for the volume-side unit in the two equally-weighted
@@ -37,6 +38,11 @@ interface Props {
   onAddIngredient: (line: DraftIngredientLine) => void
   onRemoveIngredient: (id: string) => void
   showErrors: boolean
+  // The baker's own saved ingredients (data layer), offered alongside the
+  // common-ingredient reference library in the name autocomplete. Empty
+  // for a baker with nothing saved yet — the form behaves exactly as it
+  // did before saved data existed.
+  savedIngredients?: StoredIngredient[]
   // Reports whether the add-ingredient form is currently open (unfinished
   // or not-yet-added information visible) so the parent can block
   // continuing to Additional Costs — a baker must not be able to assume a
@@ -90,6 +96,26 @@ function isBridgeableCrossType(a: MeasurementType, b: MeasurementType): boolean 
   return (a === 'weight' && b === 'volume') || (a === 'volume' && b === 'weight')
 }
 
+function searchSavedIngredients(query: string, pool: StoredIngredient[]): StoredIngredient[] {
+  const q = query.trim().toLowerCase()
+  if (q === '') return []
+  return pool
+    .filter(i => i.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1
+      const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1
+      if (aStarts !== bStarts) return aStarts - bStarts
+      return a.name.localeCompare(b.name)
+    })
+    .slice(0, 6)
+}
+
+// A merged suggestion source for the ingredient-name autocomplete: the
+// baker's own saved ingredients (ranked first — a real, already-priced
+// ingredient the baker chose before is more useful than a generic
+// reference match) plus the common-ingredient reference library.
+type NameSuggestion = { kind: 'saved'; ingredient: StoredIngredient } | { kind: 'common'; entry: CommonIngredientEntry }
+
 export function RecipeIngredientsStep({
   recipeName,
   onRecipeNameChange,
@@ -99,6 +125,7 @@ export function RecipeIngredientsStep({
   onAddIngredient,
   onRemoveIngredient,
   showErrors,
+  savedIngredients = [],
   onAddFormOpenChange,
 }: Props) {
   const [isAdding, setIsAdding] = useState(false)
@@ -110,6 +137,10 @@ export function RecipeIngredientsStep({
   // suggestion) — never inferred from typed text alone, so an ambiguous
   // name like "flour" or "salt" can never resolve itself silently.
   const [selectedCommonIngredientId, setSelectedCommonIngredientId] = useState<string | null>(null)
+  // Set only by explicitly picking one of the baker's own saved ingredients
+  // from the autocomplete — same "selection only ever explicit" rule as
+  // selectedCommonIngredientId, and mutually exclusive with it.
+  const [selectedSavedIngredientId, setSelectedSavedIngredientId] = useState<string | null>(null)
   const [manualOverrideRequested, setManualOverrideRequested] = useState(false)
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -120,9 +151,17 @@ export function RecipeIngredientsStep({
 
   const subtotal = computeIngredientSubtotal(ingredients.map(i => i.cost))
 
-  const suggestions = suggestionsOpen ? searchCommonIngredients(form.name) : []
+  const savedMatches = suggestionsOpen ? searchSavedIngredients(form.name, savedIngredients) : []
+  const commonMatches = suggestionsOpen ? searchCommonIngredients(form.name) : []
+  const suggestions: NameSuggestion[] = [
+    ...savedMatches.map((ingredient): NameSuggestion => ({ kind: 'saved', ingredient })),
+    ...commonMatches.map((entry): NameSuggestion => ({ kind: 'common', entry })),
+  ]
   const matchedCommonIngredient = selectedCommonIngredientId ? getCommonIngredientById(selectedCommonIngredientId) : undefined
   const standardConversion = matchedCommonIngredient?.standardConversion
+  const matchedSavedIngredient = selectedSavedIngredientId
+    ? savedIngredients.find(i => i.id === selectedSavedIngredientId)
+    : undefined
 
   const packageType = measurementTypeOf(form.packageUnit)
   const usageType = measurementTypeOf(form.amountUsedUnit)
@@ -130,12 +169,22 @@ export function RecipeIngredientsStep({
   const isBridgeable = !typesMatch && isBridgeableCrossType(packageType, usageType)
   const isHardMismatch = !typesMatch && !isBridgeable
 
-  // Automatically use the library's standard estimate whenever it applies —
+  // A saved ingredient's own remembered conversion (from a previous recipe)
+  // takes priority over the reference library's generic standard — it's the
+  // baker's own confirmed density for this exact product, not an estimate.
+  const priorSavedConversion = matchedSavedIngredient?.customConversion
+  const libraryConversionAsCustom: CustomIngredientConversion | undefined = standardConversion
+    ? { volumeUnit: standardConversion.volumeUnit, weightQuantity: standardConversion.weightGrams, weightUnit: 'g' }
+    : undefined
+  const autoConversion = priorSavedConversion ?? libraryConversionAsCustom
+  const autoConversionSource: 'saved' | 'library' | null = priorSavedConversion ? 'saved' : libraryConversionAsCustom ? 'library' : null
+
+  // Automatically use the saved/library conversion whenever one applies —
   // unless the baker asked to change it. Recipe-provided values that
   // already match the package's own type never reach this at all (isBridgeable
   // is false), so a baker's own precise weight entry always wins over any
-  // library estimate, per design.md section 12.
-  const useStandardConversion = isBridgeable && !!standardConversion && !manualOverrideRequested
+  // standing estimate, per design.md section 12.
+  const useAutoConversion = isBridgeable && !!autoConversion && !manualOverrideRequested
 
   const hasValidManualConversion =
     form.conversionWeightQuantity.trim() !== '' &&
@@ -150,12 +199,10 @@ export function RecipeIngredientsStep({
         }
       : undefined
 
-  // The conversion actually fed to the calc engine: the library standard
-  // (translated into the same shape a baker's own entry would take) unless
-  // overridden, otherwise whatever the baker has manually entered.
-  const effectiveConversion: CustomIngredientConversion | undefined = useStandardConversion
-    ? { volumeUnit: standardConversion!.volumeUnit, weightQuantity: standardConversion!.weightGrams, weightUnit: 'g' }
-    : manualConversion
+  // The conversion actually fed to the calc engine: the saved-ingredient or
+  // library conversion unless overridden, otherwise whatever the baker has
+  // manually entered.
+  const effectiveConversion: CustomIngredientConversion | undefined = useAutoConversion ? autoConversion : manualConversion
 
   const crossTypeUnresolved = isBridgeable && !effectiveConversion
   const ingredientLabel = form.name.trim() || 'this ingredient'
@@ -176,6 +223,7 @@ export function RecipeIngredientsStep({
 
   function resetIngredientIdentity() {
     setSelectedCommonIngredientId(null)
+    setSelectedSavedIngredientId(null)
     setManualOverrideRequested(false)
     setSuggestionsOpen(false)
     setHighlightedIndex(-1)
@@ -183,10 +231,11 @@ export function RecipeIngredientsStep({
 
   function handleNameChange(value: string) {
     setForm(f => ({ ...f, name: value }))
-    // Typing invalidates any previous explicit selection — a library match
-    // is only ever attached by choosing a suggestion again, never carried
-    // forward from stale typed text.
+    // Typing invalidates any previous explicit selection — a saved or
+    // library match is only ever attached by choosing a suggestion again,
+    // never carried forward from stale typed text.
     setSelectedCommonIngredientId(null)
+    setSelectedSavedIngredientId(null)
     setManualOverrideRequested(false)
     setSuggestionsOpen(true)
     setHighlightedIndex(-1)
@@ -197,9 +246,38 @@ export function RecipeIngredientsStep({
     if (!entry) return
     setForm(f => ({ ...f, name: entry.name }))
     setSelectedCommonIngredientId(id)
+    setSelectedSavedIngredientId(null)
     setManualOverrideRequested(false)
     setSuggestionsOpen(false)
     setHighlightedIndex(-1)
+  }
+
+  // Picking one of the baker's own saved ingredients fills in its package
+  // price/quantity/unit (which then display read-only — looked up live,
+  // never copied into an independent value) and carries over any
+  // conversion already remembered for it.
+  function selectSavedIngredient(id: string) {
+    const ingredient = savedIngredients.find(i => i.id === id)
+    if (!ingredient) return
+    setForm(f => ({
+      ...f,
+      name: ingredient.name,
+      packagePrice: ingredient.packagePrice,
+      packageQuantity: ingredient.packageQuantity,
+      packageUnit: ingredient.packageUnit,
+    }))
+    setSelectedSavedIngredientId(id)
+    setSelectedCommonIngredientId(null)
+    setManualOverrideRequested(false)
+    setSuggestionsOpen(false)
+    setHighlightedIndex(-1)
+  }
+
+  // Detaches the form from the selected saved ingredient without clearing
+  // the fields it filled in — they become an editable, independent copy
+  // that will save as a brand-new ingredient record.
+  function useDifferentDetails() {
+    setSelectedSavedIngredientId(null)
   }
 
   function handleNameFocus() {
@@ -223,7 +301,9 @@ export function RecipeIngredientsStep({
     } else if (e.key === 'Enter') {
       if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
         e.preventDefault()
-        selectCommonIngredient(suggestions[highlightedIndex]!.id)
+        const suggestion = suggestions[highlightedIndex]!
+        if (suggestion.kind === 'saved') selectSavedIngredient(suggestion.ingredient.id)
+        else selectCommonIngredient(suggestion.entry.id)
       }
     } else if (e.key === 'Escape') {
       setSuggestionsOpen(false)
@@ -308,6 +388,7 @@ export function RecipeIngredientsStep({
       amountUsed: form.amountUsed,
       amountUsedUnit: form.amountUsedUnit,
       commonIngredientId: selectedCommonIngredientId ?? undefined,
+      savedIngredientId: selectedSavedIngredientId ?? undefined,
       customConversion: effectiveConversion,
       cost: result.value,
     })
@@ -413,6 +494,7 @@ export function RecipeIngredientsStep({
               onKeyDown={handleNameKeyDown}
               placeholder="e.g., All-Purpose Flour"
               autoComplete="off"
+              disabled={!!selectedSavedIngredientId}
               role="combobox"
               aria-expanded={suggestions.length > 0}
               aria-controls="bp-ing-name-listbox"
@@ -421,22 +503,36 @@ export function RecipeIngredientsStep({
             />
             {suggestions.length > 0 && (
               <ul id="bp-ing-name-listbox" role="listbox" className="bp-autocomplete-list">
-                {suggestions.map((entry, i) => (
-                  <li
-                    key={entry.id}
-                    id={`bp-ing-name-option-${i}`}
-                    role="option"
-                    aria-selected={i === highlightedIndex}
-                    className={`bp-autocomplete-option${i === highlightedIndex ? ' bp-autocomplete-option-highlighted' : ''}`}
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => selectCommonIngredient(entry.id)}
-                  >
-                    {entry.name}
-                  </li>
-                ))}
+                {suggestions.map((suggestion, i) => {
+                  const key = suggestion.kind === 'saved' ? `saved-${suggestion.ingredient.id}` : `common-${suggestion.entry.id}`
+                  const label = suggestion.kind === 'saved' ? suggestion.ingredient.name : suggestion.entry.name
+                  return (
+                    <li
+                      key={key}
+                      id={`bp-ing-name-option-${i}`}
+                      role="option"
+                      aria-selected={i === highlightedIndex}
+                      className={`bp-autocomplete-option${i === highlightedIndex ? ' bp-autocomplete-option-highlighted' : ''}`}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => (suggestion.kind === 'saved' ? selectSavedIngredient(suggestion.ingredient.id) : selectCommonIngredient(suggestion.entry.id))}
+                    >
+                      {label}
+                      {suggestion.kind === 'saved' && <span className="bp-autocomplete-badge">Saved</span>}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>
+
+          {selectedSavedIngredientId && (
+            <p className="bp-helper bp-saved-ingredient-note">
+              Using your saved ingredient's price and package size.{' '}
+              <button type="button" className="bp-link-btn" onClick={useDifferentDetails}>
+                Not the right one? Use different details
+              </button>
+            </p>
+          )}
 
           <div className="bp-field">
             <label htmlFor="bp-ing-price">What did the package cost?</label>
@@ -447,6 +543,7 @@ export function RecipeIngredientsStep({
               value={form.packagePrice}
               onChange={e => setForm(f => ({ ...f, packagePrice: e.target.value }))}
               placeholder="e.g., 3.49"
+              disabled={!!selectedSavedIngredientId}
             />
           </div>
 
@@ -466,11 +563,13 @@ export function RecipeIngredientsStep({
                     value={form.packageQuantity}
                     onChange={e => setForm(f => ({ ...f, packageQuantity: e.target.value }))}
                     placeholder="e.g., 5"
+                    disabled={!!selectedSavedIngredientId}
                   />
                   <select
                     aria-label="Package amount unit"
                     value={form.packageUnit}
                     onChange={e => handlePackageUnitChange(e.target.value as Unit)}
+                    disabled={!!selectedSavedIngredientId}
                   >
                     {unitSelectOptions()}
                   </select>
@@ -509,19 +608,24 @@ export function RecipeIngredientsStep({
             {isBridgeable && (
               <div className="bp-cross-type-help" role="status">
                 <p>
-                  {useStandardConversion ? (
-                    <>This ingredient is sold by {packageType}, while your recipe measures it by {usageType}. We've converted it using a standard baking estimate.</>
+                  {useAutoConversion ? (
+                    autoConversionSource === 'saved' ? (
+                      <>This ingredient is sold by {packageType}, while your recipe measures it by {usageType}. We've converted it using the conversion you saved for this ingredient.</>
+                    ) : (
+                      <>This ingredient is sold by {packageType}, while your recipe measures it by {usageType}. We've converted it using a standard baking estimate.</>
+                    )
                   ) : (
                     <>This ingredient is sold by {packageType}, but your recipe measures it by {usageType}. Because
                     every ingredient weighs differently, we need one more detail to calculate its cost accurately.</>
                   )}
                 </p>
 
-                {useStandardConversion ? (
+                {useAutoConversion ? (
                   <div className="bp-standard-conversion">
                     <p>
-                      <strong>{matchedCommonIngredient!.name}</strong>: using the standard estimate of 1{' '}
-                      {VOLUME_UNIT_WORDS[standardConversion!.volumeUnit].singular} = {standardConversion!.weightGrams} grams.
+                      <strong>{autoConversionSource === 'saved' ? matchedSavedIngredient!.name : matchedCommonIngredient!.name}</strong>:{' '}
+                      using {autoConversionSource === 'saved' ? 'your saved conversion' : 'the standard estimate'} of 1{' '}
+                      {VOLUME_UNIT_WORDS[autoConversion!.volumeUnit].singular} = {autoConversion!.weightQuantity} grams.
                     </p>
                     <button type="button" className="bp-link-btn bp-standard-conversion-change" onClick={() => setManualOverrideRequested(true)}>
                       Change
