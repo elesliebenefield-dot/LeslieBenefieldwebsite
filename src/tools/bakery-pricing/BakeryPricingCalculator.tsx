@@ -43,7 +43,7 @@ function costsStepHasError(costs: DraftCostInputs): boolean {
   ].some(Boolean)
 }
 
-function recipeStepIsValid(yieldStr: string): boolean {
+function yieldIsValid(yieldStr: string): boolean {
   if (yieldStr.trim() === '') return false
   const parsed = Number.parseInt(yieldStr, 10)
   const result = validateYield(parsed)
@@ -61,7 +61,9 @@ export function BakeryPricingCalculator() {
   const [roundingIncrement, setRoundingIncrement] = useState<RoundingIncrement>('0.25')
   const [showRecipeErrors, setShowRecipeErrors] = useState(false)
   const [showCostErrors, setShowCostErrors] = useState(false)
+  const [costsReviewed, setCostsReviewed] = useState(false)
   const [showStartOverConfirm, setShowStartOverConfirm] = useState(false)
+  const [showFullDisclaimer, setShowFullDisclaimer] = useState(false)
 
   const scrollTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -69,7 +71,7 @@ export function BakeryPricingCalculator() {
 
   const handleNext = useCallback(() => {
     if (step === 'recipe') {
-      if (!recipeStepIsValid(yieldStr)) {
+      if (!yieldIsValid(yieldStr) || ingredients.length === 0) {
         setShowRecipeErrors(true)
         return
       }
@@ -79,6 +81,7 @@ export function BakeryPricingCalculator() {
       return
     }
     if (step === 'costs') {
+      setCostsReviewed(true)
       if (costsStepHasError(costs)) {
         setShowCostErrors(true)
         return
@@ -87,9 +90,10 @@ export function BakeryPricingCalculator() {
       setStep('breakdown')
       scrollTop()
     }
-  }, [step, yieldStr, costs, scrollTop])
+  }, [step, yieldStr, ingredients.length, costs, scrollTop])
 
   const handleBack = useCallback(() => {
+    if (step === 'costs') setCostsReviewed(true)
     const idx = STEP_ORDER.indexOf(step)
     if (idx > 0) setStep(STEP_ORDER[idx - 1])
     scrollTop()
@@ -105,6 +109,7 @@ export function BakeryPricingCalculator() {
     setRoundingIncrement('0.25')
     setShowRecipeErrors(false)
     setShowCostErrors(false)
+    setCostsReviewed(false)
     setShowStartOverConfirm(false)
     setStep('recipe')
     scrollTop()
@@ -119,10 +124,12 @@ export function BakeryPricingCalculator() {
   return (
     <div className="tool-page">
       <header className="tool-header">
-        <span className="tool-header-title">Free Home Bakery Pricing Calculator</span>
+        <span className="tool-header-title">Bakery Pricing Calculator</span>
       </header>
 
       <main className="bakery-pricing-calculator">
+        <h1 className="bp-page-heading">Free Home Bakery Pricing Calculator</h1>
+
         <div className="bp-step-indicator" role="status" aria-label={`Step ${stepIndex + 1} of ${STEP_ORDER.length}: ${STEP_LABELS[step]}`}>
           <span className="bp-pill">Step {stepIndex + 1} of {STEP_ORDER.length}</span>
           <span className="bp-step-label">{STEP_LABELS[step]}</span>
@@ -148,6 +155,7 @@ export function BakeryPricingCalculator() {
             ack={ack}
             onAcknowledge={key => setAck(prev => ({ ...prev, [key]: true }))}
             showErrors={showCostErrors}
+            reviewed={costsReviewed}
           />
         )}
 
@@ -180,13 +188,20 @@ export function BakeryPricingCalculator() {
         </nav>
       </main>
 
-      <div className="tool-disclaimer" role="note">
-        <p>
-          These figures are planning estimates based on what you entered. Bakery Pricing Planner is not
-          accounting, tax, or financial advice, does not guarantee a profit, and does not replace your own
-          judgment about your costs, local rules, and final pricing. All calculations happen in your browser —
-          nothing you enter here is stored or transmitted anywhere.
+      <div className="tool-disclaimer bp-disclaimer-compact" role="note">
+        <p className="bp-disclaimer-summary">
+          Planning estimates only, not financial advice. Calculations stay on your device and are never
+          transmitted anywhere.
         </p>
+        <details onToggle={e => setShowFullDisclaimer(e.currentTarget.open)}>
+          <summary>{showFullDisclaimer ? 'Hide full disclaimer' : 'Read the full disclaimer'}</summary>
+          <p>
+            These figures are planning estimates based on what you entered. Bakery Pricing Planner is not
+            accounting, tax, or financial advice, does not guarantee a profit, and does not replace your own
+            judgment about your costs, local rules, and final pricing. All calculations happen on your device —
+            what you enter here is never transmitted anywhere.
+          </p>
+        </details>
       </div>
 
       <ConfirmDialog

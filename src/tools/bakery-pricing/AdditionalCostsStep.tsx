@@ -16,6 +16,10 @@ interface Props {
   ack: ZeroCostAcknowledgement
   onAcknowledge: (key: keyof ZeroCostAcknowledgement) => void
   showErrors: boolean
+  // Zero-cost notices only appear once the baker has tried to leave this
+  // step (Back or Next) — never while a section is merely being opened or
+  // typed into. Set by the parent when that first happens.
+  reviewed: boolean
 }
 
 function isZeroOrBlank(raw: string): boolean {
@@ -27,7 +31,7 @@ function isZeroOrBlank(raw: string): boolean {
   }
 }
 
-export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showErrors }: Props) {
+export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showErrors, reviewed }: Props) {
   const laborIsZero = isZeroOrBlank(costs.laborHourlyRate) || isZeroOrBlank(costs.laborMinutes)
   const packagingIsZero = isZeroOrBlank(costs.packagingBatchCost) && isZeroOrBlank(costs.packagingPerItemCost)
   const overheadIsZero = isZeroOrBlank(costs.overheadFlatCost)
@@ -79,7 +83,7 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
             </div>
           </div>
           <p className="bp-helper">Active time only — prep, decorating, packaging, cleanup. Passive baking or cooling time isn't included automatically.</p>
-          {laborIsZero && !ack.labor && (
+          {reviewed && laborIsZero && !ack.labor && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
               <button type="button" onClick={() => onAcknowledge('labor')}>Yes, that's right</button>
@@ -118,7 +122,7 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
             </div>
           </div>
           <p className="bp-helper">Use either, both, or neither — whichever matches how this recipe is actually packaged.</p>
-          {packagingIsZero && !ack.packaging && (
+          {reviewed && packagingIsZero && !ack.packaging && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
               <button type="button" onClick={() => onAcknowledge('packaging')}>Yes, that's right</button>
@@ -143,7 +147,7 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
             {overheadError && <p className="bp-error" role="alert">{overheadError}</p>}
           </div>
           <p className="bp-helper">A flat dollar amount covering this batch's share of rent, utilities, and similar costs.</p>
-          {overheadIsZero && !ack.overhead && (
+          {reviewed && overheadIsZero && !ack.overhead && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
               <button type="button" onClick={() => onAcknowledge('overhead')}>Yes, that's right</button>
@@ -168,7 +172,7 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
             {wasteError && <p className="bp-error" role="alert">{wasteError}</p>}
           </div>
           <p className="bp-helper">Applied to your ingredient cost only — covers spoilage, burnt batches, or trimmed scraps. Not every recipe needs this set above zero.</p>
-          {wasteIsZero && !ack.waste && (
+          {reviewed && wasteIsZero && !ack.waste && (
             <div className="bp-zero-notice">
               <span>This is $0 — is that intentional?</span>
               <button type="button" onClick={() => onAcknowledge('waste')}>Yes, that's right</button>

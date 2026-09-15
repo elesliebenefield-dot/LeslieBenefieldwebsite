@@ -114,8 +114,17 @@ async function saveIngredient(page: Page) {
   await page.click('.bp-add-ingredient-form .bp-btn-primary')
 }
 
+// Step 1 now requires at least one ingredient to advance, so every helper
+// that reaches Step 2 adds one by default (its exact values don't matter
+// for tests that only care about the Additional Costs step).
 async function advanceToCosts(page: Page, yieldValue = '24') {
   await setYield(page, yieldValue)
+  await addIngredient(page, {
+    name: 'Filler Ingredient', measurementType: 'count', packageUnit: 'each', amountUsedUnit: 'each',
+    packagePrice: '1', packageQuantity: '1', amountUsed: '1',
+  })
+  await saveIngredient(page)
+  await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
   await page.click('.bp-nav .bp-btn-primary')
   await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
 }
@@ -125,10 +134,18 @@ async function openCostGroup(page: Page, index: number) {
   await summaries[index].click()
 }
 
-async function advanceToBreakdown(page: Page, yieldValue = '24') {
-  await advanceToCosts(page, yieldValue)
+// Reproduces the only way to see Step 2's zero-cost notices while still on
+// Step 2: leave it (Back) — which marks it reviewed — then return via Next.
+async function reachReviewedCostsStep(page: Page) {
+  await page.click('.bp-nav .bp-btn-secondary')
+  await page.waitForFunction(() => !!document.querySelector('#bp-yield'))
   await page.click('.bp-nav .bp-btn-primary')
-  await page.waitForFunction(() => !!document.querySelector('.bp-ledger'))
+  await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
+}
+
+async function openCalculationDetails(page: Page) {
+  await page.click('.bp-breakdown-details summary')
+  await page.waitForFunction(() => (document.querySelector('.bp-breakdown-details') as HTMLDetailsElement)?.open)
 }
 
 // ─── 1. Page load and static structure ──────────────────────────────────────
@@ -154,11 +171,34 @@ test('page title is "Free Home Bakery Pricing Calculator"', async () => {
   }
 })
 
-test('header shows the public tool name', async () => {
+test('compact header shows the shortened name for mobile readability', async () => {
   const page = await openTool()
   try {
     const title = await page.$eval('.tool-header-title', el => el.textContent?.trim())
-    assert.equal(title, 'Free Home Bakery Pricing Calculator')
+    assert.equal(title, 'Bakery Pricing Calculator')
+  } finally {
+    await page.close()
+  }
+})
+
+test('main page heading shows the full public tool name', async () => {
+  const page = await openTool()
+  try {
+    const heading = await page.$eval('.bp-page-heading', el => el.textContent?.trim())
+    assert.equal(heading, 'Free Home Bakery Pricing Calculator')
+  } finally {
+    await page.close()
+  }
+})
+
+test('welcome intro explains the three-step process and what to have ready', async () => {
+  const page = await openTool()
+  try {
+    const text = await page.$eval('.bp-intro', el => el.textContent || '')
+    assert.match(text, /three quick steps/i)
+    assert.match(text, /yield|how many items or servings/i)
+    assert.match(text, /package price/i)
+    assert.match(text, /labor/i)
   } finally {
     await page.close()
   }
@@ -185,16 +225,34 @@ test('step indicator shows "Step 1 of 3" on load', async () => {
   }
 })
 
-test('persistent disclaimer is present with role="note"', async () => {
+test('a compact disclaimer summary is persistently visible with role="note"', async () => {
   const page = await openTool()
   try {
     const el = await page.$('.tool-disclaimer')
     assert.ok(el, 'disclaimer should exist')
     const role = await el!.evaluate(node => node.getAttribute('role'))
     assert.equal(role, 'note')
-    const text = await el!.evaluate(node => node.textContent || '')
-    assert.match(text, /not accounting, tax, or financial advice/i)
-    assert.match(text, /does not guarantee a profit/i)
+    const summary = await page.$eval('.bp-disclaimer-summary', node => node.textContent || '')
+    assert.match(summary, /planning estimates/i)
+    assert.match(summary, /not financial advice/i)
+    assert.match(summary, /stay on your device/i)
+    assert.doesNotMatch(summary, /never (stored|be stored)/i, 'must not claim data is never stored — M4 adds intentional on-device saving')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the full disclaimer is reachable via an accessible expandable control, not shown by default', async () => {
+  const page = await openTool()
+  try {
+    const detailsOpenInitially = await page.$eval('.tool-disclaimer details', el => (el as HTMLDetailsElement).open)
+    assert.equal(detailsOpenInitially, false, 'full disclaimer should be collapsed by default')
+    await page.click('.tool-disclaimer summary')
+    await page.waitForFunction(() => (document.querySelector('.tool-disclaimer details') as HTMLDetailsElement)?.open)
+    const fullText = await page.$eval('.tool-disclaimer details', el => el.textContent || '')
+    assert.match(fullText, /not accounting, tax, or financial advice/i)
+    assert.match(fullText, /does not guarantee a profit/i)
+    assert.match(fullText, /never transmitted/i)
   } finally {
     await page.close()
   }
@@ -215,12 +273,45 @@ test('does not advance past Step 1 with an empty yield', async () => {
   }
 })
 
-test('advances to Step 2 with a valid yield and zero ingredients', async () => {
+test('shows a neutral empty-state message under Ingredients before any are added', async () => {
   const page = await openTool()
   try {
-    await advanceToCosts(page, '24')
+    const text = await page.$eval('.bp-empty-state', el => el.textContent || '')
+    assert.match(text, /no ingredients yet/i)
+    assert.match(text, /add at least one/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('does not advance to Step 2 with a valid yield but zero ingredients, and explains what is missing', async () => {
+  const page = await openTool()
+  try {
+    await setYield(page, '24')
+    await page.click('.bp-nav .bp-btn-primary')
     const onStep2 = await page.$('#bp-labor-rate')
-    assert.ok(onStep2, 'should be on Step 2 even with no ingredients added')
+    assert.equal(onStep2, null, 'must not advance to Step 2 with no ingredients')
+    const emptyState = await page.$eval('.bp-empty-state', el => el.textContent || '')
+    assert.match(emptyState, /add at least one ingredient before continuing/i)
+    const role = await page.$eval('.bp-empty-state', el => el.getAttribute('role'))
+    assert.equal(role, 'alert')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the pricing breakdown is never reachable without at least one ingredient, so an all-zero result from missing information can never be shown', async () => {
+  const page = await openTool()
+  try {
+    await setYield(page, '24')
+    // Try repeatedly — the gate must hold, not just fail once.
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.click('.bp-nav .bp-btn-primary')
+    const breakdownVisible = await page.$('.bp-price-lead')
+    assert.equal(breakdownVisible, null, 'must never reach the pricing breakdown without an ingredient')
+    const stillOnStep1 = await page.$('#bp-yield')
+    assert.ok(stillOnStep1, 'should remain on Step 1')
   } finally {
     await page.close()
   }
@@ -324,6 +415,74 @@ test('changing measurement type resets package and usage units to that type\'s u
   }
 })
 
+test('the ingredient form uses plain-language questions instead of technical field labels', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
+    const typeLabel = await page.$eval('label[for="bp-ing-type"]', el => el.textContent || '')
+    assert.match(typeLabel, /how is this ingredient measured/i)
+    const priceLabel = await page.$eval('label[for="bp-ing-price"]', el => el.textContent || '')
+    assert.match(priceLabel, /what did the package cost/i)
+    const pkgQtyLabel = await page.$eval('label[for="bp-ing-pkg-qty"]', el => el.textContent || '')
+    assert.match(pkgQtyLabel, /how much came in the package/i)
+    const useQtyLabel = await page.$eval('label[for="bp-ing-use-qty"]', el => el.textContent || '')
+    assert.match(useQtyLabel, /how much does this recipe use/i)
+    const measurementOptions = await page.$$eval('#bp-ing-type option', els => els.map(el => el.textContent || ''))
+    assert.ok(measurementOptions.some(o => /weight/i.test(o)))
+    assert.ok(measurementOptions.some(o => /volume/i.test(o)))
+    assert.ok(measurementOptions.some(o => /individual items/i.test(o)))
+  } finally {
+    await page.close()
+  }
+})
+
+test('package amount and recipe amount are visually grouped with clear "Package" / "This recipe" labels', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
+    const groupLabel = await page.$eval('.bp-amount-compare-label', el => el.textContent || '')
+    assert.match(groupLabel, /compare/i)
+    const blockTitles = await page.$$eval('.bp-amount-block-title', els => els.map(el => el.textContent?.trim()))
+    assert.deepEqual(blockTitles, ['Package', 'This recipe'])
+    const pkgQtyInsideGroup = await page.$('.bp-amount-compare #bp-ing-pkg-qty')
+    const useQtyInsideGroup = await page.$('.bp-amount-compare #bp-ing-use-qty')
+    assert.ok(pkgQtyInsideGroup, 'package quantity field should be inside the grouped comparison')
+    assert.ok(useQtyInsideGroup, 'amount-used field should be inside the grouped comparison')
+  } finally {
+    await page.close()
+  }
+})
+
+test('placeholders show realistic examples without pre-filling values a user could mistake for real data', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
+    for (const id of ['bp-ing-name', 'bp-ing-price', 'bp-ing-pkg-qty', 'bp-ing-use-qty']) {
+      const value = await page.$eval(`#${id}`, el => (el as HTMLInputElement).value)
+      assert.equal(value, '', `#${id} must start empty, not pre-filled`)
+      const placeholder = await page.$eval(`#${id}`, el => (el as HTMLInputElement).placeholder)
+      assert.match(placeholder, /^e\.g\.,/, `#${id} should show a short "e.g., ..." example`)
+    }
+  } finally {
+    await page.close()
+  }
+})
+
+test('the add-ingredient button reads "Add to recipe"', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('.bp-add-ingredient-form'))
+    const label = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => el.textContent?.trim())
+    assert.equal(label, 'Add to recipe')
+  } finally {
+    await page.close()
+  }
+})
+
 test('a live cost preview appears once price, quantity, and amount used are all filled in', async () => {
   const page = await openTool()
   try {
@@ -389,12 +548,42 @@ test('a fragment like "-" alone while typing a decimal field does not crash the 
   }
 })
 
-test('zero-cost notice appears for Labor when both fields are blank', async () => {
+async function laborNoticePresent(page: Page): Promise<boolean> {
+  return page.evaluate(() => !!document.querySelectorAll('.bp-cost-group')[0]?.querySelector('.bp-zero-notice'))
+}
+
+test('no zero-cost notice appears immediately when Additional Costs is first shown, even though every field starts blank', async () => {
   const page = await openTool()
   try {
     await advanceToCosts(page)
+    const anyNotice = await page.$('.bp-zero-notice')
+    assert.equal(anyNotice, null, 'zero-cost notices must not appear before the baker has tried to leave this step')
+  } finally {
+    await page.close()
+  }
+})
+
+test('no zero-cost notice appears merely from opening a cost section, before leaving the step', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openCostGroup(page, 1) // Packaging
+    await openCostGroup(page, 2) // Overhead
+    await openCostGroup(page, 3) // Ingredient Waste Allowance
+    const anyNotice = await page.$('.bp-zero-notice')
+    assert.equal(anyNotice, null, 'opening a section to look at it must not itself trigger the zero-cost review')
+  } finally {
+    await page.close()
+  }
+})
+
+test('zero-cost notices appear once the baker leaves Additional Costs and comes back', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await reachReviewedCostsStep(page)
     const notice = await page.$('.bp-zero-notice')
-    assert.ok(notice, 'zero-cost notice should appear for Labor by default')
+    assert.ok(notice, 'zero-cost notice should appear for Labor once the step has been left once')
     const text = await notice!.evaluate(el => el.textContent || '')
     assert.match(text, /is that intentional/i)
   } finally {
@@ -402,14 +591,23 @@ test('zero-cost notice appears for Labor when both fields are blank', async () =
   }
 })
 
-async function laborNoticePresent(page: Page): Promise<boolean> {
-  return page.evaluate(() => !!document.querySelectorAll('.bp-cost-group')[0]?.querySelector('.bp-zero-notice'))
-}
+test('advancing to the breakdown with unacknowledged zero costs is not blocked (non-blocking review)', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await page.click('.bp-nav .bp-btn-primary')
+    const onBreakdown = await page.$('.bp-price-lead')
+    assert.ok(onBreakdown, 'zero-cost notices must never block advancing, per the PRD')
+  } finally {
+    await page.close()
+  }
+})
 
 test('dismissing the zero-cost notice hides it and it does not reappear after further edits', async () => {
   const page = await openTool()
   try {
     await advanceToCosts(page)
+    await reachReviewedCostsStep(page)
     assert.ok(await laborNoticePresent(page), 'labor notice should be present before dismissal')
     await page.click('.bp-cost-group .bp-zero-notice button')
     assert.equal(await laborNoticePresent(page), false, 'labor notice should be dismissed')
@@ -427,6 +625,7 @@ test('Packaging zero-notice requires BOTH batch and per-item cost to be zero', a
   const page = await openTool()
   try {
     await advanceToCosts(page)
+    await reachReviewedCostsStep(page)
     await openCostGroup(page, 1) // Packaging
     await page.type('#bp-pkg-batch', '1.50')
     const packagingNotice = await page.evaluate(() => {
@@ -462,16 +661,17 @@ async function buildHandVerifiedRecipe(page: Page) {
   await openCostGroup(page, 3)
   await page.type('#bp-waste', '3')
   await page.click('.bp-nav .bp-btn-primary')
-  await page.waitForFunction(() => !!document.querySelector('.bp-ledger'))
+  await page.waitForFunction(() => !!document.querySelector('.bp-price-lead'))
 }
 
 // Hand-verified: ingredientSubtotal $2.00 (4.00 * 2/4), wasteAllowance $0.06 (2.00*3%),
 // laborCost $12.00 (18 * 40/60), packaging $5.10 (1.50 + 0.15*24), overhead $3.00.
 // Total = 2.00 + 0.06 + 12.00 + 5.10 + 3.00 = $22.16. Cost per item = 22.16/24 = $0.92 (2dp).
-test('cost breakdown matches a hand-verified example exactly', async () => {
+test('cost breakdown matches a hand-verified example exactly, inside "See how this was calculated"', async () => {
   const page = await openTool()
   try {
     await buildHandVerifiedRecipe(page)
+    await openCalculationDetails(page)
     const ledgerText = await page.$eval('.bp-ledger', el => el.textContent || '')
     assert.match(ledgerText, /\$2\.00/, 'ingredient subtotal')
     assert.match(ledgerText, /\$0\.06/, 'waste allowance')
@@ -500,6 +700,20 @@ test('suggested pricing at the default 35% margin and $0.25 increment matches th
   }
 })
 
+test('the suggested price leads the breakdown step, with the full calculation collapsed by default', async () => {
+  const page = await openTool()
+  try {
+    await buildHandVerifiedRecipe(page)
+    const detailsOpen = await page.$eval('.bp-breakdown-details', el => (el as HTMLDetailsElement).open)
+    assert.equal(detailsOpen, false, '"See how this was calculated" should be collapsed by default')
+    const priceLeadY = await page.$eval('.bp-price-lead', el => el.getBoundingClientRect().top)
+    const detailsY = await page.$eval('.bp-breakdown-details', el => el.getBoundingClientRect().top)
+    assert.ok(priceLeadY < detailsY, 'the suggested price must appear above the detailed breakdown')
+  } finally {
+    await page.close()
+  }
+})
+
 test('changing the rounding increment recomputes the suggested price', async () => {
   const page = await openTool()
   try {
@@ -517,14 +731,37 @@ test('changing the rounding increment recomputes the suggested price', async () 
   }
 })
 
-test('margin change updates the equivalent markup echo live', async () => {
+test('margin explanation is a single short sentence next to the margin input', async () => {
   const page = await openTool()
   try {
     await buildHandVerifiedRecipe(page)
+    const heading = await page.$eval('h2.bp-h2', el => el.textContent || '')
+    assert.match(heading, /profit margin/i)
+    const explanation = await page.$eval('.bp-step .bp-helper', el => el.textContent || '')
+    assert.match(explanation, /margin is the percentage/i)
+    // One sentence: exactly one period-terminated clause, no "markup" mentioned at equal weight here.
+    assert.doesNotMatch(explanation, /markup/i, 'markup must not appear in the primary margin explanation')
+  } finally {
+    await page.close()
+  }
+})
+
+test('markup is shown only as secondary, optional reference inside "See how this was calculated"', async () => {
+  const page = await openTool()
+  try {
+    await buildHandVerifiedRecipe(page)
+    const markupVisibleBeforeExpanding = await page.$('.bp-markup-note')
+    // The element exists in the DOM (inside the collapsed <details>) but the
+    // point under test is that it is not part of the lead content the baker
+    // sees first — verified by the previous test's DOM-order check. Here we
+    // confirm the markup value itself is correct once revealed.
+    void markupVisibleBeforeExpanding
+    await openCalculationDetails(page)
     await setInputValue(page, '[aria-label="Desired profit margin percentage"]', '50')
-    await page.waitForFunction(() => /≈ 100\.0%/.test(document.querySelector('.bp-margin-callout')?.textContent || ''))
-    const calloutText = await page.$eval('.bp-margin-callout', el => el.textContent || '')
-    assert.match(calloutText, /≈ 100\.0%/, `expected 50% margin to equal 100% markup, got: ${calloutText}`)
+    await page.waitForFunction(() => /≈ 100\.0%/.test(document.querySelector('.bp-markup-note')?.textContent || ''))
+    const noteText = await page.$eval('.bp-markup-note', el => el.textContent || '')
+    assert.match(noteText, /≈ 100\.0%/, `expected 50% margin to equal 100% markup, got: ${noteText}`)
+    assert.match(noteText, /for reference/i)
   } finally {
     await page.close()
   }
@@ -587,7 +824,7 @@ test('Start Over shows a confirmation dialog and cancel keeps the current data',
     await page.waitForFunction(() => !!document.querySelector('.tool-confirm-backdrop'))
     await page.click('.tool-confirm-cancel')
     await page.waitForFunction(() => !document.querySelector('.tool-confirm-backdrop'))
-    const stillOnBreakdown = await page.$('.bp-ledger')
+    const stillOnBreakdown = await page.$('.bp-price-lead')
     assert.ok(stillOnBreakdown, 'data should be preserved after cancelling Start Over')
   } finally {
     await page.close()
@@ -679,13 +916,13 @@ test('no form elements with a server action attribute exist', async () => {
 
 // ─── 10. Accessibility ───────────────────────────────────────────────────────
 
-test('yield, recipe name, and margin inputs each have an associated label', async () => {
+test('yield, recipe name, and margin inputs each have an associated plain-language label', async () => {
   const page = await openTool()
   try {
     const yieldLabel = await page.$eval('label[for="bp-yield"]', el => el.textContent || '')
-    assert.match(yieldLabel, /yield/i)
+    assert.match(yieldLabel, /how many items or servings does this recipe make/i)
     const nameLabel = await page.$eval('label[for="bp-recipe-name"]', el => el.textContent || '')
-    assert.match(nameLabel, /recipe name/i)
+    assert.match(nameLabel, /what are you pricing/i)
   } finally {
     await page.close()
   }

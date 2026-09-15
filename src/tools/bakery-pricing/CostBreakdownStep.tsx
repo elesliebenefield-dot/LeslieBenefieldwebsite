@@ -57,47 +57,9 @@ export function CostBreakdownStep({
 
   return (
     <div className="bp-step">
-      <h2 className="bp-h2">Cost Breakdown</h2>
+      <h2 className="bp-h2">Choose Your Profit Margin</h2>
+      <p className="bp-helper">Margin is the percentage of your selling price left over after estimated costs.</p>
 
-      <div className="bp-ledger">
-        <div className="bp-ledger-row">
-          <span>Ingredient Subtotal</span>
-          <span>{formatMoney(breakdown.value.ingredientSubtotal)}</span>
-        </div>
-        <div className="bp-ledger-row">
-          <span>Ingredient Waste Allowance ({blank(costs.wastePercent)}%)</span>
-          <span>{formatMoney(breakdown.value.wasteAllowance)}</span>
-        </div>
-        <div className="bp-ledger-row">
-          <span>Labor ({blank(costs.laborMinutes)} min @ {formatMoney(blank(costs.laborHourlyRate))}/hr)</span>
-          <span>{formatMoney(breakdown.value.laborCost)}</span>
-        </div>
-        <div className="bp-ledger-row">
-          <span>Packaging</span>
-          <span>{formatMoney(breakdown.value.packagingCost)}</span>
-        </div>
-        <div className="bp-ledger-row bp-ledger-sub">
-          {formatMoney(blank(costs.packagingBatchCost))} batch + {formatMoney(blank(costs.packagingPerItemCost))} × {yieldCount}
-        </div>
-        <div className="bp-ledger-row">
-          <span>Overhead</span>
-          <span>{formatMoney(breakdown.value.overhead)}</span>
-        </div>
-        <div className="bp-ledger-row bp-ledger-total">
-          <span>Total Production Cost</span>
-          <span>{formatMoney(breakdown.value.totalProductionCost)}</span>
-        </div>
-        <div className="bp-ledger-row">
-          <span>Cost Per Item (÷{yieldCount})</span>
-          <span>{formatMoney(breakdown.value.costPerUnit)}</span>
-        </div>
-        <div className="bp-ledger-row">
-          <span>Break-Even Price</span>
-          <span>{formatMoney(breakEven.batch)} batch / {formatMoney(breakEven.perItem)} each</span>
-        </div>
-      </div>
-
-      <h2 className="bp-h2">Your Pricing Goal</h2>
       <div className="bp-field">
         <label htmlFor="bp-margin-range">Desired profit margin</label>
         <div className="bp-inline-fields">
@@ -123,24 +85,13 @@ export function CostBreakdownStep({
 
       {pricing.valid && (
         <>
-          <div className="bp-margin-callout">
-            <strong>Margin</strong> is the percentage of your selling price left over after estimated costs.{' '}
-            <strong>Markup</strong> is the percentage added on top of your cost — a different number from margin, even at the same price.
-            At a {marginRaw}% margin, the equivalent markup is{' '}
-            <strong>≈ {fromStorageString(pricing.value.equivalentMarkupRate).times(100).toFixed(1)}%</strong> (shown for reference only — it never drives the calculation).
-          </div>
+          <h2 className="bp-h2">Your Suggested Price</h2>
+          <div className="bp-price-callout bp-price-callout-gold bp-price-lead">
+            <div className="bp-price-sub">Suggested whole-batch price</div>
+            <div className="bp-price-big">{formatMoney(pricing.value.suggestedWholeBatchPrice)}</div>
+            <div className="bp-price-sub">Suggested per-item price</div>
+            <div className="bp-price-big">{formatMoney(pricing.value.suggestedPerItemPrice)}</div>
 
-          <h2 className="bp-h2">Suggested Pricing</h2>
-          <div className="bp-price-callout">
-            <div className="bp-price-sub">Exact target price</div>
-            <div className="bp-price-big">{formatMoney(pricing.value.exactTargetPriceBatch)} batch</div>
-            <div className="bp-price-sub">{formatMoney(pricing.value.exactTargetPricePerItem)} each</div>
-          </div>
-
-          <div className="bp-price-callout bp-price-callout-gold">
-            <div className="bp-price-sub">Suggested menu price (rounded up)</div>
-            <div className="bp-price-big">{formatMoney(pricing.value.suggestedWholeBatchPrice)} whole batch</div>
-            <div className="bp-price-sub">{formatMoney(pricing.value.suggestedPerItemPrice)} each</div>
             <div className="bp-increment-row" role="group" aria-label="Rounding increment">
               {ROUNDING_INCREMENTS.map(inc => (
                 <button
@@ -154,10 +105,65 @@ export function CostBreakdownStep({
               ))}
             </div>
             <p className="bp-helper">
-              These two suggested prices are rounded independently — {formatMoney(pricing.value.suggestedPerItemPrice)} × {yieldCount} won't
+              These two prices are rounded independently — {formatMoney(pricing.value.suggestedPerItemPrice)} × {yieldCount} won't
               always exactly match the whole-batch price of {formatMoney(pricing.value.suggestedWholeBatchPrice)}. That's expected, not an error.
             </p>
           </div>
+
+          <details className="bp-cost-group bp-breakdown-details">
+            <summary>See how this was calculated <span className="bp-chev" aria-hidden="true">›</span></summary>
+            <div className="bp-details-body">
+              <div className="bp-ledger">
+                <div className="bp-ledger-row">
+                  <span>Ingredient Subtotal</span>
+                  <span>{formatMoney(breakdown.value.ingredientSubtotal)}</span>
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Ingredient Waste Allowance ({blank(costs.wastePercent)}%)</span>
+                  <span>{formatMoney(breakdown.value.wasteAllowance)}</span>
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Labor ({blank(costs.laborMinutes)} min @ {formatMoney(blank(costs.laborHourlyRate))}/hr)</span>
+                  <span>{formatMoney(breakdown.value.laborCost)}</span>
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Packaging</span>
+                  <span>{formatMoney(breakdown.value.packagingCost)}</span>
+                </div>
+                <div className="bp-ledger-row bp-ledger-sub">
+                  {formatMoney(blank(costs.packagingBatchCost))} batch + {formatMoney(blank(costs.packagingPerItemCost))} × {yieldCount}
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Overhead</span>
+                  <span>{formatMoney(breakdown.value.overhead)}</span>
+                </div>
+                <div className="bp-ledger-row bp-ledger-total">
+                  <span>Total Production Cost</span>
+                  <span>{formatMoney(breakdown.value.totalProductionCost)}</span>
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Cost Per Item (÷{yieldCount})</span>
+                  <span>{formatMoney(breakdown.value.costPerUnit)}</span>
+                </div>
+                <div className="bp-ledger-row">
+                  <span>Break-Even Price</span>
+                  <span>{formatMoney(breakEven.batch)} batch / {formatMoney(breakEven.perItem)} each</span>
+                </div>
+              </div>
+
+              <div className="bp-price-callout">
+                <div className="bp-price-sub">Exact target price (before rounding)</div>
+                <div className="bp-price-big">{formatMoney(pricing.value.exactTargetPriceBatch)} batch</div>
+                <div className="bp-price-sub">{formatMoney(pricing.value.exactTargetPricePerItem)} each</div>
+              </div>
+
+              <p className="bp-markup-note">
+                For reference, a {marginRaw}% margin is the same price as an equivalent markup of{' '}
+                <strong>≈ {fromStorageString(pricing.value.equivalentMarkupRate).times(100).toFixed(1)}%</strong> — markup is a
+                different way of describing the same price, shown here for comparison only; it never drives the calculation.
+              </p>
+            </div>
+          </details>
         </>
       )}
     </div>

@@ -6,9 +6,9 @@ import { COUNT_TO_EACH, VOLUME_TO_ML, WEIGHT_TO_GRAMS } from './calc-engine/unit
 import type { MeasurementType, Unit } from './calc-engine/types.ts'
 
 export const MEASUREMENT_TYPE_OPTIONS: { value: MeasurementType; label: string }[] = [
-  { value: 'weight', label: 'Weight' },
-  { value: 'volume', label: 'Volume' },
-  { value: 'count', label: 'Count' },
+  { value: 'weight', label: 'Weight (grams, ounces, pounds...)' },
+  { value: 'volume', label: 'Volume (cups, teaspoons, liters...)' },
+  { value: 'count', label: 'Individual items (eggs, each, dozen...)' },
 ]
 
 export const UNIT_OPTIONS_BY_MEASUREMENT_TYPE: Record<MeasurementType, Unit[]> = {
