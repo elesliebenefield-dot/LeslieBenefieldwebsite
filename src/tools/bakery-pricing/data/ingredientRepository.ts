@@ -1,12 +1,9 @@
 import { measurementTypeOf } from '../calc-engine/units.ts'
 import { promisifyRequest, promisifyTransaction } from './db.ts'
+import { nowIso } from './clock.ts'
 import { STORE_INGREDIENTS, STORE_RECIPES, STORE_USAGES, INDEX_USAGES_BY_INGREDIENT } from './schema.ts'
 import { IncompatibleMeasurementTypeError, IngredientInUseError, NotFoundError } from './errors.ts'
 import type { IngredientPatch, NewIngredient, StoredIngredient, StoredRecipeIngredientUsage } from './types.ts'
-
-function nowIso(): string {
-  return new Date().toISOString()
-}
 
 export async function createIngredient(db: IDBDatabase, input: NewIngredient): Promise<StoredIngredient> {
   const timestamp = nowIso()

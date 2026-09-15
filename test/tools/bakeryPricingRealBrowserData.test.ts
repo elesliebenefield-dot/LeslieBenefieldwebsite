@@ -72,7 +72,7 @@ after(async () => {
   await rm(workDir, { recursive: true, force: true })
 })
 
-test('real browser IndexedDB: exact decimal round trip, blocked deletion while referenced, deletion once unreferenced', async () => {
+test('real browser IndexedDB: exact decimal round trip, export/import round trip, blocked deletion while referenced, deletion once unreferenced', async () => {
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/`, { waitUntil: 'load' })
@@ -84,6 +84,16 @@ test('real browser IndexedDB: exact decimal round trip, blocked deletion while r
     assert.equal(result.error, undefined, `real-browser check threw: ${result.error}`)
     assert.equal(result.ok, true)
     assert.equal(result.details.exactDecimalRoundTrip, true, 'exact decimal string must survive a real IndexedDB round trip')
+    assert.equal(
+      result.details.exportImportCountsMatch,
+      true,
+      'export -> wipe (fresh-browser simulation) -> import must restore the same number of records in a real browser',
+    )
+    assert.equal(
+      result.details.exportImportExactDecimalRoundTrip,
+      true,
+      'exact decimal string must survive an export/import round trip in a real browser',
+    )
     assert.equal(result.details.blockedDeletionWhileReferenced, true, 'real browser IndexedDB must enforce the referenced-ingredient delete block')
     assert.equal(result.details.deletedOnceUnreferenced, true, 'deletion must succeed once the ingredient is no longer referenced')
   } finally {

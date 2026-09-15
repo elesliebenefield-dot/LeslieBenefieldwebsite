@@ -184,6 +184,34 @@ test('allows changing measurement type when no existing usage would be broken', 
   }
 })
 
+// The invariant: a persisted modification's updatedAt must be strictly
+// later than the record's previous timestamp — never equal, even when two
+// writes land in the same millisecond. Proven deterministically via the
+// monotonic clock (data/clock.ts), not by sleeping between writes.
+test('updatedAt strictly advances past the previous timestamp on every edit, including back-to-back edits', async () => {
+  const db = await freshDb()
+  try {
+    const created = await createIngredient(db, { name: 'Flour', packagePrice: '3.49', packageQuantity: '5', packageUnit: 'lb' })
+
+    const firstEdit = await updateIngredient(db, created.id, { packagePrice: '3.99' })
+    assert.ok(
+      new Date(firstEdit.updatedAt).getTime() > new Date(created.updatedAt).getTime(),
+      `expected updatedAt (${firstEdit.updatedAt}) strictly later than the original (${created.updatedAt})`,
+    )
+
+    // No delay between these two edits — this is exactly the case where a
+    // millisecond-resolution `Date.now()` timestamp could produce two
+    // identical values. The clock must still keep them strictly ordered.
+    const secondEdit = await updateIngredient(db, created.id, { packagePrice: '4.29' })
+    assert.ok(
+      new Date(secondEdit.updatedAt).getTime() > new Date(firstEdit.updatedAt).getTime(),
+      `expected second updatedAt (${secondEdit.updatedAt}) strictly later than first (${firstEdit.updatedAt})`,
+    )
+  } finally {
+    closeAndWipe(db)
+  }
+})
+
 test('allows changing units within the same measurement type freely', async () => {
   const db = await freshDb()
   try {

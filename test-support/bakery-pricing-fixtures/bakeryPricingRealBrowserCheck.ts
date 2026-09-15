@@ -6,6 +6,7 @@ import { openAppDatabase, DB_NAME } from '../../src/tools/bakery-pricing/data/sc
 import { createIngredient, deleteIngredient, getIngredient } from '../../src/tools/bakery-pricing/data/ingredientRepository.ts'
 import { createRecipe, deleteRecipe } from '../../src/tools/bakery-pricing/data/recipeRepository.ts'
 import { IngredientInUseError } from '../../src/tools/bakery-pricing/data/errors.ts'
+import { buildExport, importAndReplaceAll } from '../../src/tools/bakery-pricing/data/exportImport.ts'
 
 declare global {
   interface Window {
@@ -13,9 +14,17 @@ declare global {
   }
 }
 
+function wipeDatabase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+}
+
 async function run() {
   const details: Record<string, unknown> = {}
-  const db = await openAppDatabase()
+  let db = await openAppDatabase()
 
   const ingredient = await createIngredient(db, {
     name: 'Vanilla Extract',
@@ -44,6 +53,23 @@ async function run() {
     [{ ingredientId: ingredient.id, amountUsed: '1.5', amountUsedUnit: 'tsp' }],
   )
 
+  // Export/import round trip, in a REAL browser's IndexedDB: export the
+  // current data, wipe the database (simulating a fresh browser with none
+  // of this data), reopen it, and restore from the exported file. If this
+  // works in a real browser the same way it does under fake-indexeddb,
+  // the M2-5 requirement ("an exported file can restore an equivalent
+  // database in a fresh browser") is proven, not just assumed.
+  const exportedFile = await buildExport(db)
+  db.close()
+  await wipeDatabase()
+  db = await openAppDatabase()
+  const importSummary = await importAndReplaceAll(db, exportedFile, { confirmed: true })
+  details.exportImportCountsMatch =
+    importSummary.ingredients === 1 && importSummary.recipes === 1 && importSummary.recipeIngredientUsages === 1
+
+  const restoredIngredient = await getIngredient(db, ingredient.id)
+  details.exportImportExactDecimalRoundTrip = restoredIngredient.packagePrice === '7.490000001'
+
   let blockedCorrectly = false
   try {
     await deleteIngredient(db, ingredient.id)
@@ -63,11 +89,7 @@ async function run() {
   details.deletedOnceUnreferenced = deletedAfterUnreferenced
 
   db.close()
-  await new Promise<void>((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(DB_NAME)
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-  })
+  await wipeDatabase()
 
   window.__RESULT__ = { ok: true, details }
 }

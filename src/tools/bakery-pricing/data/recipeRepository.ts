@@ -1,11 +1,8 @@
 import { promisifyRequest, promisifyTransaction } from './db.ts'
+import { nowIso } from './clock.ts'
 import { STORE_RECIPES, STORE_USAGES, INDEX_USAGES_BY_RECIPE } from './schema.ts'
 import { NotFoundError } from './errors.ts'
 import type { NewRecipe, NewUsage, RecipePatch, RecipeWithUsages, StoredRecipe, StoredRecipeIngredientUsage } from './types.ts'
-
-function nowIso(): string {
-  return new Date().toISOString()
-}
 
 function toStoredUsage(recipeId: string, usage: NewUsage): StoredRecipeIngredientUsage {
   return {
