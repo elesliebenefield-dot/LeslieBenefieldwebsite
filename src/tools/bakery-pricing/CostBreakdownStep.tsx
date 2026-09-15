@@ -7,6 +7,7 @@ import { ROUNDING_INCREMENTS } from './bakeryPricingDraftTypes.ts'
 import { SectionIcon } from './SectionIcon.tsx'
 import { CostCompletenessCheck } from './CostCompletenessCheck.tsx'
 import { SellingPriceTest } from './SellingPriceTest.tsx'
+import { LeadGenCta } from './LeadGenCta.tsx'
 import type { DraftCostInputs } from './bakeryPricingDraftTypes.ts'
 import type { RoundingIncrement } from './calc-engine/types.ts'
 
@@ -201,6 +202,8 @@ export function CostBreakdownStep({
           </details>
 
           <SellingPriceTest totalProductionCost={breakdown.value.totalProductionCost} yieldCount={yieldCount} />
+
+          <LeadGenCta />
         </>
       )}
     </div>

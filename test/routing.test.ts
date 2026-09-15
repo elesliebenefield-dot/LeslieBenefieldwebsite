@@ -5,7 +5,7 @@
 // Failing cases caught by this file:
 //   - /real-estate-tools returns index.html (homepage) instead of the showcase
 //   - /tools/real-estate/<tool> returns index.html instead of the intended tool
-//   - The homepage callout link points to something other than /real-estate-tools
+//   - The homepage callout link points to something other than /business-tools
 //   - The Real Estate Tools suite or demos are described as "free"
 //
 // Runs against the real production build (dist/, always rebuilt fresh).
@@ -273,28 +273,37 @@ test('/tools-food-truck-event loads the food truck planner, not the homepage', a
 })
 
 // ── Homepage callout destination ─────────────────────────────────────────────
+// Superseded by the M7 information-architecture correction: the homepage
+// callout now points to the general /business-tools hub (not straight to
+// /real-estate-tools), since Websites by Leslie now has tools for multiple
+// industries. See test/businessToolsHub.test.ts for the current assertion.
 
-test('homepage callout "See the tools" link points to /real-estate-tools (not a .html file)', async () => {
+test('homepage callout "See the tools" link points to /business-tools (not a .html file, not straight to any one tool)', async () => {
   const page = await getPage('/')
   try {
     const href = await page.$eval('.tools-callout-link', (el) => el.getAttribute('href')).catch(() => null)
     assert.ok(href !== null, '.tools-callout-link must exist on the homepage')
-    assert.equal(href, '/real-estate-tools',
-      `callout link must point to /real-estate-tools, got: "${href}"`)
+    assert.equal(href, '/business-tools',
+      `callout link must point to /business-tools, got: "${href}"`)
   } finally {
     await page.close()
   }
 })
 
-// ── No prohibited "free" language for the tools/suite ────────────────────────
+// ── No prohibited "free" language for the real-estate suite/tools ───────────
+// The homepage callout now covers the whole Business Tools set, which
+// genuinely includes one free tool (the bakery pricing calculator) alongside
+// several customizable demos — so it's no longer correct to ban the word
+// "free" outright. What must still hold is that the *real estate* suite/
+// demos specifically are never called free.
 
-test('homepage callout does not describe the suite or tools as "free"', async () => {
+test('homepage callout does not describe the real-estate suite/demos as "free"', async () => {
   const page = await getPage('/')
   try {
     const calloutText = (await page.$eval('.tools-callout', (el) => el.textContent ?? '').catch(() => '')).toLowerCase()
     assert.ok(calloutText.length > 10, 'callout must have content')
-    assert.ok(!/\bfree\b/.test(calloutText),
-      `homepage callout must not call the suite/tools "free", got: "${calloutText}"`)
+    assert.ok(!/\bfree\b.{0,30}real estate/.test(calloutText) && !/real estate.{0,30}\bfree\b/.test(calloutText),
+      `homepage callout must not call the real-estate suite/tools "free", got: "${calloutText}"`)
   } finally {
     await page.close()
   }

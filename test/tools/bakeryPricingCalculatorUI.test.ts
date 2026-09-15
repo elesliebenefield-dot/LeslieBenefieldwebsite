@@ -1835,12 +1835,33 @@ test('no premium, purchase, account, or tracking language appears anywhere on th
   }
 })
 
-test('no sales CTA is present in M3 (that is Milestone M7 scope)', async () => {
+test('no sales CTA appears on Step 1 or Step 2 — only once pricing results are shown (M7)', async () => {
   const page = await openTool()
   try {
-    await buildHandVerifiedRecipe(page)
-    const cta = await page.$('.tool-sales-cta')
-    assert.equal(cta, null, 'the results-only sales CTA is not built until M7')
+    const ctaOnStep1 = await page.$('.tool-sales-cta')
+    assert.equal(ctaOnStep1, null, 'the sales CTA must never appear during ingredient entry')
+
+    await setYield(page, '24')
+    await addIngredient(page, { name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each', packagePrice: '4', packageQuantity: '4', amountUsed: '2' })
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
+    const ctaOnStep2 = await page.$('.tool-sales-cta')
+    assert.equal(ctaOnStep2, null, 'the sales CTA must never appear during cost entry')
+
+    await page.click('.bp-nav .bp-btn-primary')
+    await page.waitForFunction(() => !!document.querySelector('.bp-price-lead'))
+    const ctaOnStep3 = await page.$('.tool-sales-cta')
+    assert.ok(ctaOnStep3, 'the sales CTA should appear once pricing results are shown (M7)')
+
+    const ctaText = await page.$eval('.tool-sales-cta', el => el.textContent || '')
+    assert.match(ctaText, /Websites by Leslie|website|order form/i)
+    const ctaLinkHref = await page.$eval('.tool-sales-cta-link', el => el.getAttribute('href') || '')
+    assert.match(ctaLinkHref, /^mailto:websitesbyleslie01@gmail\.com\?subject=/, 'must reuse the real, existing contact address, not an invented one')
+
+    const crossLink = await page.$eval('.bp-cross-link-note a', el => el.getAttribute('href') || '')
+    assert.equal(crossLink, '/tools-custom-bakery-order')
   } finally {
     await page.close()
   }

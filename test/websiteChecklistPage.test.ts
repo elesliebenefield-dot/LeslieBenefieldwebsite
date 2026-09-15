@@ -252,10 +252,12 @@ test('nav includes a working "Website Checklist" link to /website-checklist', as
   }
 })
 
-test('no horizontal overflow at 390px, 1400px (breakpoint boundary), or 1440px', async () => {
+test('no horizontal overflow at 390px, 1450px (nav breakpoint boundary), or 1500px', async () => {
+  // The nav breakpoint moved 1400px -> 1450px when a 9th nav link ("Tools")
+  // was added during the M7 IA correction — see test/navOverflow.test.ts.
   const page: Page = await browser.newPage()
   try {
-    for (const width of [390, 768, 1399, 1400, 1401, 1440]) {
+    for (const width of [390, 768, 1449, 1450, 1451, 1500]) {
       await page.setViewport({ width, height: 900 })
       await page.goto(`${baseUrl}/website-checklist.html`, { waitUntil: 'load' })
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)

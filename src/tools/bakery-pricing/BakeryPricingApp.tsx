@@ -145,6 +145,12 @@ export function BakeryPricingApp() {
           Planning estimates only — not financial, accounting, tax, legal, or business advice. Calculations stay
           on your device and are never transmitted anywhere.
         </p>
+        <p className="bp-disclaimer-attribution">
+          Built by{' '}
+          <a href="https://websitesbyleslie.com" target="_blank" rel="noopener noreferrer">
+            Websites by Leslie
+          </a>
+        </p>
         <details onToggle={(e) => setShowFullDisclaimer(e.currentTarget.open)}>
           <summary>{showFullDisclaimer ? 'Hide full disclaimer' : 'Read the full disclaimer'}</summary>
           <p>

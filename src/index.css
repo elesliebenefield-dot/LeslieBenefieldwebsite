@@ -374,28 +374,31 @@ section[id] {
 }
 
 
-/* The full nav row (logo + 8 links + contact button, all non-wrapping)
-   needs ~1260px of width to lay out without crowding — below that, the
+/* The full nav row (logo + 9 links + contact button, all non-wrapping)
+   needs ~1275px of width to lay out without crowding — below that, the
    hamburger menu takes over. This must stay >= that natural content
    width or the row overflows the viewport at intermediate/tablet widths
    before the hamburger breakpoint kicks in.
 
-   The 1260px figure isn't perfectly stable: right around the `load`
-   event, the nav can still be rendering with a fallback font (Syne/Lora
+   That figure isn't perfectly stable: right around the `load` event,
+   the nav can still be rendering with a fallback font (Syne/Lora
    haven't finished loading yet), which measures a few dozen pixels
    wider than the final webfont — confirmed directly by comparing
    scrollWidth right after `load` vs. after `document.fonts.ready` at a
-   viewport just past the breakpoint (1px overflow -> 0px). A tight
-   breakpoint can intermittently overflow during that fallback-font
-   window depending on network timing, so this carries a large margin
-   (140px, not the usual ~25-40px) specifically to absorb that race
-   rather than the link row's own steady-state width.
+   viewport just past the breakpoint. A tight breakpoint can
+   intermittently overflow during that fallback-font window depending on
+   network timing, so this carries a large margin specifically to
+   absorb that race rather than the link row's own steady-state width.
 
    History: 768px -> 960px (6 links) -> 1080px (7 links, after
    "Services & Pricing") -> 1400px (8 links, ~1260px steady-state, after
-   adding "FAQ" and "Website Checklist"). See test/navOverflow.test.ts
-   for the boundary check. */
-@media (max-width: 1400px) {
+   adding "FAQ" and "Website Checklist") -> 1450px (9 links, ~1275px
+   steady-state, after adding "Tools" during the M7 IA correction —
+   re-measured empirically: the fallback-font race window overflowed up
+   through 1425px, so the margin was rechecked against that, not just
+   copied forward). See test/navOverflow.test.ts for the boundary
+   check. */
+@media (max-width: 1450px) {
   .nav-links {
     display: none;
   }
@@ -2286,6 +2289,116 @@ section[id] {
   margin-bottom: 2rem;
 }
 
+/* ─── Free tools (distinct from the demo-card grid above) ── */
+.pricing-free {
+  position: relative;
+  padding: 0 1.5rem 1rem;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .pricing-free {
+    padding: 0 1.5rem 2rem;
+  }
+}
+
+.pricing-free-inner {
+  max-width: 1050px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+}
+
+@media (min-width: 768px) {
+  .pricing-free-inner {
+    padding: 3rem 3rem 3.5rem;
+  }
+}
+
+.pricing-free-inner .section-label {
+  text-align: left;
+}
+
+.pricing-free-inner .section-title {
+  text-align: left;
+}
+
+.pricing-free-inner .section-subtitle {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.pricing-free-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 2px solid rgba(58, 138, 95, 0.32);
+  border-left-width: 5px;
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 1.5rem 1.75rem;
+  max-width: 620px;
+}
+
+.pricing-free-tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f6b4f;
+  background: rgba(58, 138, 95, 0.12);
+  border-radius: 100px;
+  padding: 0.25rem 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.pricing-free-card-title {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.625rem;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.pricing-free-card-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.pricing-free-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1.125rem;
+  background: #3a8a5f;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  min-height: 44px;
+}
+
+.pricing-free-link:hover {
+  background: #2f6b4f;
+}
+
+.pricing-free-link:focus-visible {
+  outline: 2px solid #3a8a5f;
+  outline-offset: 2px;
+}
+
 /* ─── Final CTA ─────────────────────────────────────────── */
 .pricing-cta {
   position: relative;
@@ -2627,6 +2740,95 @@ section[id] {
 .faq-answer a:hover {
   color: var(--color-accent-hover);
   text-decoration-color: currentColor;
+}
+
+/* ─── Bakery pricing landing page + educational articles ─────────────── */
+.bp-article-body {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.75;
+}
+
+.bp-article-body h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--color-text);
+  margin: 2rem 0 0.75rem;
+}
+
+.bp-article-body h2:first-child {
+  margin-top: 0;
+}
+
+.bp-article-body p,
+.bp-article-body ul,
+.bp-article-body ol {
+  margin-bottom: 1rem;
+}
+
+.bp-article-body ul,
+.bp-article-body ol {
+  padding-left: 1.375rem;
+}
+
+.bp-article-body li {
+  margin-bottom: 0.5rem;
+}
+
+.bp-article-body code {
+  font-family: monospace;
+  background: var(--color-border);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.bp-article-body a,
+.bp-landing-disclaimer a {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+
+.bp-article-body a:hover,
+.bp-landing-disclaimer a:hover {
+  color: var(--color-accent-hover);
+  text-decoration-color: currentColor;
+}
+
+.bp-article-related {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.bp-article-related-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+
+.bp-article-related ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bp-article-related li {
+  margin-bottom: 0.5rem;
+}
+
+.bp-landing-disclaimer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
 }
 
 /* ─── /website-checklist ─────────────────────────────────── */
@@ -3568,6 +3770,260 @@ section[id] {
   }
   .rts-tool-card,
   .rts-journey-stage {
+    transition: none;
+  }
+}
+
+/* ─── Business Tools hub page ───────────────────────────── */
+.bt-hero {
+  padding: 3rem 1.5rem;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .bt-hero {
+    padding: 4.5rem 1.5rem 2.5rem;
+  }
+}
+
+.bt-hero-inner {
+  position: relative;
+  max-width: 780px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+@media (min-width: 768px) {
+  .bt-hero-inner {
+    padding: 3rem 3.5rem;
+  }
+}
+
+.bt-section {
+  padding: 0 1.5rem 3rem;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .bt-section {
+    padding: 0 1.5rem 4.5rem;
+  }
+  .bt-section-inner {
+    padding: 2.5rem 3rem 3rem;
+  }
+}
+
+.bt-section-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.bt-section-header {
+  max-width: 620px;
+  margin-bottom: 2rem;
+}
+
+@media (min-width: 768px) {
+  .bt-section-header {
+    margin-bottom: 2.5rem;
+  }
+}
+
+.bt-tools-grid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 540px) {
+  .bt-tools-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.bt-tool-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-top: 5px solid var(--color-pop);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-top-color 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .bt-tool-card {
+    padding: 1.75rem;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bt-tool-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+    border-top-color: var(--color-accent);
+  }
+  .bt-tool-card:hover .bt-tool-link {
+    background-color: var(--color-accent-button-hover);
+    border-color: var(--color-accent-button-hover);
+  }
+}
+
+.bt-tool-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(77, 163, 168, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.bt-tool-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.bt-tool-tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 100px;
+  padding: 0.25rem 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.bt-tool-tag-free {
+  color: #2f6b4f;
+  background: rgba(58, 138, 95, 0.12);
+  border: 1.5px solid rgba(58, 138, 95, 0.32);
+}
+
+.bt-tool-tag-demo {
+  color: var(--color-accent-button);
+  background: rgba(52, 101, 115, 0.09);
+  border: 1.5px solid rgba(52, 101, 115, 0.28);
+}
+
+.bt-tool-name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.3;
+  margin-bottom: 0.65rem;
+}
+
+.bt-tool-desc {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  margin-bottom: 0.65rem;
+  flex-grow: 1;
+}
+
+.bt-tool-audience {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.bt-tool-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent-button);
+  background: #fff;
+  border: 2px solid var(--color-accent-button);
+  border-radius: var(--radius-md);
+  padding: 0.625rem 1.25rem;
+  transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+  align-self: flex-start;
+  text-decoration: none;
+  min-height: 44px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.bt-tool-link:hover {
+  background: var(--color-bg-alt);
+  color: var(--color-accent-button-hover);
+  border-color: var(--color-accent-button-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(77, 163, 168, 0.15);
+}
+
+.bt-tool-link:focus-visible {
+  outline: 2px solid var(--color-accent-button);
+  outline-offset: 2px;
+}
+
+.bt-custom {
+  padding: 0 1.5rem 3rem;
+  background: transparent;
+}
+
+@media (min-width: 768px) {
+  .bt-custom {
+    padding: 0 1.5rem 4.5rem;
+  }
+  .bt-custom-inner {
+    padding: 2.5rem 3rem 3rem;
+  }
+}
+
+.bt-custom-inner {
+  max-width: 780px;
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 1.5rem 2.25rem;
+}
+
+.bt-custom-inner .section-subtitle {
+  max-width: none;
+}
+
+.bt-custom-cta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-tool-card {
     transition: none;
   }
 }

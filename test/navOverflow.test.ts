@@ -6,13 +6,14 @@
 // one breakpoint (see src/index.css) so the hamburger stays active
 // until the full row genuinely fits.
 //
-// The breakpoint value has moved three times as links were added: 768px ->
+// The breakpoint value has moved four times as links were added: 768px ->
 // 960px (6 links, ~950px natural width) -> 1080px (7 links, after adding
 // "Services & Pricing", ~1055px natural width) -> 1400px (8 links, after
-// adding "FAQ" and "Website Checklist", ~1260px natural width). Each time,
-// this file's boundary-specific test and sweep values were re-measured and
-// updated to match — see the current @media (max-width: 1400px) block
-// in src/index.css.
+// adding "FAQ" and "Website Checklist", ~1260px natural width) -> 1450px
+// (9 links, after adding "Tools" during the M7 IA correction, ~1275px
+// natural width). Each time, this file's boundary-specific test and sweep
+// values were re-measured and updated to match — see the current
+// @media (max-width: 1450px) block in src/index.css.
 //
 // This test only ever exercised the shared Nav component and page-level
 // layout via /check.html as a rendering host — nothing checker-specific —
@@ -88,14 +89,15 @@ async function overflowAt(page: Page, width: number): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 }
 
-test('/check has no horizontal overflow anywhere across the affected intermediate-width range (340px-1440px)', async () => {
+test('/check has no horizontal overflow anywhere across the affected intermediate-width range (340px-1490px)', async () => {
   const page: Page = await browser.newPage()
   try {
     // Sweeps from the narrow end up through desktop widths, including all
-    // former breakpoint boundaries (960/961px, 1080/1081px) now safely
-    // inside hamburger territory, and the current 1400/1401px breakpoint
-    // boundary, so a regression anywhere near any of them is caught.
-    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 960, 961, 1000, 1024, 1055, 1079, 1080, 1081, 1082, 1100, 1200, 1260, 1300, 1399, 1400, 1401, 1402, 1440]
+    // former breakpoint boundaries (960/961px, 1080/1081px, 1400/1401px)
+    // now safely inside hamburger territory, and the current 1450/1451px
+    // breakpoint boundary, so a regression anywhere near any of them is
+    // caught.
+    const widths = [340, 400, 500, 600, 700, 768, 769, 780, 800, 820, 850, 880, 900, 920, 940, 960, 961, 1000, 1024, 1055, 1079, 1080, 1081, 1082, 1100, 1200, 1260, 1300, 1399, 1400, 1401, 1402, 1425, 1440, 1449, 1450, 1451, 1452, 1490]
     for (const width of widths) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
@@ -125,10 +127,10 @@ test('/check has no horizontal overflow at 320px (narrowest common real device w
   }
 })
 
-test('/check specifically at the new nav breakpoint boundary (1400/1401px) has no overflow on either side', async () => {
+test('/check specifically at the new nav breakpoint boundary (1450/1451px) has no overflow on either side', async () => {
   const page: Page = await browser.newPage()
   try {
-    for (const width of [1398, 1399, 1400, 1401, 1402, 1403]) {
+    for (const width of [1448, 1449, 1450, 1451, 1452, 1453]) {
       const overflow = await overflowAt(page, width)
       assert.ok(overflow <= 0, `expected no overflow at ${width}px, got ${overflow}px`)
     }
@@ -160,7 +162,7 @@ test('/check at a genuinely mobile width still shows the hamburger menu, not the
 test('/check at a genuinely desktop width still shows the full nav row, not the hamburger (unchanged desktop behavior)', async () => {
   const page: Page = await browser.newPage()
   try {
-    await page.setViewport({ width: 1440, height: 900 })
+    await page.setViewport({ width: 1500, height: 900 })
     await page.goto(`${baseUrl}/check.html`, { waitUntil: 'load' })
     const state = await page.evaluate(() => {
       const links = document.querySelector('.nav-links')

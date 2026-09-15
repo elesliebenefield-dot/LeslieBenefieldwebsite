@@ -300,6 +300,29 @@ export default function ServicesPage() {
           </div>
         </section>
 
+        <section id="free-tools" className="pricing-free" data-reveal>
+          <div className="pricing-free-inner">
+            <p className="section-label">Genuinely Free</p>
+            <h2 className="section-title">A free tool, not a demo.</h2>
+            <p className="section-subtitle">
+              Unlike the interactive demos above, the tool below isn't a preview of custom work —
+              it's a complete, ready-to-use resource, free for anyone to use.
+            </p>
+            <div className="pricing-free-card">
+              <span className="pricing-free-tag">Free Tool</span>
+              <h3 className="pricing-free-card-title">Free Home Bakery Pricing Calculator</h3>
+              <p className="pricing-free-card-desc">
+                A free, complete cost-and-pricing calculator for home bakers — ingredients, labor,
+                packaging, waste, and overhead, with a clear suggested price. No account, no ads,
+                and your data stays on your device.
+              </p>
+              <a href="/bakery-pricing-guide" className="pricing-free-link">
+                Use the Free Calculator →
+              </a>
+            </div>
+          </div>
+        </section>
+
         <section className="pricing-cta">
           <div className="pricing-cta-inner" data-reveal>
             <h2 className="section-title">Not sure which option fits?</h2>

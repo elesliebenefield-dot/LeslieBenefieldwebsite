@@ -828,6 +828,11 @@
   margin-bottom: 0.5rem;
 }
 
+.tool-disclaimer.bp-disclaimer-compact .bp-disclaimer-attribution {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
 .tool-disclaimer.bp-disclaimer-compact details {
   margin: 0;
 }
@@ -1343,4 +1348,63 @@
   border-radius: 8px;
   padding: 0.5rem 0.625rem;
   margin-top: 0.5rem;
+}
+
+/* ---------- M7 local prep: cross-link note + lead-gen CTA ---------- */
+.bakery-pricing-calculator .bp-cross-link-note {
+  background: var(--bp-cream);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .bp-cross-link-note a {
+  color: var(--bp-raspberry-dark);
+}
+
+/* The site's .tool-sales-cta is unscoped and defaults to the site's
+   generic teal accent — themed here to the calculator's own bakery-ledger
+   palette so it reads as part of this page, not a mismatched import. Same
+   structure/content shape as every other tool's sales CTA, different
+   colors only. */
+.bakery-pricing-calculator .tool-sales-cta {
+  border-color: var(--bp-gold);
+  border-radius: var(--bp-radius);
+  background: var(--bp-paper);
+  margin: 1.25rem 0;
+}
+
+.bakery-pricing-calculator .tool-sales-cta-eyebrow {
+  font-family: var(--bp-font-interface);
+  color: var(--bp-raspberry-dark);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-heading {
+  font-family: var(--bp-font-display);
+  color: var(--bp-espresso);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-body,
+.bakery-pricing-calculator .tool-sales-cta-features li {
+  font-family: var(--bp-font-interface);
+  color: var(--bp-espresso-soft);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-features li::before {
+  color: var(--bp-sage);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link {
+  background: var(--bp-raspberry);
+  font-family: var(--bp-font-interface);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link:hover {
+  background: var(--bp-raspberry-dark);
+}
+
+.bakery-pricing-calculator .tool-sales-cta-link:focus-visible {
+  outline-color: var(--bp-gold);
 }
