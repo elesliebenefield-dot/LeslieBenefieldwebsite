@@ -14,6 +14,9 @@ import {
   computeIngredientCost,
   computeIngredientSubtotal,
   computeSuggestedPricing,
+  computeSuppliesSubtotal,
+  computeSupplyDirectCost,
+  computeSupplyItemCost,
 } from '../../src/tools/bakery-pricing/calc-engine/formulas.ts'
 import { fromStorageString } from '../../src/tools/bakery-pricing/calc-engine/decimal.ts'
 import type { IngredientInput } from '../../src/tools/bakery-pricing/calc-engine/types.ts'
@@ -63,7 +66,7 @@ test('never truncates a tiny fractional cost to zero, and preserves precision be
   }
 })
 
-test('blocks a weight/volume mismatch instead of silently computing a cost', () => {
+test('blocks a weight/volume mismatch with no conversion supplied — never guesses a density', () => {
   const bad: IngredientInput = {
     packagePrice: '3.49',
     packageQuantity: '5',
@@ -75,6 +78,83 @@ test('blocks a weight/volume mismatch instead of silently computing a cost', () 
   assert.equal(result.valid, false)
   if (!result.valid) {
     assert.match(result.reason, /different measurement types/)
+  }
+})
+
+test('blocks a weight/volume mismatch even when a conversion is supplied with an invalid (zero) weight', () => {
+  const bad: IngredientInput = {
+    packagePrice: '3.49',
+    packageQuantity: '5',
+    packageUnit: 'lb',
+    amountUsed: '2',
+    usageUnit: 'tsp',
+    customConversion: { volumeUnit: 'tsp', weightQuantity: '0', weightUnit: 'g' },
+  }
+  const result = computeIngredientCost(bad)
+  assert.equal(result.valid, false)
+})
+
+test('blocks a count/weight or count/volume mismatch — no conversion path is ever offered for count', () => {
+  const countVsWeight: IngredientInput = {
+    packagePrice: '3.99', packageQuantity: '12', packageUnit: 'each', amountUsed: '280', usageUnit: 'g',
+  }
+  assert.equal(computeIngredientCost(countVsWeight).valid, false)
+
+  const countVsVolume: IngredientInput = {
+    packagePrice: '3.99', packageQuantity: '12', packageUnit: 'each', amountUsed: '1', usageUnit: 'cup',
+  }
+  assert.equal(computeIngredientCost(countVsVolume).valid, false)
+})
+
+test('computes cost across volume units of different sizes (package in cups, recipe in tablespoons)', () => {
+  const vanilla: IngredientInput = {
+    packagePrice: '7.49',
+    packageQuantity: '1',
+    packageUnit: 'cup',
+    amountUsed: '3',
+    usageUnit: 'tbsp',
+  }
+  const result = computeIngredientCost(vanilla)
+  assert.equal(result.valid, true)
+  // 1 cup = 236.588 mL; 3 tbsp = 44.3604 mL; 7.49 * (44.3604/236.588) ≈ 1.404380
+  if (result.valid) closeTo(result.value, 1.404380, 1e-4)
+})
+
+// Flour: 5 lb package, recipe calls for 2 cups, baker enters "1 cup weighs 120 g".
+test('bridges a weight package and a volume recipe amount using a baker-supplied conversion (flour, lb -> cups)', () => {
+  const flour: IngredientInput = {
+    packagePrice: '3.49',
+    packageQuantity: '5',
+    packageUnit: 'lb',
+    amountUsed: '2',
+    usageUnit: 'cup',
+    customConversion: { volumeUnit: 'cup', weightQuantity: '120', weightUnit: 'g' },
+  }
+  const result = computeIngredientCost(flour)
+  assert.equal(result.valid, true)
+  if (result.valid) {
+    // 2 cups * 120 g/cup = 240 g used; 5 lb = 2267.9619 g package.
+    // cost = 3.49 * (240 / 2267.96185) ≈ 0.3693184
+    closeTo(result.value, 0.369318, 1e-5)
+  }
+})
+
+// Same ingredient, reverse direction: sold by volume, recipe measures by weight.
+test('bridges a volume package and a weight recipe amount using a baker-supplied conversion', () => {
+  const honey: IngredientInput = {
+    packagePrice: '9.99',
+    packageQuantity: '2',
+    packageUnit: 'cup',
+    amountUsed: '336',
+    usageUnit: 'g',
+    customConversion: { volumeUnit: 'cup', weightQuantity: '336', weightUnit: 'g' },
+  }
+  const result = computeIngredientCost(honey)
+  assert.equal(result.valid, true)
+  if (result.valid) {
+    // By construction, 336 g is exactly 1 cup under this conversion, and the
+    // package is 2 cups, so 336 g should cost exactly half the package price.
+    closeTo(result.value, 4.995, 1e-6)
   }
 })
 
@@ -110,6 +190,56 @@ test('returns zero for an empty ingredient list', () => {
   assert.equal(computeIngredientSubtotal([]), '0')
 })
 
+// ── computeSupplyItemCost / computeSupplyDirectCost / computeSuppliesSubtotal ──
+
+test('supply package cost = price * (used / packageQty), no units involved', () => {
+  // 100 cake-pop sticks cost $5.00; this recipe uses 24.
+  const result = computeSupplyItemCost({ packagePrice: '5.00', packageQuantity: '100', amountUsed: '24' })
+  assert.equal(result.valid, true)
+  if (result.valid) closeTo(result.value, 1.2, 1e-9)
+})
+
+test('supply package cost preserves a fractional (non-round) result exactly', () => {
+  const result = computeSupplyItemCost({ packagePrice: '10', packageQuantity: '3', amountUsed: '1' })
+  assert.equal(result.valid, true)
+  if (result.valid) assert.equal(result.value, fromStorageString('10').dividedBy(3).toFixed())
+})
+
+test('supply package cost rejects a zero package quantity and a negative price', () => {
+  assert.equal(computeSupplyItemCost({ packagePrice: '5', packageQuantity: '0', amountUsed: '1' }).valid, false)
+  assert.equal(computeSupplyItemCost({ packagePrice: '-1', packageQuantity: '5', amountUsed: '1' }).valid, false)
+})
+
+test('supply package cost with a zero amount used is zero, not an error', () => {
+  const result = computeSupplyItemCost({ packagePrice: '5', packageQuantity: '100', amountUsed: '0' })
+  assert.equal(result.valid, true)
+  if (result.valid) assert.equal(result.value, '0')
+})
+
+test('direct supply cost passes the entered cost straight through', () => {
+  const result = computeSupplyDirectCost('6.50')
+  assert.equal(result.valid, true)
+  if (result.valid) assert.equal(result.value, '6.5')
+})
+
+test('direct supply cost rejects a negative value, accepts zero', () => {
+  assert.equal(computeSupplyDirectCost('-0.01').valid, false)
+  assert.equal(computeSupplyDirectCost('0').valid, true)
+})
+
+test('supplies subtotal sums package-mode and direct-mode item costs together', () => {
+  const stickCost = computeSupplyItemCost({ packagePrice: '5.00', packageQuantity: '100', amountUsed: '24' })
+  const boxCost = computeSupplyDirectCost('6.50')
+  assert.equal(stickCost.valid && boxCost.valid, true)
+  if (stickCost.valid && boxCost.valid) {
+    assert.equal(computeSuppliesSubtotal([stickCost.value, boxCost.value]), '7.7')
+  }
+})
+
+test('supplies subtotal is zero when there are no items', () => {
+  assert.equal(computeSuppliesSubtotal([]), '0')
+})
+
 // ── computeCostBreakdown — full worked recipe (chocolate chip cookies, yield 24) ──
 
 const worked = {
@@ -117,8 +247,10 @@ const worked = {
   wastePercent: '3',
   laborHourlyRate: '18',
   laborMinutes: '40',
-  packagingBatchCost: '1.50',
-  packagingPerItemCost: '0.15',
+  // Equivalent to the old batch ($1.50) + per-item ($0.15 x 24) packaging
+  // formula — now pre-summed by the UI from individual supply line items
+  // (computeSuppliesSubtotal) before reaching computeCostBreakdown.
+  suppliesSubtotal: '5.10',
   overheadFlatCost: '3.00',
   yield_: 24,
 }
@@ -131,7 +263,7 @@ test('produces a total production cost and cost per unit matching the hand-verif
     closeTo(result.value.costPerUnit, 1.1195, 1e-3)
     closeTo(result.value.wasteAllowance, 0.1971, 1e-3)
     closeTo(result.value.laborCost, 12.0, 1e-9)
-    closeTo(result.value.packagingCost, 5.1, 1e-9)
+    closeTo(result.value.suppliesCost, 5.1, 1e-9)
   }
 })
 
@@ -142,7 +274,7 @@ test('total production cost equals the sum of its parts, exactly', () => {
     const sum = fromStorageString(result.value.ingredientSubtotal)
       .plus(fromStorageString(result.value.wasteAllowance))
       .plus(fromStorageString(result.value.laborCost))
-      .plus(fromStorageString(result.value.packagingCost))
+      .plus(fromStorageString(result.value.suppliesCost))
       .plus(fromStorageString(result.value.overhead))
     assert.ok(sum.equals(fromStorageString(result.value.totalProductionCost)))
   }
@@ -255,14 +387,13 @@ test('increasing any single valid cost input cannot decrease total production co
       decimalArb(0, 500),
       fc.integer({ min: 1, max: 1000 }),
       decimalArb(0.01, 100),
-      (ingredientSubtotal, wastePercent, laborHourlyRate, laborMinutes, packagingBatchCost, overheadFlatCost, yield_, delta) => {
+      (ingredientSubtotal, wastePercent, laborHourlyRate, laborMinutes, suppliesSubtotal, overheadFlatCost, yield_, delta) => {
         const base = computeCostBreakdown({
           ingredientSubtotal,
           wastePercent,
           laborHourlyRate,
           laborMinutes,
-          packagingBatchCost,
-          packagingPerItemCost: '0',
+          suppliesSubtotal,
           overheadFlatCost,
           yield_,
         })
@@ -271,8 +402,7 @@ test('increasing any single valid cost input cannot decrease total production co
           wastePercent,
           laborHourlyRate,
           laborMinutes,
-          packagingBatchCost,
-          packagingPerItemCost: '0',
+          suppliesSubtotal,
           overheadFlatCost: new Decimal(overheadFlatCost).plus(delta).toFixed(),
           yield_,
         })

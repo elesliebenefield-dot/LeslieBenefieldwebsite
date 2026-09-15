@@ -53,12 +53,15 @@ export function validateLaborMinutes(raw: DecimalString): ValidationResult<Decim
   return nonNegative(raw, "Labor minutes");
 }
 
-export function validatePackagingBatchCost(raw: DecimalString): ValidationResult<Decimal> {
-  return nonNegative(raw, "Batch-level packaging cost");
+export function validateSupplyDirectCost(raw: DecimalString): ValidationResult<Decimal> {
+  return nonNegative(raw, "Cost");
 }
 
-export function validatePackagingPerItemCost(raw: DecimalString): ValidationResult<Decimal> {
-  return nonNegative(raw, "Per-item packaging cost");
+// The weight side of a baker-supplied "1 [cup] of this ingredient weighs
+// [120] [grams]" custom conversion. Must be strictly positive — a zero or
+// negative weight for a real amount of volume is never meaningful.
+export function validateConversionWeightQuantity(raw: DecimalString): ValidationResult<Decimal> {
+  return positive(raw, "Conversion weight");
 }
 
 export function validateOverhead(raw: DecimalString): ValidationResult<Decimal> {

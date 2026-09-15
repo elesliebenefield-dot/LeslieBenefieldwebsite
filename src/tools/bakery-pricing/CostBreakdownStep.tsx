@@ -8,6 +8,7 @@ import type { RoundingIncrement } from './calc-engine/types.ts'
 
 interface Props {
   ingredientSubtotal: string
+  suppliesSubtotal: string
   costs: DraftCostInputs
   yieldCount: number
   marginPercent: string
@@ -20,6 +21,7 @@ const blank = (v: string) => (v.trim() === '' ? '0' : v)
 
 export function CostBreakdownStep({
   ingredientSubtotal,
+  suppliesSubtotal,
   costs,
   yieldCount,
   marginPercent,
@@ -33,8 +35,7 @@ export function CostBreakdownStep({
       wastePercent: blank(costs.wastePercent),
       laborHourlyRate: blank(costs.laborHourlyRate),
       laborMinutes: blank(costs.laborMinutes),
-      packagingBatchCost: blank(costs.packagingBatchCost),
-      packagingPerItemCost: blank(costs.packagingPerItemCost),
+      suppliesSubtotal,
       overheadFlatCost: blank(costs.overheadFlatCost),
       yield_: yieldCount,
     }),
@@ -127,11 +128,8 @@ export function CostBreakdownStep({
                   <span>{formatMoney(breakdown.value.laborCost)}</span>
                 </div>
                 <div className="bp-ledger-row">
-                  <span>Packaging</span>
-                  <span>{formatMoney(breakdown.value.packagingCost)}</span>
-                </div>
-                <div className="bp-ledger-row bp-ledger-sub">
-                  {formatMoney(blank(costs.packagingBatchCost))} batch + {formatMoney(blank(costs.packagingPerItemCost))} × {yieldCount}
+                  <span>Supplies &amp; Packaging</span>
+                  <span>{formatMoney(breakdown.value.suppliesCost)}</span>
                 </div>
                 <div className="bp-ledger-row">
                   <span>Overhead</span>

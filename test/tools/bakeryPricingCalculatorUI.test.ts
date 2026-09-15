@@ -87,7 +87,6 @@ async function setInputValue(page: Page, selector: string, value: string) {
 
 interface IngredientInput {
   name: string
-  measurementType: 'weight' | 'volume' | 'count'
   packageUnit: string
   amountUsedUnit: string
   packagePrice: string
@@ -95,23 +94,34 @@ interface IngredientInput {
   amountUsed: string
 }
 
+// Package and recipe-usage units are independent selects — no measurement-
+// type selector exists. Selecting by aria-label rather than index keeps
+// this robust regardless of DOM ordering.
 async function addIngredient(page: Page, ing: IngredientInput) {
   await page.click('.bp-btn-ghost')
   await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
   await page.type('#bp-ing-name', ing.name)
-  const selects = await page.$$('.bp-add-ingredient-form select')
-  await selects[0].select(ing.measurementType)
-  const refreshedSelects = await page.$$('.bp-add-ingredient-form select')
-  await refreshedSelects[1].select(ing.packageUnit)
-  await refreshedSelects[2].select(ing.amountUsedUnit)
   await page.type('#bp-ing-price', ing.packagePrice)
-  const decimals = await page.$$('.bp-add-ingredient-form input[inputmode="decimal"]')
-  await decimals[1].type(ing.packageQuantity)
-  await decimals[2].type(ing.amountUsed)
+  await page.type('#bp-ing-pkg-qty', ing.packageQuantity)
+  const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+  await pkgUnitSelect!.select(ing.packageUnit)
+  await page.type('#bp-ing-use-qty', ing.amountUsed)
+  const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+  await useUnitSelect!.select(ing.amountUsedUnit)
 }
 
 async function saveIngredient(page: Page) {
   await page.click('.bp-add-ingredient-form .bp-btn-primary')
+}
+
+async function enterConversion(page: Page, volumeUnit: string, weightQuantity: string, weightUnit: string) {
+  await page.click('.bp-link-btn')
+  await page.waitForFunction(() => !!document.querySelector('input[aria-label="Conversion weight amount"]'))
+  const volSelect = await page.$('select[aria-label="Conversion volume unit"]')
+  await volSelect!.select(volumeUnit)
+  await page.type('input[aria-label="Conversion weight amount"]', weightQuantity)
+  const weightSelect = await page.$('select[aria-label="Conversion weight unit"]')
+  await weightSelect!.select(weightUnit)
 }
 
 // Step 1 now requires at least one ingredient to advance, so every helper
@@ -120,7 +130,7 @@ async function saveIngredient(page: Page) {
 async function advanceToCosts(page: Page, yieldValue = '24') {
   await setYield(page, yieldValue)
   await addIngredient(page, {
-    name: 'Filler Ingredient', measurementType: 'count', packageUnit: 'each', amountUsedUnit: 'each',
+    name: 'Filler Ingredient', packageUnit: 'each', amountUsedUnit: 'each',
     packagePrice: '1', packageQuantity: '1', amountUsed: '1',
   })
   await saveIngredient(page)
@@ -132,6 +142,32 @@ async function advanceToCosts(page: Page, yieldValue = '24') {
 async function openCostGroup(page: Page, index: number) {
   const summaries = await page.$$('summary')
   await summaries[index].click()
+}
+
+async function openSuppliesGroup(page: Page) {
+  await openCostGroup(page, 1)
+  await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section'))
+}
+
+async function addSupplyPackageItem(page: Page, opts: { name: string; packagePrice: string; packageQuantity: string; amountUsed: string }) {
+  await page.click('.bp-supplies-section .bp-btn-ghost')
+  await page.waitForFunction(() => !!document.querySelector('#bp-supply-name'))
+  await page.type('#bp-supply-name', opts.name)
+  await page.type('#bp-supply-price', opts.packagePrice)
+  await page.type('#bp-supply-pkg-qty', opts.packageQuantity)
+  await page.type('#bp-supply-used', opts.amountUsed)
+  await page.click('.bp-supplies-section .bp-btn-primary')
+}
+
+async function addSupplyDirectItem(page: Page, opts: { name: string; directCost: string }) {
+  await page.click('.bp-supplies-section .bp-btn-ghost')
+  await page.waitForFunction(() => !!document.querySelector('#bp-supply-name'))
+  await page.type('#bp-supply-name', opts.name)
+  const radios = await page.$$('input[name="bp-supply-mode"]')
+  await radios[1].click() // "I know the exact cost"
+  await page.waitForFunction(() => !!document.querySelector('#bp-supply-direct'))
+  await page.type('#bp-supply-direct', opts.directCost)
+  await page.click('.bp-supplies-section .bp-btn-primary')
 }
 
 // Reproduces the only way to see Step 2's zero-cost notices while still on
@@ -336,7 +372,7 @@ test('adding a valid ingredient shows it in the list with the correct computed c
   try {
     await setYield(page, '24')
     await addIngredient(page, {
-      name: 'Eggs', measurementType: 'count', packageUnit: 'each', amountUsedUnit: 'each',
+      name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each',
       packagePrice: '4.00', packageQuantity: '4', amountUsed: '2',
     })
     await saveIngredient(page)
@@ -356,7 +392,7 @@ test('removing an ingredient takes it out of the list and updates the subtotal',
   try {
     await setYield(page, '24')
     await addIngredient(page, {
-      name: 'Eggs', measurementType: 'count', packageUnit: 'each', amountUsedUnit: 'each',
+      name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each',
       packagePrice: '4.00', packageQuantity: '4', amountUsed: '2',
     })
     await saveIngredient(page)
@@ -369,47 +405,147 @@ test('removing an ingredient takes it out of the list and updates the subtotal',
   }
 })
 
-// M3's ingredient-add form has one measurement-type selector driving both the
-// package-unit and amount-used-unit dropdowns, so both are always populated
-// from the same unit list — a mismatched pair cannot be constructed through
-// this form (that becomes reachable once M4 adds a reusable ingredient
-// library with its own fixed package unit, used from a different recipe's
-// usage-unit picker). This test proves that structural guarantee for weight
-// and volume; the engine's own mismatch-blocking logic is exercised directly
-// by the deterministic calc-engine suite (bakeryPricingValidation.test.ts).
-test('the ingredient form never offers a package/usage unit pairing from two different measurement types', async () => {
+// Package and recipe-usage units are independent selects, each offering
+// every unit from every measurement type (grouped under optgroups) — a
+// baker can buy flour by the pound and use it by the cup in one line.
+test('package and recipe-usage unit selects are independent and each offer every unit', async () => {
   const page = await openTool()
   try {
     await page.click('.bp-btn-ghost')
-    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
-    for (const [type, expectedUnits] of [
-      ['weight', ['g', 'kg', 'oz', 'lb']],
-      ['volume', ['mL', 'L', 'tsp', 'tbsp', 'cup']],
-      ['count', ['each', 'dozen']],
-    ] as const) {
-      await page.select('#bp-ing-type', type)
-      const [pkgUnits, useUnits] = await page.$$eval('.bp-add-ingredient-form select', sels => [
-        Array.from((sels[1] as HTMLSelectElement).options).map(o => o.value),
-        Array.from((sels[2] as HTMLSelectElement).options).map(o => o.value),
-      ])
-      assert.deepEqual(pkgUnits.sort(), [...expectedUnits].sort(), `package units for ${type}`)
-      assert.deepEqual(useUnits.sort(), [...expectedUnits].sort(), `usage units for ${type}`)
-    }
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
+    const allUnits = ['g', 'kg', 'oz', 'lb', 'mL', 'L', 'tsp', 'tbsp', 'cup', 'each', 'dozen']
+    const pkgOptions = await page.$$eval('select[aria-label="Package amount unit"] option', els => els.map(o => (o as HTMLOptionElement).value))
+    const useOptions = await page.$$eval('select[aria-label="Amount used unit"] option', els => els.map(o => (o as HTMLOptionElement).value))
+    assert.deepEqual(pkgOptions.sort(), [...allUnits].sort())
+    assert.deepEqual(useOptions.sort(), [...allUnits].sort())
+
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    // Selecting the usage unit must not have reset the package unit — they are independent.
+    const pkgUnitValue = await page.$eval('select[aria-label="Package amount unit"]', el => (el as HTMLSelectElement).value)
+    assert.equal(pkgUnitValue, 'lb')
   } finally {
     await page.close()
   }
 })
 
-test('changing measurement type resets package and usage units to that type\'s units', async () => {
+// Package: same weight unit family, different specific unit (lb vs g) —
+// same measurement type, already bridgeable by the shared conversion
+// registry with no per-ingredient conversion needed.
+test('package and recipe both use weight, in different units, with no conversion needed', async () => {
   const page = await openTool()
   try {
-    await page.click('.bp-btn-ghost')
-    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
-    await page.select('#bp-ing-type', 'volume')
-    const options = await page.$$eval('.bp-add-ingredient-form select', sels =>
-      [1, 2].map(i => (sels[i] as HTMLSelectElement).value),
-    )
-    assert.ok(options.every(u => ['mL', 'L', 'tsp', 'tbsp', 'cup'].includes(u)), `expected volume units, got: ${options}`)
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'g', packagePrice: '3.49', packageQuantity: '5', amountUsed: '280' })
+    const noCrossTypeHelp = await page.$('.bp-cross-type-help')
+    assert.equal(noCrossTypeHelp, null, 'same measurement type must never show the cross-type explanation')
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    assert.match(rowText, /\$0\.43/, `expected ~$0.43, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+// Package: volume, recipe: a different volume unit (cup vs tbsp).
+test('package and recipe both use volume, in different units, with no conversion needed', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Vanilla', packageUnit: 'cup', amountUsedUnit: 'tbsp', packagePrice: '7.49', packageQuantity: '1', amountUsed: '3' })
+    const noCrossTypeHelp = await page.$('.bp-cross-type-help')
+    assert.equal(noCrossTypeHelp, null)
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    assert.match(rowText, /\$1\.40/, `expected ~$1.40, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+// ─── 3b. Cross-type (weight vs. volume) resolution ──────────────────────────
+
+test('a weight/volume mismatch shows the friendly explanation, not a technical unit-mismatch message', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    const helpText = await page.$eval('.bp-cross-type-help', el => el.textContent || '')
+    assert.match(helpText, /sold by weight, but your recipe measures it by volume/i)
+    assert.match(helpText, /every ingredient weighs differently/i)
+    assert.doesNotMatch(helpText, /different measurement types/i, 'the friendly explanation must replace the technical wording, not include it')
+  } finally {
+    await page.close()
+  }
+})
+
+test('cannot add a cross-type ingredient until the baker chooses a resolution', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(addDisabled, true, 'Add to recipe must be disabled while the cross-type mismatch is unresolved')
+  } finally {
+    await page.close()
+  }
+})
+
+test('"Enter the recipe amount by weight" resolves the mismatch by switching the recipe unit', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    await page.click('.bp-cross-type-actions .bp-btn-secondary')
+    const helpGone = await page.$('.bp-cross-type-help')
+    assert.equal(helpGone, null, 'resolving by switching units should remove the cross-type explanation')
+    const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(addDisabled, false, 'Add to recipe should be enabled once resolved')
+  } finally {
+    await page.close()
+  }
+})
+
+// Flour: 5 lb package, 2 cups used, baker enters "1 cup weighs 120 g".
+test('adding a conversion resolves the mismatch and computes the cost accurately (flour, lb package / cups recipe)', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    await enterConversion(page, 'cup', '120', 'g')
+    const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(addDisabled, false, 'Add to recipe should be enabled once a valid conversion is entered')
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const rowText = await page.$eval('.bp-ingredient-list', el => el.textContent || '')
+    // 3.49 * (240 g / 2267.96185 g) ≈ $0.37
+    assert.match(rowText, /\$0\.37/, `expected ~$0.37, got: ${rowText}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('no conversion is ever guessed — an incomplete conversion still blocks adding', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    await page.click('.bp-link-btn') // open "Add a conversion" without filling it in
+    await page.waitForFunction(() => !!document.querySelector('input[aria-label="Conversion weight amount"]'))
+    const weightValue = await page.$eval('input[aria-label="Conversion weight amount"]', el => (el as HTMLInputElement).value)
+    assert.equal(weightValue, '', 'the conversion weight field must start blank — never a hardcoded default')
+    const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
+    assert.equal(addDisabled, true, 'Add to recipe must stay disabled until a real conversion value is entered')
+  } finally {
+    await page.close()
+  }
+})
+
+test('a count vs. weight/volume mismatch is still blocked with the plain technical message (no conversion path offered)', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'g', packagePrice: '3.99', packageQuantity: '12', amountUsed: '50' })
+    const crossTypeHelp = await page.$('.bp-cross-type-help')
+    assert.equal(crossTypeHelp, null, 'count mismatches get the plain message, not the weight/volume resolution UI')
+    const errorText = await page.$eval('.bp-add-ingredient-form .bp-error', el => el.textContent || '')
+    assert.match(errorText, /different measurement types/i)
   } finally {
     await page.close()
   }
@@ -419,19 +555,13 @@ test('the ingredient form uses plain-language questions instead of technical fie
   const page = await openTool()
   try {
     await page.click('.bp-btn-ghost')
-    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
-    const typeLabel = await page.$eval('label[for="bp-ing-type"]', el => el.textContent || '')
-    assert.match(typeLabel, /how is this ingredient measured/i)
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
     const priceLabel = await page.$eval('label[for="bp-ing-price"]', el => el.textContent || '')
     assert.match(priceLabel, /what did the package cost/i)
     const pkgQtyLabel = await page.$eval('label[for="bp-ing-pkg-qty"]', el => el.textContent || '')
     assert.match(pkgQtyLabel, /how much came in the package/i)
     const useQtyLabel = await page.$eval('label[for="bp-ing-use-qty"]', el => el.textContent || '')
     assert.match(useQtyLabel, /how much does this recipe use/i)
-    const measurementOptions = await page.$$eval('#bp-ing-type option', els => els.map(el => el.textContent || ''))
-    assert.ok(measurementOptions.some(o => /weight/i.test(o)))
-    assert.ok(measurementOptions.some(o => /volume/i.test(o)))
-    assert.ok(measurementOptions.some(o => /individual items/i.test(o)))
   } finally {
     await page.close()
   }
@@ -441,9 +571,9 @@ test('package amount and recipe amount are visually grouped with clear "Package"
   const page = await openTool()
   try {
     await page.click('.bp-btn-ghost')
-    await page.waitForFunction(() => !!document.querySelector('#bp-ing-type'))
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
     const groupLabel = await page.$eval('.bp-amount-compare-label', el => el.textContent || '')
-    assert.match(groupLabel, /compare/i)
+    assert.match(groupLabel, /convert automatically/i)
     const blockTitles = await page.$$eval('.bp-amount-block-title', els => els.map(el => el.textContent?.trim()))
     assert.deepEqual(blockTitles, ['Package', 'This recipe'])
     const pkgQtyInsideGroup = await page.$('.bp-amount-compare #bp-ing-pkg-qty')
@@ -487,7 +617,7 @@ test('a live cost preview appears once price, quantity, and amount used are all 
   const page = await openTool()
   try {
     await addIngredient(page, {
-      name: 'Flour', measurementType: 'weight', packageUnit: 'lb', amountUsedUnit: 'g',
+      name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'g',
       packagePrice: '3.49', packageQuantity: '5', amountUsed: '280',
     })
     await page.waitForFunction(() => /costs about/i.test(document.querySelector('.bp-add-ingredient-form')?.textContent || ''))
@@ -502,7 +632,7 @@ test('rejects an ingredient with a negative package price using the engine\'s ow
   const page = await openTool()
   try {
     await addIngredient(page, {
-      name: 'Bad Price', measurementType: 'weight', packageUnit: 'g', amountUsedUnit: 'g',
+      name: 'Bad Price', packageUnit: 'g', amountUsedUnit: 'g',
       packagePrice: '-1', packageQuantity: '1', amountUsed: '1',
     })
     await saveIngredient(page)
@@ -621,19 +751,143 @@ test('dismissing the zero-cost notice hides it and it does not reappear after fu
   }
 })
 
-test('Packaging zero-notice requires BOTH batch and per-item cost to be zero', async () => {
+test('Supplies zero-notice disappears once at least one item is added', async () => {
   const page = await openTool()
   try {
     await advanceToCosts(page)
     await reachReviewedCostsStep(page)
-    await openCostGroup(page, 1) // Packaging
-    await page.type('#bp-pkg-batch', '1.50')
-    const packagingNotice = await page.evaluate(() => {
+    await openSuppliesGroup(page)
+    const noticeBefore = await page.evaluate(() => {
       const groups = Array.from(document.querySelectorAll('.bp-cost-group'))
-      const packaging = groups[1]
-      return !!packaging?.querySelector('.bp-zero-notice')
+      return !!groups[1]?.querySelector('.bp-zero-notice')
     })
-    assert.equal(packagingNotice, false, 'packaging must not be flagged as zero once one of its two fields is nonzero')
+    assert.equal(noticeBefore, true, 'supplies should be flagged as zero before any item is added')
+    await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+    const noticeAfter = await page.evaluate(() => {
+      const groups = Array.from(document.querySelectorAll('.bp-cost-group'))
+      return !!groups[1]?.querySelector('.bp-zero-notice')
+    })
+    assert.equal(noticeAfter, false, 'supplies must not be flagged as zero once an item has been added')
+  } finally {
+    await page.close()
+  }
+})
+
+// ─── 4b. Supplies & Packaging ────────────────────────────────────────────────
+
+test('Supplies & Packaging explains what belongs there and what does not (reusable equipment)', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    const text = await page.$eval('.bp-supplies-section', el => el.textContent || '')
+    assert.match(text, /boxes, cake boards, supports, sticks, liners, bags, labels, ribbon/i)
+    assert.match(text, /reusable equipment/i)
+    assert.match(text, /mixers, pans, decorating tools/i)
+    assert.match(text, /overhead/i)
+  } finally {
+    await page.close()
+  }
+})
+
+test('adds multiple supply items and shows each cost separately plus a combined subtotal', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyPackageItem(page, { name: 'Cake-Pop Sticks', packagePrice: '5.00', packageQuantity: '100', amountUsed: '24' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+    await page.waitForFunction(() => document.querySelectorAll('.bp-supplies-section .bp-ingredient-row:not(.bp-ingredient-subtotal)').length === 2)
+    const text = await page.$eval('.bp-supplies-section', el => el.textContent || '')
+    assert.match(text, /Cake-Pop Sticks/)
+    assert.match(text, /\$1\.20/, 'package-mode item cost')
+    assert.match(text, /Cake Box/)
+    assert.match(text, /\$1\.50/, 'direct-mode item cost')
+    const subtotal = await page.$eval('.bp-supplies-section .bp-ingredient-subtotal', el => el.textContent || '')
+    assert.match(subtotal, /\$2\.70/, `expected combined subtotal $2.70, got: ${subtotal}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('a fractional (non-round) package cost is computed and displayed correctly', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    // $10 for a pack of 3 -> $3.33... per unit, one used.
+    await addSupplyPackageItem(page, { name: 'Ribbon Spools', packagePrice: '10', packageQuantity: '3', amountUsed: '1' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+    const text = await page.$eval('.bp-supplies-section', el => el.textContent || '')
+    assert.match(text, /\$3\.33/, `expected a fractional cost around $3.33, got: ${text}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('a supply item with zero amount used costs $0, not an error', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyPackageItem(page, { name: 'Unused Labels', packagePrice: '5', packageQuantity: '100', amountUsed: '0' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+    const text = await page.$eval('.bp-supplies-section', el => el.textContent || '')
+    assert.match(text, /\$0\.00/, `expected $0.00, got: ${text}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('a supply item with a zero package quantity is rejected, not silently accepted', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyPackageItem(page, { name: 'Bad Item', packagePrice: '5', packageQuantity: '0', amountUsed: '1' })
+    const errorText = await page.$eval('.bp-supplies-section .bp-error', el => el.textContent || '')
+    assert.match(errorText, /greater than zero/i)
+    const added = await page.$('.bp-supplies-section .bp-ingredient-row')
+    assert.equal(added, null, 'the invalid item must not be added')
+  } finally {
+    await page.close()
+  }
+})
+
+test('removing a supply item takes it out of the list and updates the subtotal', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+    await page.click('.bp-supplies-section .bp-row-actions .bp-remove-btn:last-child')
+    const rows = await page.$$('.bp-supplies-section .bp-ingredient-row')
+    assert.equal(rows.length, 0, 'no supply rows should remain')
+  } finally {
+    await page.close()
+  }
+})
+
+test('editing a supply item updates its cost in place, without adding a duplicate row', async () => {
+  const page = await openTool()
+  try {
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+    await page.click('.bp-supplies-section .bp-row-actions .bp-remove-btn:first-child') // edit (pencil)
+    await page.waitForFunction(() => !!document.querySelector('#bp-supply-direct'))
+    await page.click('#bp-supply-direct')
+    await page.$eval('#bp-supply-direct', el => (el as HTMLInputElement).select())
+    await page.type('#bp-supply-direct', '2.25')
+    await page.click('.bp-supplies-section .bp-btn-primary')
+    await new Promise(r => setTimeout(r, 100))
+    const rows = await page.$$('.bp-supplies-section .bp-ingredient-row:not(.bp-ingredient-subtotal)')
+    assert.equal(rows.length, 1, 'editing must not create a second row')
+    const text = await page.$eval('.bp-supplies-section', el => el.textContent || '')
+    assert.match(text, /\$2\.25/)
   } finally {
     await page.close()
   }
@@ -644,7 +898,7 @@ test('Packaging zero-notice requires BOTH batch and per-item cost to be zero', a
 async function buildHandVerifiedRecipe(page: Page) {
   await setYield(page, '24')
   await addIngredient(page, {
-    name: 'Eggs', measurementType: 'count', packageUnit: 'each', amountUsedUnit: 'each',
+    name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each',
     packagePrice: '4.00', packageQuantity: '4', amountUsed: '2',
   })
   await saveIngredient(page)
@@ -653,9 +907,13 @@ async function buildHandVerifiedRecipe(page: Page) {
   await page.waitForFunction(() => !!document.querySelector('#bp-labor-rate'))
   await page.type('#bp-labor-rate', '18')
   await page.type('#bp-labor-minutes', '40')
-  await openCostGroup(page, 1)
-  await page.type('#bp-pkg-batch', '1.50')
-  await page.type('#bp-pkg-item', '0.15')
+  await openSuppliesGroup(page)
+  // Equivalent to the old $1.50 batch + $0.15/item x 24 packaging formula,
+  // now expressed as two Supplies & Packaging line items: $5.10 total.
+  await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+  await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+  await addSupplyPackageItem(page, { name: 'Liners', packagePrice: '15.00', packageQuantity: '100', amountUsed: '24' })
+  await page.waitForFunction(() => document.querySelectorAll('.bp-supplies-section .bp-ingredient-row:not(.bp-ingredient-subtotal)').length === 2)
   await openCostGroup(page, 2)
   await page.type('#bp-overhead', '3.00')
   await openCostGroup(page, 3)
@@ -665,7 +923,7 @@ async function buildHandVerifiedRecipe(page: Page) {
 }
 
 // Hand-verified: ingredientSubtotal $2.00 (4.00 * 2/4), wasteAllowance $0.06 (2.00*3%),
-// laborCost $12.00 (18 * 40/60), packaging $5.10 (1.50 + 0.15*24), overhead $3.00.
+// laborCost $12.00 (18 * 40/60), supplies $5.10 (1.50 + 15*(24/100)=1.50+3.60), overhead $3.00.
 // Total = 2.00 + 0.06 + 12.00 + 5.10 + 3.00 = $22.16. Cost per item = 22.16/24 = $0.92 (2dp).
 test('cost breakdown matches a hand-verified example exactly, inside "See how this was calculated"', async () => {
   const page = await openTool()
@@ -676,7 +934,7 @@ test('cost breakdown matches a hand-verified example exactly, inside "See how th
     assert.match(ledgerText, /\$2\.00/, 'ingredient subtotal')
     assert.match(ledgerText, /\$0\.06/, 'waste allowance')
     assert.match(ledgerText, /\$12\.00/, 'labor cost')
-    assert.match(ledgerText, /\$5\.10/, 'packaging cost')
+    assert.match(ledgerText, /\$5\.10/, 'supplies & packaging cost')
     assert.match(ledgerText, /\$3\.00/, 'overhead')
     assert.match(ledgerText, /\$22\.16/, 'total production cost')
     assert.match(ledgerText, /\$0\.92/, 'cost per item')
@@ -801,7 +1059,7 @@ test('a tiny fractional ingredient cost is shown to 4 decimal places, not rounde
   try {
     await setYield(page, '24')
     await addIngredient(page, {
-      name: 'Fine Sea Salt', measurementType: 'weight', packageUnit: 'oz', amountUsedUnit: 'oz',
+      name: 'Fine Sea Salt', packageUnit: 'oz', amountUsedUnit: 'oz',
       packagePrice: '0.99', packageQuantity: '26', amountUsed: '0.1',
     })
     await saveIngredient(page)
@@ -980,6 +1238,34 @@ for (const viewport of [320, 375, 390, 768, 1440]) {
   })
 }
 
+test('the cross-type explanation and its conversion form have no horizontal overflow and meet 44px touch targets at 320px', async () => {
+  const page = await openTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-cross-type-help'))
+    let overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no overflow with the explanation shown, got ${overflow}px`)
+
+    await enterConversion(page, 'cup', '120', 'g')
+    overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no overflow with the conversion form open, got ${overflow}px`)
+
+    const smallControls = await page.evaluate(() => {
+      const els = Array.from(document.querySelectorAll('.bp-cross-type-help button'))
+      return els
+        .filter(el => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0 && r.height < 44
+        })
+        .map(el => el.textContent?.trim())
+    })
+    assert.deepEqual(smallControls, [], `cross-type controls smaller than 44px: ${JSON.stringify(smallControls)}`)
+  } finally {
+    await page.close()
+  }
+})
+
 test('no horizontal overflow at 375px on the Cost Breakdown step', async () => {
   const page = await openTool()
   try {
@@ -1025,6 +1311,35 @@ test('all text inputs meet a 44px minimum height on Step 1 at mobile width', asy
         .map(el => (el as HTMLInputElement).id)
     })
     assert.deepEqual(smallInputs, [], `inputs smaller than 44px: ${JSON.stringify(smallInputs)}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('the Supplies & Packaging section has no horizontal overflow and meets 44px touch targets at mobile width, with two items added', async () => {
+  const page = await openTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+    await advanceToCosts(page)
+    await openSuppliesGroup(page)
+    await addSupplyPackageItem(page, { name: 'Cake-Pop Sticks', packagePrice: '5.00', packageQuantity: '100', amountUsed: '24' })
+    await page.waitForFunction(() => !!document.querySelector('.bp-supplies-section .bp-ingredient-row'))
+    await addSupplyDirectItem(page, { name: 'Cake Box', directCost: '1.50' })
+    await page.waitForFunction(() => document.querySelectorAll('.bp-supplies-section .bp-ingredient-row:not(.bp-ingredient-subtotal)').length === 2)
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no overflow, got ${overflow}px`)
+
+    const smallControls = await page.evaluate(() => {
+      const els = Array.from(document.querySelectorAll('.bp-supplies-section button, .bp-supplies-section input'))
+      return els
+        .filter(el => {
+          const r = el.getBoundingClientRect()
+          return r.width > 0 && r.height > 0 && r.height < 44
+        })
+        .map(el => el.tagName + ':' + (el.textContent?.trim() || (el as HTMLInputElement).id))
+    })
+    assert.deepEqual(smallControls, [], `controls smaller than 44px: ${JSON.stringify(smallControls)}`)
   } finally {
     await page.close()
   }

@@ -1,10 +1,14 @@
 // Unit Conversion Registry — the PRD's authoritative constants and the
-// explicit count-to-count equivalence table. No conversion between weight
-// and volume exists anywhere in this file, deliberately: v1 blocks that
-// mismatch rather than approximating it.
+// explicit count-to-count equivalence table. No general conversion between
+// weight and volume exists here, deliberately — grams-per-cup is a
+// property of a specific ingredient (flour and honey weigh very
+// differently), never a universal constant. Bridging weight and volume for
+// one specific ingredient is only ever done via a CustomIngredientConversion
+// the baker explicitly supplied (see resolveCustomConversionDensity below)
+// — never guessed, hardcoded, or defaulted here.
 
 import Decimal from "decimal.js";
-import type { CountUnit, MeasurementType, Unit, VolumeUnit, WeightUnit } from "./types.js";
+import type { CountUnit, CustomIngredientConversion, MeasurementType, Unit, VolumeUnit, WeightUnit } from "./types.js";
 
 // Weight -> grams.
 export const WEIGHT_TO_GRAMS: Record<WeightUnit, string> = {
@@ -63,3 +67,55 @@ export function normalize(quantity: Decimal, unit: Unit): Decimal {
 
 export const UNIT_MISMATCH_MESSAGE =
   "Weight and volume are different measurement types. Enter an amount in a compatible unit to match this ingredient's package.";
+
+// Returned defensively by computeIngredientCost if it is ever called with a
+// weight/volume mismatch and no CustomIngredientConversion — the guided UI
+// is expected to resolve this before calling the engine at all (see
+// RecipeIngredientsStep's cross-type explanation), so reaching this in
+// practice signals a UI bug, not a normal user-facing path.
+export const CROSS_TYPE_CONVERSION_REQUIRED_MESSAGE =
+  "This ingredient's package and recipe amount are different measurement types (weight vs. volume). A conversion for this ingredient is required before its cost can be calculated.";
+
+// Derives a grams-per-milliliter density from a baker-supplied "1 [cup] of
+// this ingredient weighs [120] [grams]" statement, so a weight quantity and
+// a volume quantity of the *same specific ingredient* can be bridged. This
+// is the only place weight and volume are ever related to each other in
+// this engine, and it only ever uses a value the baker actually entered.
+export function resolveCustomConversionDensity(
+  volumeQuantity: Decimal,
+  volumeUnit: VolumeUnit,
+  weightQuantity: Decimal,
+  weightUnit: WeightUnit,
+): Decimal {
+  const grams = weightQuantity.times(WEIGHT_TO_GRAMS[weightUnit]);
+  const milliliters = volumeQuantity.times(VOLUME_TO_ML[volumeUnit]);
+  return grams.dividedBy(milliliters);
+}
+
+// Normalizes a quantity to the OTHER domain's base unit (grams or
+// milliliters) using a specific ingredient's custom conversion — the
+// weight/volume equivalent of normalize() above, deliberately kept
+// separate since it requires ingredient-specific information normalize()
+// never has.
+export function normalizeAcrossTypes(
+  quantity: Decimal,
+  unit: Unit,
+  conversion: CustomIngredientConversion,
+): Decimal {
+  const density = resolveCustomConversionDensity(
+    new Decimal(1),
+    conversion.volumeUnit,
+    new Decimal(conversion.weightQuantity),
+    conversion.weightUnit,
+  );
+  const type = measurementTypeOf(unit);
+  if (type === "volume") {
+    // volume quantity (in its own unit) -> mL -> grams via density.
+    return normalize(quantity, unit).times(density);
+  }
+  if (type === "weight") {
+    // weight quantity (in its own unit) -> grams -> mL via density.
+    return normalize(quantity, unit).dividedBy(density);
+  }
+  throw new Error(`normalizeAcrossTypes is only valid for weight or volume units, got: ${unit}`);
+}

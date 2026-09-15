@@ -20,10 +20,31 @@ export type IngredientPatch = Partial<Omit<StoredIngredient, 'id' | 'measurement
 
 export interface AcknowledgedZeroCostFlags {
   labor: boolean
-  packaging: boolean
+  supplies: boolean
   overhead: boolean
   waste: boolean
 }
+
+// A "Supplies & Packaging" line item, embedded directly on the recipe (not
+// a shared/reusable store like ingredients — a box of cake-pop sticks
+// belongs to this recipe alone). Never stores its computed cost — that is
+// always recomputed from these inputs, same as every other calculated
+// value in this data layer.
+export type StoredSupplyItem =
+  | {
+      id: string
+      name: string
+      mode: 'package'
+      packagePrice: DecimalString
+      packageQuantity: DecimalString
+      amountUsed: DecimalString
+    }
+  | {
+      id: string
+      name: string
+      mode: 'direct'
+      directCost: DecimalString
+    }
 
 export interface StoredRecipe {
   id: string
@@ -31,8 +52,7 @@ export interface StoredRecipe {
   yield: number
   laborHourlyRate: DecimalString
   laborMinutes: DecimalString
-  packagingBatchCost: DecimalString
-  packagingPerItemCost: DecimalString
+  supplyItems: StoredSupplyItem[]
   overheadFlatCost: DecimalString
   wastePercent: DecimalString
   desiredMarginPercent: DecimalString

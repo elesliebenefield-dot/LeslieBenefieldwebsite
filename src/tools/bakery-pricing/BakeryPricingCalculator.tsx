@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react'
 import './bakeryPricing.css'
 import { ConfirmDialog } from '../core/components/ConfirmDialog'
-import { computeIngredientSubtotal } from './calc-engine/formulas.ts'
+import { computeIngredientSubtotal, computeSuppliesSubtotal } from './calc-engine/formulas.ts'
 import {
   validateHourlyRate,
   validateLaborMinutes,
   validateOverhead,
-  validatePackagingBatchCost,
-  validatePackagingPerItemCost,
   validateWastePercent,
   validateYield,
 } from './calc-engine/validation.ts'
@@ -20,6 +18,7 @@ import {
   EMPTY_ZERO_COST_ACK,
   type DraftCostInputs,
   type DraftIngredientLine,
+  type DraftSupplyItem,
   type GuidedStep,
   type ZeroCostAcknowledgement,
 } from './bakeryPricingDraftTypes.ts'
@@ -36,8 +35,6 @@ function costsStepHasError(costs: DraftCostInputs): boolean {
   return [
     fieldError(costs.laborHourlyRate, validateHourlyRate),
     fieldError(costs.laborMinutes, validateLaborMinutes),
-    fieldError(costs.packagingBatchCost, validatePackagingBatchCost),
-    fieldError(costs.packagingPerItemCost, validatePackagingPerItemCost),
     fieldError(costs.overheadFlatCost, validateOverhead),
     fieldError(costs.wastePercent, validateWastePercent),
   ].some(Boolean)
@@ -55,6 +52,7 @@ export function BakeryPricingCalculator() {
   const [recipeName, setRecipeName] = useState('')
   const [yieldStr, setYieldStr] = useState('')
   const [ingredients, setIngredients] = useState<DraftIngredientLine[]>([])
+  const [supplyItems, setSupplyItems] = useState<DraftSupplyItem[]>([])
   const [costs, setCosts] = useState<DraftCostInputs>(EMPTY_DRAFT_COST_INPUTS)
   const [ack, setAck] = useState<ZeroCostAcknowledgement>(EMPTY_ZERO_COST_ACK)
   const [marginPercent, setMarginPercent] = useState('35')
@@ -103,6 +101,7 @@ export function BakeryPricingCalculator() {
     setRecipeName('')
     setYieldStr('')
     setIngredients([])
+    setSupplyItems([])
     setCosts(EMPTY_DRAFT_COST_INPUTS)
     setAck(EMPTY_ZERO_COST_ACK)
     setMarginPercent('35')
@@ -119,6 +118,7 @@ export function BakeryPricingCalculator() {
   const isFirst = stepIndex === 0
   const isLast = stepIndex === STEP_ORDER.length - 1
   const ingredientSubtotal = computeIngredientSubtotal(ingredients.map(i => i.cost))
+  const suppliesSubtotal = computeSuppliesSubtotal(supplyItems.map(i => i.cost))
   const yieldCount = Number.parseInt(yieldStr, 10)
 
   return (
@@ -152,6 +152,10 @@ export function BakeryPricingCalculator() {
           <AdditionalCostsStep
             costs={costs}
             onChange={patch => setCosts(prev => ({ ...prev, ...patch }))}
+            supplyItems={supplyItems}
+            onAddSupplyItem={item => setSupplyItems(prev => [...prev, item])}
+            onUpdateSupplyItem={item => setSupplyItems(prev => prev.map(i => (i.id === item.id ? item : i)))}
+            onRemoveSupplyItem={id => setSupplyItems(prev => prev.filter(i => i.id !== id))}
             ack={ack}
             onAcknowledge={key => setAck(prev => ({ ...prev, [key]: true }))}
             showErrors={showCostErrors}
@@ -163,6 +167,7 @@ export function BakeryPricingCalculator() {
           <>
             <CostBreakdownStep
               ingredientSubtotal={ingredientSubtotal}
+              suppliesSubtotal={suppliesSubtotal}
               costs={costs}
               yieldCount={yieldCount}
               marginPercent={marginPercent}

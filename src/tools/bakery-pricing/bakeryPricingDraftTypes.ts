@@ -3,25 +3,51 @@
 // milestone never reads or writes the M2 repositories (see design.md's
 // scope boundary). Every price/quantity/percentage field is a DecimalString
 // (a plain string) end to end, never a native number.
-import type { DecimalString, MeasurementType, RoundingIncrement, Unit } from './calc-engine/types.ts'
+import type { CustomIngredientConversion, DecimalString, RoundingIncrement, Unit } from './calc-engine/types.ts'
 
+// The package and recipe-usage units are independent — an ingredient can be
+// bought by weight and used by volume (a 5 lb bag of flour, 2 cups used),
+// so there is no single "measurement type" for a line as a whole.
+// `customConversion` is present only when the two units are cross-type
+// (weight vs. volume) and the baker has supplied a conversion for this
+// specific ingredient — never guessed or defaulted.
 export interface DraftIngredientLine {
   id: string
   name: string
-  measurementType: MeasurementType
   packagePrice: DecimalString
   packageQuantity: DecimalString
   packageUnit: Unit
   amountUsed: DecimalString
   amountUsedUnit: Unit
+  customConversion?: CustomIngredientConversion
   cost: DecimalString
 }
+
+// A "Supplies & Packaging" line item. `cost` is computed once, at the
+// moment the item is added or edited (same pattern as DraftIngredientLine)
+// — recomputed from the inputs whenever they change, never treated as
+// independent of them.
+export type DraftSupplyItem =
+  | {
+      id: string
+      name: string
+      mode: 'package'
+      packagePrice: DecimalString
+      packageQuantity: DecimalString
+      amountUsed: DecimalString
+      cost: DecimalString
+    }
+  | {
+      id: string
+      name: string
+      mode: 'direct'
+      directCost: DecimalString
+      cost: DecimalString
+    }
 
 export interface DraftCostInputs {
   laborHourlyRate: DecimalString
   laborMinutes: DecimalString
-  packagingBatchCost: DecimalString
-  packagingPerItemCost: DecimalString
   overheadFlatCost: DecimalString
   wastePercent: DecimalString
 }
@@ -29,22 +55,20 @@ export interface DraftCostInputs {
 export const EMPTY_DRAFT_COST_INPUTS: DraftCostInputs = {
   laborHourlyRate: '',
   laborMinutes: '',
-  packagingBatchCost: '',
-  packagingPerItemCost: '',
   overheadFlatCost: '',
   wastePercent: '',
 }
 
 export interface ZeroCostAcknowledgement {
   labor: boolean
-  packaging: boolean
+  supplies: boolean
   overhead: boolean
   waste: boolean
 }
 
 export const EMPTY_ZERO_COST_ACK: ZeroCostAcknowledgement = {
   labor: false,
-  packaging: false,
+  supplies: false,
   overhead: false,
   waste: false,
 }

@@ -3,16 +3,19 @@ import {
   validateHourlyRate,
   validateLaborMinutes,
   validateOverhead,
-  validatePackagingBatchCost,
-  validatePackagingPerItemCost,
   validateWastePercent,
 } from './calc-engine/validation.ts'
 import { fieldError } from './bakeryPricingValidationDisplay.ts'
-import type { DraftCostInputs, ZeroCostAcknowledgement } from './bakeryPricingDraftTypes.ts'
+import { SuppliesSection } from './SuppliesSection.tsx'
+import type { DraftCostInputs, DraftSupplyItem, ZeroCostAcknowledgement } from './bakeryPricingDraftTypes.ts'
 
 interface Props {
   costs: DraftCostInputs
   onChange: (patch: Partial<DraftCostInputs>) => void
+  supplyItems: DraftSupplyItem[]
+  onAddSupplyItem: (item: DraftSupplyItem) => void
+  onUpdateSupplyItem: (item: DraftSupplyItem) => void
+  onRemoveSupplyItem: (id: string) => void
   ack: ZeroCostAcknowledgement
   onAcknowledge: (key: keyof ZeroCostAcknowledgement) => void
   showErrors: boolean
@@ -31,16 +34,25 @@ function isZeroOrBlank(raw: string): boolean {
   }
 }
 
-export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showErrors, reviewed }: Props) {
+export function AdditionalCostsStep({
+  costs,
+  onChange,
+  supplyItems,
+  onAddSupplyItem,
+  onUpdateSupplyItem,
+  onRemoveSupplyItem,
+  ack,
+  onAcknowledge,
+  showErrors,
+  reviewed,
+}: Props) {
   const laborIsZero = isZeroOrBlank(costs.laborHourlyRate) || isZeroOrBlank(costs.laborMinutes)
-  const packagingIsZero = isZeroOrBlank(costs.packagingBatchCost) && isZeroOrBlank(costs.packagingPerItemCost)
+  const suppliesIsZero = supplyItems.length === 0
   const overheadIsZero = isZeroOrBlank(costs.overheadFlatCost)
   const wasteIsZero = isZeroOrBlank(costs.wastePercent)
 
   const hourlyRateError = fieldError(costs.laborHourlyRate, validateHourlyRate)
   const laborMinutesError = fieldError(costs.laborMinutes, validateLaborMinutes)
-  const packagingBatchError = fieldError(costs.packagingBatchCost, validatePackagingBatchCost)
-  const packagingPerItemError = fieldError(costs.packagingPerItemCost, validatePackagingPerItemCost)
   const overheadError = fieldError(costs.overheadFlatCost, validateOverhead)
   const wasteError = fieldError(costs.wastePercent, validateWastePercent)
 
@@ -49,7 +61,7 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
       <h2 className="bp-h2">Additional Costs</h2>
       <p className="bp-helper">Optional costs are tucked away until you want them — nothing here is required to see a basic ingredient cost.</p>
 
-      {showErrors && (hourlyRateError || laborMinutesError || packagingBatchError || packagingPerItemError || overheadError || wasteError) && (
+      {showErrors && (hourlyRateError || laborMinutesError || overheadError || wasteError) && (
         <div className="bp-error-banner" role="alert">Please fix the highlighted field before continuing.</div>
       )}
 
@@ -93,39 +105,18 @@ export function AdditionalCostsStep({ costs, onChange, ack, onAcknowledge, showE
       </details>
 
       <details className="bp-cost-group">
-        <summary>Packaging <span className="bp-chev" aria-hidden="true">›</span></summary>
+        <summary>Supplies &amp; Packaging <span className="bp-chev" aria-hidden="true">›</span></summary>
         <div className="bp-details-body">
-          <div className="bp-inline-fields">
-            <div className="bp-field">
-              <label htmlFor="bp-pkg-batch">Batch-level cost</label>
-              <input
-                id="bp-pkg-batch"
-                type="text"
-                inputMode="decimal"
-                value={costs.packagingBatchCost}
-                onChange={e => onChange({ packagingBatchCost: e.target.value })}
-                aria-invalid={!!packagingBatchError}
-              />
-              {packagingBatchError && <p className="bp-error" role="alert">{packagingBatchError}</p>}
-            </div>
-            <div className="bp-field">
-              <label htmlFor="bp-pkg-item">Per-item cost</label>
-              <input
-                id="bp-pkg-item"
-                type="text"
-                inputMode="decimal"
-                value={costs.packagingPerItemCost}
-                onChange={e => onChange({ packagingPerItemCost: e.target.value })}
-                aria-invalid={!!packagingPerItemError}
-              />
-              {packagingPerItemError && <p className="bp-error" role="alert">{packagingPerItemError}</p>}
-            </div>
-          </div>
-          <p className="bp-helper">Use either, both, or neither — whichever matches how this recipe is actually packaged.</p>
-          {reviewed && packagingIsZero && !ack.packaging && (
+          <SuppliesSection
+            items={supplyItems}
+            onAddItem={onAddSupplyItem}
+            onUpdateItem={onUpdateSupplyItem}
+            onRemoveItem={onRemoveSupplyItem}
+          />
+          {reviewed && suppliesIsZero && !ack.supplies && (
             <div className="bp-zero-notice">
-              <span>This is $0 — is that intentional?</span>
-              <button type="button" onClick={() => onAcknowledge('packaging')}>Yes, that's right</button>
+              <span>No supplies or packaging added — is that intentional?</span>
+              <button type="button" onClick={() => onAcknowledge('supplies')}>Yes, that's right</button>
             </div>
           )}
         </div>

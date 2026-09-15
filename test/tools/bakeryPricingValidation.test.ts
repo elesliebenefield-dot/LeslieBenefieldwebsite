@@ -8,15 +8,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   validateAmountUsed,
+  validateConversionWeightQuantity,
   validateHourlyRate,
   validateLaborMinutes,
   validateMarginPercent,
   validateOverhead,
   validatePackageQuantity,
   validatePackagePrice,
-  validatePackagingBatchCost,
-  validatePackagingPerItemCost,
   validateRoundingIncrement,
+  validateSupplyDirectCost,
   validateUnitCompatibility,
   validateWastePercent,
   validateYield,
@@ -47,17 +47,21 @@ test('requires yield to be a positive whole number', () => {
   assert.equal(validateYield(24).valid, true)
 })
 
-test('rejects negative labor/packaging/overhead inputs, accepts zero', () => {
+test('rejects negative labor/supply/overhead inputs, accepts zero', () => {
   assert.equal(validateHourlyRate('-1').valid, false)
   assert.equal(validateHourlyRate('0').valid, true)
   assert.equal(validateLaborMinutes('-1').valid, false)
   assert.equal(validateLaborMinutes('0').valid, true)
-  assert.equal(validatePackagingBatchCost('-0.01').valid, false)
-  assert.equal(validatePackagingBatchCost('0').valid, true)
-  assert.equal(validatePackagingPerItemCost('-0.01').valid, false)
-  assert.equal(validatePackagingPerItemCost('0').valid, true)
+  assert.equal(validateSupplyDirectCost('-0.01').valid, false)
+  assert.equal(validateSupplyDirectCost('0').valid, true)
   assert.equal(validateOverhead('-1').valid, false)
   assert.equal(validateOverhead('0').valid, true)
+})
+
+test('requires a conversion weight to be strictly greater than zero', () => {
+  assert.equal(validateConversionWeightQuantity('0').valid, false)
+  assert.equal(validateConversionWeightQuantity('-5').valid, false)
+  assert.equal(validateConversionWeightQuantity('120').valid, true)
 })
 
 test('rejects a negative waste percentage, accepts zero', () => {

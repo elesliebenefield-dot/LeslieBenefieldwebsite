@@ -33,13 +33,12 @@ const baseRecipe = {
   yield: 12,
   laborHourlyRate: '0',
   laborMinutes: '0',
-  packagingBatchCost: '0',
-  packagingPerItemCost: '0',
+  supplyItems: [],
   overheadFlatCost: '0',
   wastePercent: '0',
   desiredMarginPercent: '0',
   roundingIncrement: '0.25' as const,
-  acknowledgedZeroCostFlags: { labor: true, packaging: true, overhead: true, waste: true },
+  acknowledgedZeroCostFlags: { labor: true, supplies: true, overhead: true, waste: true },
   currencyCode: 'USD',
 }
 

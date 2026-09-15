@@ -46,13 +46,12 @@ const baseRecipe = {
   yield: 24,
   laborHourlyRate: '18',
   laborMinutes: '40',
-  packagingBatchCost: '1.50',
-  packagingPerItemCost: '0.15',
+  supplyItems: [{ id: 'supply-1', name: 'Box', mode: 'direct' as const, directCost: '1.50' }],
   overheadFlatCost: '3.00',
   wastePercent: '3',
   desiredMarginPercent: '35',
   roundingIncrement: '0.25' as const,
-  acknowledgedZeroCostFlags: { labor: false, packaging: false, overhead: false, waste: false },
+  acknowledgedZeroCostFlags: { labor: false, supplies: false, overhead: false, waste: false },
   currencyCode: 'USD',
 }
 

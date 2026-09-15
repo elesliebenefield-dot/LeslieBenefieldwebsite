@@ -15,12 +15,38 @@ export type ValidationResult<T> =
   | { valid: true; value: T }
   | { valid: false; reason: string };
 
+// A baker-supplied bridge between an ingredient's package measurement type
+// and its recipe-usage measurement type when the two are different domains
+// (weight vs. volume — e.g. a package sold by the pound, used in the
+// recipe by the cup). Expressed as "1 [volumeUnit] of this ingredient
+// weighs [weightQuantity] [weightUnit]", matching exactly how a baker
+// would describe it. Never invented or defaulted by the engine — this
+// type only ever holds a value the baker explicitly entered.
+export interface CustomIngredientConversion {
+  volumeUnit: VolumeUnit;
+  weightQuantity: DecimalString;
+  weightUnit: WeightUnit;
+}
+
 export interface IngredientInput {
   packagePrice: DecimalString;
   packageQuantity: DecimalString;
   packageUnit: Unit;
   amountUsed: DecimalString;
   usageUnit: Unit;
+  // Required only when packageUnit and usageUnit are different measurement
+  // types (one weight, one volume) — see computeIngredientCost.
+  customConversion?: CustomIngredientConversion;
+}
+
+// A single "Supplies & Packaging" line item costed by package math — a
+// package price divided across however many the package contains, times
+// however many this recipe/order uses. No units: these are always plain
+// counts (100 cake-pop sticks, 24 used), never weight or volume.
+export interface SupplyPackageInput {
+  packagePrice: DecimalString;
+  packageQuantity: DecimalString;
+  amountUsed: DecimalString;
 }
 
 export interface RecipeCostInputs {
@@ -28,8 +54,7 @@ export interface RecipeCostInputs {
   wastePercent: DecimalString;
   laborHourlyRate: DecimalString;
   laborMinutes: DecimalString;
-  packagingBatchCost: DecimalString;
-  packagingPerItemCost: DecimalString;
+  suppliesSubtotal: DecimalString;
   overheadFlatCost: DecimalString;
   yield_: number;
 }
@@ -38,7 +63,7 @@ export interface CostBreakdown {
   ingredientSubtotal: DecimalString;
   wasteAllowance: DecimalString;
   laborCost: DecimalString;
-  packagingCost: DecimalString;
+  suppliesCost: DecimalString;
   overhead: DecimalString;
   totalProductionCost: DecimalString;
   costPerUnit: DecimalString;

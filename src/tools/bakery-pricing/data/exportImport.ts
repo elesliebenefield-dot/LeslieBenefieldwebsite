@@ -27,7 +27,7 @@ import type { DecimalString, Unit } from '../calc-engine/types.ts'
 import { promisifyRequest, promisifyTransaction } from './db.ts'
 import { nowIso } from './clock.ts'
 import { DB_NAME, DB_VERSION, STORE_INGREDIENTS, STORE_RECIPES, STORE_USAGES } from './schema.ts'
-import type { AcknowledgedZeroCostFlags, StoredIngredient, StoredRecipe, StoredRecipeIngredientUsage } from './types.ts'
+import type { AcknowledgedZeroCostFlags, StoredIngredient, StoredRecipe, StoredRecipeIngredientUsage, StoredSupplyItem } from './types.ts'
 import {
   DuplicateIdentifierError,
   ImportFormatError,
@@ -175,17 +175,42 @@ function validateIngredient(raw: unknown, index: number, seenIds: Set<string>): 
 
 function validateAcknowledgedZeroCostFlags(raw: unknown, context: string): AcknowledgedZeroCostFlags {
   if (!isPlainObject(raw)) throw new ImportFormatError(`${context}: "acknowledgedZeroCostFlags" is missing or not an object.`)
-  for (const key of ['labor', 'packaging', 'overhead', 'waste'] as const) {
+  for (const key of ['labor', 'supplies', 'overhead', 'waste'] as const) {
     if (typeof raw[key] !== 'boolean') {
       throw new ImportFormatError(`${context}: "acknowledgedZeroCostFlags.${key}" must be a boolean.`)
     }
   }
   return {
     labor: raw.labor as boolean,
-    packaging: raw.packaging as boolean,
+    supplies: raw.supplies as boolean,
     overhead: raw.overhead as boolean,
     waste: raw.waste as boolean,
   }
+}
+
+// Validates one "Supplies & Packaging" line item — either package math
+// (price/quantity/amount-used, no units) or a direct flat cost.
+function validateSupplyItem(raw: unknown, recipeContext: string, index: number, seenIds: Set<string>): StoredSupplyItem {
+  if (!isPlainObject(raw)) throw new ImportFormatError(`${recipeContext}: supplyItems[${index}] is not an object.`)
+  const id = requireId(raw, 'id', `${recipeContext} supplyItems[${index}]`)
+  if (seenIds.has(id)) throw new DuplicateIdentifierError('supplyItem', id)
+  seenIds.add(id)
+
+  const context = `${recipeContext} supply item ${id}`
+  const name = requireString(raw, 'name', context)
+
+  const mode = raw.mode
+  if (mode === 'package') {
+    const packagePrice = requireDecimalString('Supply item', id, raw, 'packagePrice')
+    const packageQuantity = requireDecimalString('Supply item', id, raw, 'packageQuantity')
+    const amountUsed = requireDecimalString('Supply item', id, raw, 'amountUsed')
+    return { id, name, mode, packagePrice, packageQuantity, amountUsed }
+  }
+  if (mode === 'direct') {
+    const directCost = requireDecimalString('Supply item', id, raw, 'directCost')
+    return { id, name, mode, directCost }
+  }
+  throw new ImportFormatError(`${context}: "mode" must be "package" or "direct".`)
 }
 
 function validateRecipe(raw: unknown, index: number, seenIds: Set<string>): StoredRecipe {
@@ -204,8 +229,12 @@ function validateRecipe(raw: unknown, index: number, seenIds: Set<string>): Stor
 
   const laborHourlyRate = requireDecimalString('Recipe', id, raw, 'laborHourlyRate')
   const laborMinutes = requireDecimalString('Recipe', id, raw, 'laborMinutes')
-  const packagingBatchCost = requireDecimalString('Recipe', id, raw, 'packagingBatchCost')
-  const packagingPerItemCost = requireDecimalString('Recipe', id, raw, 'packagingPerItemCost')
+
+  const rawSupplyItems = raw.supplyItems
+  if (!Array.isArray(rawSupplyItems)) throw new ImportFormatError(`${context}: "supplyItems" must be an array.`)
+  const supplyItemIds = new Set<string>()
+  const supplyItems = rawSupplyItems.map((s, i) => validateSupplyItem(s, context, i, supplyItemIds))
+
   const overheadFlatCost = requireDecimalString('Recipe', id, raw, 'overheadFlatCost')
   const wastePercent = requireDecimalString('Recipe', id, raw, 'wastePercent')
   const desiredMarginPercent = requireDecimalString('Recipe', id, raw, 'desiredMarginPercent')
@@ -228,8 +257,7 @@ function validateRecipe(raw: unknown, index: number, seenIds: Set<string>): Stor
     yield: yield_,
     laborHourlyRate,
     laborMinutes,
-    packagingBatchCost,
-    packagingPerItemCost,
+    supplyItems,
     overheadFlatCost,
     wastePercent,
     desiredMarginPercent,
