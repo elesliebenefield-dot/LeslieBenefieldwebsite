@@ -1524,6 +1524,116 @@ test('the suggested price leads the breakdown step, with the full calculation co
   }
 })
 
+// ─── 5b. Typography refinement (modern bakery ledger) ───────────────────────
+
+test('the suggested-price figures use Syne with tabular numerals, not the display serif', async () => {
+  const page = await openTool()
+  try {
+    await buildHandVerifiedRecipe(page)
+    const style = await page.$eval('.bp-price-lead .bp-price-big', el => {
+      const computed = getComputedStyle(el)
+      return { fontFamily: computed.fontFamily, fontVariantNumeric: computed.fontVariantNumeric, fontWeight: computed.fontWeight }
+    })
+    assert.match(style.fontFamily, /Syne/)
+    assert.doesNotMatch(style.fontFamily, /Lora/)
+    assert.match(style.fontVariantNumeric, /tabular-nums/)
+    assert.equal(style.fontWeight, '700', 'the headline price must be visually dominant (bold), not the engine default')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the page title and major section headings use Lora, not Syne', async () => {
+  const page = await openTool()
+  try {
+    const headingFont = await page.$eval('.bp-page-heading', el => getComputedStyle(el).fontFamily)
+    assert.match(headingFont, /Lora/)
+    assert.doesNotMatch(headingFont, /^Syne/)
+    const h2Font = await page.$eval('.bp-h2', el => getComputedStyle(el).fontFamily)
+    assert.match(h2Font, /Lora/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('exactly one short Sacramento decorative accent appears, near the suggested price, and is not used for the price itself or any label/button', async () => {
+  const page = await openTool()
+  try {
+    await buildHandVerifiedRecipe(page)
+    const accents = await page.$$('.bp-script-accent')
+    assert.equal(accents.length, 1, 'at most one decorative script accent should exist on the page at a time')
+    const accentFont = await page.$eval('.bp-script-accent', el => getComputedStyle(el).fontFamily)
+    assert.match(accentFont, /Sacramento/)
+    // The price figures, labels, and buttons must never themselves be set in the script font.
+    const priceFont = await page.$eval('.bp-price-lead .bp-price-big', el => getComputedStyle(el).fontFamily)
+    assert.doesNotMatch(priceFont, /Sacramento/)
+    const buttonFont = await page.$eval('.bp-nav .bp-btn', el => getComputedStyle(el).fontFamily)
+    assert.doesNotMatch(buttonFont, /Sacramento/)
+    const labelFont = await page.$eval('label', el => getComputedStyle(el).fontFamily)
+    assert.doesNotMatch(labelFont, /Sacramento/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('form labels, buttons, and step indicator use Syne (the interface font), not the display serif', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForSelector('#bp-ing-name')
+    const labelFont = await page.$eval('label[for="bp-ing-name"]', el => getComputedStyle(el).fontFamily)
+    assert.match(labelFont, /Syne/)
+    const buttonFont = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => getComputedStyle(el).fontFamily)
+    assert.match(buttonFont, /Syne/)
+    const stepLabelFont = await page.$eval('.bp-step-label', el => getComputedStyle(el).fontFamily)
+    assert.match(stepLabelFont, /Syne/)
+    assert.doesNotMatch(stepLabelFont, /Lora/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('the "Continue to Additional Costs" nav button does not wrap onto more than two lines at 320px', async () => {
+  const page = await openTool()
+  try {
+    await page.setViewport({ width: 320, height: 900 })
+    await setYield(page, '24')
+    await addIngredient(page, { name: 'Eggs', packageUnit: 'each', amountUsedUnit: 'each', packagePrice: '4', packageQuantity: '4', amountUsed: '2' })
+    await saveIngredient(page)
+    await page.waitForFunction(() => !!document.querySelector('.bp-ingredient-row'))
+    const buttonHeight = await page.$eval('.bp-nav .bp-btn-primary', el => el.getBoundingClientRect().height)
+    // A single-line button is ~48px tall; three cramped lines would be
+    // noticeably taller. Two lines (or one) stays comfortably under this.
+    assert.ok(buttonHeight < 90, `expected a one- or two-line button, got a height suggesting more lines: ${buttonHeight}px`)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected no horizontal overflow, got ${overflow}px`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('fallback fonts still produce a usable layout if the web fonts are unavailable', async () => {
+  const page = await browser.newPage()
+  try {
+    // Simulate the web fonts never loading by blocking the Google Fonts
+    // stylesheet request before the very first navigation.
+    await page.setRequestInterception(true)
+    page.on('request', req => {
+      if (req.url().includes('fonts.googleapis.com') || req.url().includes('fonts.gstatic.com')) req.abort()
+      else req.continue()
+    })
+    await page.goto(`${baseUrl}/tools-bakery-pricing.html`, { waitUntil: 'load' })
+    const headingFont = await page.$eval('.bp-page-heading', el => getComputedStyle(el).fontFamily)
+    assert.match(headingFont, /Georgia|serif/i, 'the display font must fall back to a real serif, not disappear')
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    assert.ok(overflow <= 0, `expected a usable, non-overflowing layout even without the web fonts, got ${overflow}px`)
+    const heading = await page.$eval('.bp-page-heading', el => el.textContent || '')
+    assert.match(heading, /Free Home Bakery Pricing Calculator/)
+  } finally {
+    await page.close()
+  }
+})
+
 test('changing the rounding increment recomputes the suggested price', async () => {
   const page = await openTool()
   try {

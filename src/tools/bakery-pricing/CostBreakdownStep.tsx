@@ -109,6 +109,7 @@ export function CostBreakdownStep({
       {pricing.valid && (
         <>
           <h2 className="bp-h2"><SectionIcon symbol="✨" tone="gold" /> Your Suggested Price</h2>
+          <p className="bp-script-accent">Priced with confidence.</p>
           <div className={`bp-price-callout bp-price-callout-gold bp-price-lead${shouldCelebrate ? ' bp-price-lead-celebrate' : ''}`}>
             <div className="bp-price-sub">Suggested whole-batch price</div>
             <div className="bp-price-big">{formatMoney(pricing.value.suggestedWholeBatchPrice)}</div>
