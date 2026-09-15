@@ -114,14 +114,14 @@ async function saveIngredient(page: Page) {
   await page.click('.bp-add-ingredient-form .bp-btn-primary')
 }
 
-async function enterConversion(page: Page, volumeUnit: string, weightQuantity: string, weightUnit: string) {
-  await page.click('.bp-link-btn')
+// The conversion is always expressed in grams (no weight-unit selector) —
+// selecting the "I measure it in cups"-style choice card reveals the entry.
+async function enterConversion(page: Page, volumeUnit: string, weightQuantity: string) {
+  await page.click('.bp-choice-card-convert')
   await page.waitForFunction(() => !!document.querySelector('input[aria-label="Conversion weight amount"]'))
   const volSelect = await page.$('select[aria-label="Conversion volume unit"]')
   await volSelect!.select(volumeUnit)
   await page.type('input[aria-label="Conversion weight amount"]', weightQuantity)
-  const weightSelect = await page.$('select[aria-label="Conversion weight unit"]')
-  await weightSelect!.select(weightUnit)
 }
 
 // Step 1 now requires at least one ingredient to advance, so every helper
@@ -480,26 +480,75 @@ test('a weight/volume mismatch shows the friendly explanation, not a technical u
   }
 })
 
+test('the two resolution choices use the ingredient\'s own name and read as equally weighted options', async () => {
+  const page = await openTool()
+  try {
+    await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
+    const weighTitle = await page.$eval('.bp-choice-card-weigh .bp-choice-card-title', el => el.textContent || '')
+    assert.match(weighTitle, /I can weigh the Flour/)
+    const weighHelper = await page.$eval('.bp-choice-card-weigh .bp-choice-card-helper', el => el.textContent || '')
+    assert.match(weighHelper, /Switch to grams and enter the amount you use\./)
+    const convertTitle = await page.$eval('.bp-choice-card-convert .bp-choice-card-title', el => el.textContent || '')
+    assert.match(convertTitle, /I measure Flour in cups/)
+    const convertHelper = await page.$eval('.bp-choice-card-convert .bp-choice-card-helper', el => el.textContent || '')
+    assert.match(convertHelper, /Tell us what one cup of this ingredient weighs\./)
+
+    // Same tag, same class family, same size — visually equal weight, not a
+    // primary button next to a minor text link.
+    const cardTags = await page.$$eval('.bp-choice-group .bp-choice-card', els => els.map(el => el.tagName))
+    assert.deepEqual(cardTags, ['BUTTON', 'BUTTON'])
+    const cardHeights = await page.$$eval('.bp-choice-group .bp-choice-card', els => els.map(el => el.getBoundingClientRect().height))
+    assert.ok(Math.abs(cardHeights[0] - cardHeights[1]) < 2, `expected roughly equal card heights, got ${JSON.stringify(cardHeights)}`)
+  } finally {
+    await page.close()
+  }
+})
+
+test('an ingredient with no name yet falls back to generic wording, not a blank name', async () => {
+  const page = await openTool()
+  try {
+    await page.click('.bp-btn-ghost')
+    await page.waitForFunction(() => !!document.querySelector('#bp-ing-name'))
+    await page.type('#bp-ing-price', '3.49')
+    await page.type('#bp-ing-pkg-qty', '5')
+    const pkgUnitSelect = await page.$('select[aria-label="Package amount unit"]')
+    await pkgUnitSelect!.select('lb')
+    await page.type('#bp-ing-use-qty', '2')
+    const useUnitSelect = await page.$('select[aria-label="Amount used unit"]')
+    await useUnitSelect!.select('cup')
+    const weighTitle = await page.$eval('.bp-choice-card-weigh .bp-choice-card-title', el => el.textContent || '')
+    assert.match(weighTitle, /I can weigh this ingredient/)
+  } finally {
+    await page.close()
+  }
+})
+
 test('cannot add a cross-type ingredient until the baker chooses a resolution', async () => {
   const page = await openTool()
   try {
     await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
     const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
     assert.equal(addDisabled, true, 'Add to recipe must be disabled while the cross-type mismatch is unresolved')
+    const note = await page.$eval('.bp-cross-type-unresolved-note', el => el.textContent || '')
+    assert.match(note, /Choose one of the options above before adding this ingredient\./)
   } finally {
     await page.close()
   }
 })
 
-test('"Enter the recipe amount by weight" resolves the mismatch by switching the recipe unit', async () => {
+test('choosing "I can weigh it" resolves the mismatch by switching to grams and focusing the recipe-amount field', async () => {
   const page = await openTool()
   try {
     await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
-    await page.click('.bp-cross-type-actions .bp-btn-secondary')
+    await page.click('.bp-choice-card-weigh')
     const helpGone = await page.$('.bp-cross-type-help')
     assert.equal(helpGone, null, 'resolving by switching units should remove the cross-type explanation')
     const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
     assert.equal(addDisabled, false, 'Add to recipe should be enabled once resolved')
+    const useUnitValue = await page.$eval('select[aria-label="Amount used unit"]', el => (el as HTMLSelectElement).value)
+    assert.equal(useUnitValue, 'g', 'the recipe-amount unit should switch to grams')
+    const focusedId = await page.evaluate(() => document.activeElement?.id)
+    assert.equal(focusedId, 'bp-ing-use-qty', 'the recipe-amount field should be focused so the baker can re-enter it')
   } finally {
     await page.close()
   }
@@ -510,7 +559,7 @@ test('adding a conversion resolves the mismatch and computes the cost accurately
   const page = await openTool()
   try {
     await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
-    await enterConversion(page, 'cup', '120', 'g')
+    await enterConversion(page, 'cup', '120')
     const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
     assert.equal(addDisabled, false, 'Add to recipe should be enabled once a valid conversion is entered')
     await saveIngredient(page)
@@ -527,12 +576,14 @@ test('no conversion is ever guessed — an incomplete conversion still blocks ad
   const page = await openTool()
   try {
     await addIngredient(page, { name: 'Flour', packageUnit: 'lb', amountUsedUnit: 'cup', packagePrice: '3.49', packageQuantity: '5', amountUsed: '2' })
-    await page.click('.bp-link-btn') // open "Add a conversion" without filling it in
+    await page.click('.bp-choice-card-convert') // open the conversion entry without filling it in
     await page.waitForFunction(() => !!document.querySelector('input[aria-label="Conversion weight amount"]'))
     const weightValue = await page.$eval('input[aria-label="Conversion weight amount"]', el => (el as HTMLInputElement).value)
     assert.equal(weightValue, '', 'the conversion weight field must start blank — never a hardcoded default')
     const addDisabled = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => (el as HTMLButtonElement).disabled)
     assert.equal(addDisabled, true, 'Add to recipe must stay disabled until a real conversion value is entered')
+    const note = await page.$eval('.bp-cross-type-unresolved-note', el => el.textContent || '')
+    assert.match(note, /Choose one of the options above/)
   } finally {
     await page.close()
   }
@@ -1247,7 +1298,7 @@ test('the cross-type explanation and its conversion form have no horizontal over
     let overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 0, `expected no overflow with the explanation shown, got ${overflow}px`)
 
-    await enterConversion(page, 'cup', '120', 'g')
+    await enterConversion(page, 'cup', '120')
     overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     assert.ok(overflow <= 0, `expected no overflow with the conversion form open, got ${overflow}px`)
 

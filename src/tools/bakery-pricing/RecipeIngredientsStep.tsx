@@ -1,12 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { computeIngredientCost, computeIngredientSubtotal } from './calc-engine/formulas.ts'
 import { validateConversionWeightQuantity, validateYield } from './calc-engine/validation.ts'
 import { measurementTypeOf, UNIT_MISMATCH_MESSAGE } from './calc-engine/units.ts'
-import { UNIT_GROUPS, VOLUME_UNITS, WEIGHT_UNITS, defaultUnitFor } from './bakeryPricingUnitOptions.ts'
+import { UNIT_GROUPS, VOLUME_UNITS, defaultUnitFor } from './bakeryPricingUnitOptions.ts'
 import { formatMoney } from './bakeryPricingFormat.ts'
 import { safeCompute } from './bakeryPricingValidationDisplay.ts'
 import type { DraftIngredientLine } from './bakeryPricingDraftTypes.ts'
 import type { CustomIngredientConversion, MeasurementType, Unit, VolumeUnit, WeightUnit } from './calc-engine/types.ts'
+
+// Display words for the volume-side unit in the two equally-weighted
+// resolution choices and the conversion sentence — kept local to this
+// component since it's UI copy, not a calc-engine concern.
+const VOLUME_UNIT_WORDS: Record<VolumeUnit, { singular: string; plural: string }> = {
+  mL: { singular: 'mL', plural: 'mL' },
+  L: { singular: 'L', plural: 'L' },
+  tsp: { singular: 'teaspoon', plural: 'teaspoons' },
+  tbsp: { singular: 'tablespoon', plural: 'tablespoons' },
+  cup: { singular: 'cup', plural: 'cups' },
+}
+
+// The recipe-friendly unit to switch to when the baker chooses to measure
+// this ingredient by the package's own type — grams for weight, cups for
+// volume, rather than each type's registry-order default (which would be
+// mL for volume, an unnatural choice for a home baker to switch to).
+const FRIENDLY_MATCHING_UNIT: Record<'weight' | 'volume', Unit> = { weight: 'g', volume: 'cup' }
 
 interface Props {
   recipeName: string
@@ -105,6 +122,21 @@ export function RecipeIngredientsStep({
       : undefined
 
   const crossTypeUnresolved = isBridgeable && !customConversion
+  const ingredientLabel = form.name.trim() || 'this ingredient'
+  // "the Flour" once named, but plain "this ingredient" (no dangling "the")
+  // before a name has been entered.
+  const weighSubject = form.name.trim() ? `the ${form.name.trim()}` : 'this ingredient'
+  // Whichever side is the volume one — used for both the "measure in cups"
+  // choice's wording and the conversion sentence's unit select.
+  const volumeSideUnit = (packageType === 'volume' ? form.packageUnit : form.amountUsedUnit) as VolumeUnit
+
+  const [focusUsagePending, setFocusUsagePending] = useState(false)
+  useEffect(() => {
+    if (focusUsagePending) {
+      document.getElementById('bp-ing-use-qty')?.focus()
+      setFocusUsagePending(false)
+    }
+  }, [focusUsagePending])
 
   function handlePackageUnitChange(unit: Unit) {
     setForm(f => ({ ...f, packageUnit: unit }))
@@ -116,13 +148,17 @@ export function RecipeIngredientsStep({
     setAddError(null)
   }
 
-  function handleEnterByPackageType() {
-    setForm(f => ({ ...f, amountUsedUnit: defaultUnitFor(packageType), showConversionForm: false }))
+  // "I can weigh it" / "I can measure it by volume" — switches the recipe
+  // amount's unit to match the package's own type, so no per-ingredient
+  // conversion is needed at all.
+  function handleMatchPackageType() {
+    setForm(f => ({ ...f, amountUsedUnit: FRIENDLY_MATCHING_UNIT[packageType as 'weight' | 'volume'], showConversionForm: false }))
+    setFocusUsagePending(true)
   }
 
+  // "I measure it in cups" — reveals the baker-supplied density conversion.
   function handleOpenConversionForm() {
-    const volumeSideUnit = (packageType === 'volume' ? form.packageUnit : form.amountUsedUnit) as VolumeUnit
-    setForm(f => ({ ...f, showConversionForm: true, conversionVolumeUnit: volumeSideUnit }))
+    setForm(f => ({ ...f, showConversionForm: true, conversionVolumeUnit: volumeSideUnit, conversionWeightUnit: 'g' }))
   }
 
   const previewResult =
@@ -357,55 +393,66 @@ export function RecipeIngredientsStep({
                   every ingredient weighs differently, we need one more detail to calculate its cost accurately.
                 </p>
 
-                <div className="bp-cross-type-actions">
-                  <button type="button" className="bp-btn bp-btn-secondary" onClick={handleEnterByPackageType}>
-                    Enter the recipe amount by {packageType}
+                <div className="bp-choice-group" role="group" aria-label="How to resolve this weight/volume difference">
+                  <button type="button" className="bp-choice-card bp-choice-card-weigh" onClick={handleMatchPackageType}>
+                    <span className="bp-choice-card-title">
+                      {packageType === 'weight' ? `I can weigh ${weighSubject}` : `I can measure ${weighSubject} by volume`}
+                    </span>
+                    <span className="bp-choice-card-helper">
+                      {packageType === 'weight'
+                        ? 'Switch to grams and enter the amount you use.'
+                        : 'Switch to cups and enter the amount you use.'}
+                    </span>
                   </button>
-                  <p className="bp-helper">
-                    {packageType === 'weight'
-                      ? 'If you have a kitchen scale, weigh the amount in grams for the most accurate result.'
-                      : 'If you have measuring cups or spoons, measure the amount by volume for the most accurate result.'}
-                  </p>
 
-                  {!form.showConversionForm ? (
-                    <button type="button" className="bp-link-btn" onClick={handleOpenConversionForm}>
-                      Add a conversion for this ingredient
-                    </button>
-                  ) : (
-                    <div className="bp-conversion-form">
-                      <p className="bp-group-label">Tell us how much this ingredient weighs, by volume:</p>
-                      <div className="bp-conversion-row">
-                        <span>1</span>
-                        <select
-                          aria-label="Conversion volume unit"
-                          value={form.conversionVolumeUnit}
-                          onChange={e => setForm(f => ({ ...f, conversionVolumeUnit: e.target.value as VolumeUnit }))}
-                        >
-                          {VOLUME_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                        <span>weighs</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          aria-label="Conversion weight amount"
-                          value={form.conversionWeightQuantity}
-                          onChange={e => setForm(f => ({ ...f, conversionWeightQuantity: e.target.value }))}
-                          placeholder="e.g., 120"
-                        />
-                        <select
-                          aria-label="Conversion weight unit"
-                          value={form.conversionWeightUnit}
-                          onChange={e => setForm(f => ({ ...f, conversionWeightUnit: e.target.value as WeightUnit }))}
-                        >
-                          {WEIGHT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      </div>
-                      <p className="bp-helper">
-                        This conversion is saved with this ingredient so it's ready to reuse once saved recipes arrive.
-                      </p>
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    className={`bp-choice-card bp-choice-card-convert${form.showConversionForm ? ' bp-choice-card-selected' : ''}`}
+                    onClick={handleOpenConversionForm}
+                  >
+                    <span className="bp-choice-card-title">
+                      I measure {ingredientLabel} in {VOLUME_UNIT_WORDS[volumeSideUnit].plural}
+                    </span>
+                    <span className="bp-choice-card-helper">
+                      Tell us what one {VOLUME_UNIT_WORDS[volumeSideUnit].singular} of this ingredient weighs.
+                    </span>
+                  </button>
                 </div>
+
+                {form.showConversionForm && (
+                  <div className="bp-conversion-form">
+                    <p className="bp-conversion-row">
+                      <span>1</span>
+                      <select
+                        aria-label="Conversion volume unit"
+                        value={form.conversionVolumeUnit}
+                        onChange={e => setForm(f => ({ ...f, conversionVolumeUnit: e.target.value as VolumeUnit }))}
+                      >
+                        {VOLUME_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                      <span>of</span>
+                      <strong>{ingredientLabel}</strong>
+                      <span>weighs</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        aria-label="Conversion weight amount"
+                        value={form.conversionWeightQuantity}
+                        onChange={e => setForm(f => ({ ...f, conversionWeightQuantity: e.target.value }))}
+                        placeholder="e.g., 120"
+                      />
+                      <span>grams.</span>
+                    </p>
+                    <p className="bp-helper">
+                      Use the weight provided by your recipe or flour brand, or weigh one cup with a kitchen scale.
+                      We won't guess this value.
+                    </p>
+                  </div>
+                )}
+
+                {crossTypeUnresolved && (
+                  <p className="bp-helper bp-cross-type-unresolved-note">Choose one of the options above before adding this ingredient.</p>
+                )}
               </div>
             )}
 
