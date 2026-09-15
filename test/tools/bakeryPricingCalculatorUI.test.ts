@@ -1524,9 +1524,9 @@ test('the suggested price leads the breakdown step, with the full calculation co
   }
 })
 
-// ─── 5b. Typography refinement (modern bakery ledger) ───────────────────────
+// ─── 5b. Typography (boutique bakery classic: Libre Caslon Display + Karla) ─
 
-test('the suggested-price figures use Syne with tabular numerals, not the display serif', async () => {
+test('the suggested-price figures use bold Karla with tabular numerals, not the display serif', async () => {
   const page = await openTool()
   try {
     await buildHandVerifiedRecipe(page)
@@ -1534,8 +1534,8 @@ test('the suggested-price figures use Syne with tabular numerals, not the displa
       const computed = getComputedStyle(el)
       return { fontFamily: computed.fontFamily, fontVariantNumeric: computed.fontVariantNumeric, fontWeight: computed.fontWeight }
     })
-    assert.match(style.fontFamily, /Syne/)
-    assert.doesNotMatch(style.fontFamily, /Lora/)
+    assert.match(style.fontFamily, /Karla/)
+    assert.doesNotMatch(style.fontFamily, /Libre Caslon/)
     assert.match(style.fontVariantNumeric, /tabular-nums/)
     assert.equal(style.fontWeight, '700', 'the headline price must be visually dominant (bold), not the engine default')
   } finally {
@@ -1543,51 +1543,67 @@ test('the suggested-price figures use Syne with tabular numerals, not the displa
   }
 })
 
-test('the page title and major section headings use Lora, not Syne', async () => {
+test('the page title and major section headings use Libre Caslon Display, at its genuine weight rather than a synthesized bold', async () => {
   const page = await openTool()
   try {
-    const headingFont = await page.$eval('.bp-page-heading', el => getComputedStyle(el).fontFamily)
-    assert.match(headingFont, /Lora/)
-    assert.doesNotMatch(headingFont, /^Syne/)
-    const h2Font = await page.$eval('.bp-h2', el => getComputedStyle(el).fontFamily)
-    assert.match(h2Font, /Lora/)
+    const heading = await page.$eval('.bp-page-heading', el => {
+      const computed = getComputedStyle(el)
+      return { fontFamily: computed.fontFamily, fontWeight: computed.fontWeight }
+    })
+    assert.match(heading.fontFamily, /Libre Caslon Display/)
+    assert.doesNotMatch(heading.fontFamily, /^Karla/)
+    // Libre Caslon Display ships only one real weight (400) — asking for
+    // 600/700 would only trigger the browser's synthesized ("fake") bold.
+    assert.equal(heading.fontWeight, '400', 'headings must use the display font\'s genuine weight, not a synthesized bold')
+    const h2 = await page.$eval('.bp-h2', el => {
+      const computed = getComputedStyle(el)
+      return { fontFamily: computed.fontFamily, fontWeight: computed.fontWeight }
+    })
+    assert.match(h2.fontFamily, /Libre Caslon Display/)
+    assert.equal(h2.fontWeight, '400')
   } finally {
     await page.close()
   }
 })
 
-test('exactly one short Sacramento decorative accent appears, near the suggested price, and is not used for the price itself or any label/button', async () => {
+test('exactly one short italic Libre Caslon Text decorative accent appears, near the suggested price, and is not used for the price itself or any label/button', async () => {
   const page = await openTool()
   try {
     await buildHandVerifiedRecipe(page)
     const accents = await page.$$('.bp-script-accent')
-    assert.equal(accents.length, 1, 'at most one decorative script accent should exist on the page at a time')
-    const accentFont = await page.$eval('.bp-script-accent', el => getComputedStyle(el).fontFamily)
-    assert.match(accentFont, /Sacramento/)
-    // The price figures, labels, and buttons must never themselves be set in the script font.
+    assert.equal(accents.length, 1, 'at most one decorative accent should exist on the page at a time')
+    const accent = await page.$eval('.bp-script-accent', el => {
+      const computed = getComputedStyle(el)
+      return { fontFamily: computed.fontFamily, fontStyle: computed.fontStyle }
+    })
+    // Libre Caslon Display has no italic cut of its own, so the accent
+    // borrows its companion text face instead.
+    assert.match(accent.fontFamily, /Libre Caslon Text/)
+    assert.equal(accent.fontStyle, 'italic')
+    // The price figures, labels, and buttons must never themselves be set in the accent's italic face.
     const priceFont = await page.$eval('.bp-price-lead .bp-price-big', el => getComputedStyle(el).fontFamily)
-    assert.doesNotMatch(priceFont, /Sacramento/)
+    assert.doesNotMatch(priceFont, /Libre Caslon Text/)
     const buttonFont = await page.$eval('.bp-nav .bp-btn', el => getComputedStyle(el).fontFamily)
-    assert.doesNotMatch(buttonFont, /Sacramento/)
+    assert.doesNotMatch(buttonFont, /Libre Caslon Text/)
     const labelFont = await page.$eval('label', el => getComputedStyle(el).fontFamily)
-    assert.doesNotMatch(labelFont, /Sacramento/)
+    assert.doesNotMatch(labelFont, /Libre Caslon Text/)
   } finally {
     await page.close()
   }
 })
 
-test('form labels, buttons, and step indicator use Syne (the interface font), not the display serif', async () => {
+test('form labels, buttons, and step indicator use Karla (the interface font), not the display serif', async () => {
   const page = await openTool()
   try {
     await page.click('.bp-btn-ghost')
     await page.waitForSelector('#bp-ing-name')
     const labelFont = await page.$eval('label[for="bp-ing-name"]', el => getComputedStyle(el).fontFamily)
-    assert.match(labelFont, /Syne/)
+    assert.match(labelFont, /Karla/)
     const buttonFont = await page.$eval('.bp-add-ingredient-form .bp-btn-primary', el => getComputedStyle(el).fontFamily)
-    assert.match(buttonFont, /Syne/)
+    assert.match(buttonFont, /Karla/)
     const stepLabelFont = await page.$eval('.bp-step-label', el => getComputedStyle(el).fontFamily)
-    assert.match(stepLabelFont, /Syne/)
-    assert.doesNotMatch(stepLabelFont, /Lora/)
+    assert.match(stepLabelFont, /Karla/)
+    assert.doesNotMatch(stepLabelFont, /Libre Caslon/)
   } finally {
     await page.close()
   }

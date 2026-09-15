@@ -9,27 +9,31 @@
    intended. Mobile-first throughout: base rules target narrow viewports,
    with a min-width breakpoint for desktop centering.
 
-   ---------- Typography (modern bakery ledger) ----------
-   Three deliberate roles, reusing exactly the fonts the site already loads
-   (Syne, Lora, Sacramento — see tools-bakery-pricing.html's font <link>,
-   which now also requests Sacramento to match the site's own canonical
-   request in index.html):
-     - Lora (--bp-font-display): the product title, major section headings,
-       and a small number of warm editorial moments (the Step 1 intro
-       lead, the one Sacramento-adjacent completion line). Warm, human,
-       a little bit "handwritten ledger."
-     - Syne (--bp-font-interface, the container's own base font): every
+   ---------- Typography ("boutique bakery classic") ----------
+   Chosen by Leslie after a three-way visual comparison of real screenshots
+   (see design.md's Typography section) — replaces an earlier Syne/Lora/
+   Sacramento pairing that read as too generic and too heavy. Two font
+   families, reused exactly as tools-bakery-pricing.html's own font <link>
+   requests them, plus one narrow italic-only borrow:
+     - Libre Caslon Display (--bp-font-display): the product title and
+       every major section heading. This family ships exactly one weight
+       (400) and no italic — headings are set at that genuine weight
+       rather than asking the browser to synthesize a fake bold, which
+       reliably looks worse than an honest regular weight.
+     - Karla (--bp-font-interface, the container's own base font): every
        interface surface — step indicator, form labels, buttons, inputs,
-       nav, badges, ingredient/ledger rows, and all other UI text. Precise
-       and confident, closer to a well-kept spreadsheet than a form
-       template. All money/quantity figures also get tabular numerals
-       (applied once, at the container root — a no-op on non-digit text,
-       so it never needs hunting down per number) so changing figures
-       never visually reflow against their neighbors.
-     - Sacramento (--bp-font-script): reserved for exactly one short,
-       purely decorative accent line near the completion moment
-       (.bp-script-accent) — never instructions, labels, buttons, prices,
-       validation, or anything load-bearing. */
+       nav, badges, ingredient/ledger rows, and all other UI text — plus
+       every cost, quantity, and suggested-price figure, in bold with
+       tabular numerals (applied once, at the container root — a no-op on
+       non-digit text, so it never needs hunting down per number) so
+       changing figures never visually reflow against their neighbors.
+     - Libre Caslon Text, italic only (--bp-font-display-italic): used for
+       the Step 1 intro lead sentence and the single short decorative line
+       ("Priced with confidence.") above the Step 3 suggested-price card.
+       Libre Caslon Display has no italic cut of its own, so both italic
+       moments borrow its companion text face rather than letting the
+       browser synthesize a fake oblique — never used for a label, button,
+       price, or validation message. */
 
 .bakery-pricing-calculator {
   --bp-cream: #F6EFE2;
@@ -50,14 +54,16 @@
   --bp-radius: 16px;
 
   /* Fallback stacks are chosen so the layout stays fully usable if the web
-     fonts fail to load: Georgia is a universal serif standing in for Lora
-     at a near-identical measure; the system-ui sans stack (the tool's own
-     original body font, already proven here) stands in for Syne; a plain
-     "cursive" generic is enough for one decorative accent line, which
-     carries no essential information. */
-  --bp-font-display: 'Lora', Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
-  --bp-font-interface: 'Syne', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --bp-font-script: 'Sacramento', cursive;
+     fonts fail to load: Georgia is a universal serif standing in for Libre
+     Caslon Display at a near-identical measure and weight; the tool's
+     original system-ui sans stack stands in for Karla. */
+  --bp-font-display: 'Libre Caslon Display', Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
+  --bp-font-interface: 'Karla', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Libre Caslon Display has no italic cut of its own — every italic
+     moment (the Step 1 intro lead, the completion accent) uses this
+     companion text face instead, rather than letting the browser
+     synthesize a fake oblique from the display face. */
+  --bp-font-display-italic: 'Libre Caslon Text', Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, serif;
 
   display: block;
   position: relative;
@@ -95,7 +101,10 @@
 .bakery-pricing-calculator .bp-page-heading {
   font-family: var(--bp-font-display);
   font-size: 1.4375rem;
-  font-weight: 600;
+  /* Libre Caslon Display ships exactly one real weight (400) — asking for
+     600/700 here would only trigger the browser's synthesized ("fake")
+     bold, which reliably looks worse than its own genuine regular cut. */
+  font-weight: 400;
   line-height: 1.2;
   letter-spacing: -0.01em;
   margin: 0 auto 1rem;
@@ -112,7 +121,7 @@
 .bakery-pricing-calculator .bp-h2 {
   font-family: var(--bp-font-display);
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
   letter-spacing: -0.005em;
   margin: 1.75rem 0 0.625rem;
@@ -183,7 +192,7 @@
 }
 
 .bakery-pricing-calculator .bp-intro-lead {
-  font-family: var(--bp-font-display);
+  font-family: var(--bp-font-display-italic);
   font-style: italic;
   font-size: 1.125rem;
   color: #3F4A38;
@@ -408,12 +417,13 @@
 }
 
 /* Nav footer */
-/* Stacked, full-width at the narrowest phones: Syne runs a little wider per
-   character than the sans this replaced, and the longest label ("Continue
-   to Additional Costs →") wrapped to three cramped lines — with an orphaned
-   arrow — when squeezed into half of a 320px row. Full width gives it a
-   clean two-line wrap instead of fighting it with ever-smaller type. Side
-   by side again once there's room for both buttons to stay comfortable. */
+/* Stacked, full-width at the narrowest phones: an earlier interface font
+   made the longest label ("Continue to Additional Costs →") wrap to three
+   cramped lines — with an orphaned arrow — when squeezed into half of a
+   320px row. Full width keeps it to a clean one- or two-line wrap
+   regardless of which interface font is active, rather than depending on
+   a specific font's character width. Side by side again once there's room
+   for both buttons to stay comfortable. */
 .bakery-pricing-calculator .bp-nav {
   max-width: 640px;
   margin: 1.5rem auto 0;
@@ -733,14 +743,15 @@
   margin-top: 0.25rem;
 }
 
-/* One short, purely decorative accent line — the only Sacramento usage in
-   the whole calculator, placed at the completion moment (just above the
-   suggested-price card) rather than the introduction, so it pairs with the
-   existing one-time celebration highlight instead of adding visual noise
-   to the very first screen a baker sees. Never instructions, a label, a
-   button, a price, or anything a baker needs to act on. */
+/* One short, purely decorative accent line — placed at the completion
+   moment (just above the suggested-price card) rather than the
+   introduction, so it pairs with the existing one-time celebration
+   highlight instead of adding visual noise to the very first screen a
+   baker sees. Never instructions, a label, a button, a price, or anything
+   a baker needs to act on. */
 .bakery-pricing-calculator .bp-script-accent {
-  font-family: var(--bp-font-script);
+  font-family: var(--bp-font-display-italic);
+  font-style: italic;
   font-size: 1.375rem;
   font-weight: 400;
   line-height: 1.4;
