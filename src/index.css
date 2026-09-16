@@ -4161,6 +4161,12 @@ section[id] {
   color: rgba(253, 252, 250, 0.9);
 }
 
+.footer-link-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
 .footer-text {
   font-family: var(--font-script);
   color: var(--color-pop);

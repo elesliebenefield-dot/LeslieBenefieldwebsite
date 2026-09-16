@@ -5,6 +5,21 @@ import discoverIcon from '../assets/payment-icons/discover.svg'
 import applePayIcon from '../assets/payment-icons/apple-pay.svg'
 import googlePayIcon from '../assets/payment-icons/google-pay.svg'
 
+const FacebookIcon = () => (
+  <svg
+    aria-hidden="true"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    style={{ width: 18, height: 18, flexShrink: 0 }}
+  >
+    <rect width="24" height="24" rx="5" fill="#1877F2" />
+    <path
+      d="M16.5 8H14V6.5C14 5.95 14.45 5.5 15 5.5h1.5V3h-2C11.91 3 10.5 4.41 10.5 6.5V8H8.5v2.5H10.5V21h3V10.5h2L16.5 8z"
+      fill="#fff"
+    />
+  </svg>
+)
+
 const PAYMENT_METHODS = [
   { src: visaIcon, alt: 'Visa' },
   { src: mastercardIcon, alt: 'Mastercard' },
@@ -26,11 +41,12 @@ export default function Footer() {
         <a href="/business-tools" className="footer-link">Business Tools</a>
         <a
           href="https://www.facebook.com/share/1EB3v8j1Fz/"
-          className="footer-link"
+          className="footer-link footer-link-icon"
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Websites by Leslie on Facebook"
         >
-          Facebook
+          <FacebookIcon />
         </a>
       </div>
       <p className="footer-contact">
