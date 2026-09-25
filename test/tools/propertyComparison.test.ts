@@ -684,11 +684,18 @@ test('results body contains no score or grade language', async () => {
   await page.close()
 })
 
-test('CTA connect button is present', async () => {
+test('next-step guidance points buyers to their own agent, with no link', async () => {
   const page = await openTool()
   await advanceToResults(page)
-  const cta = await page.$('.cmp-cta-btn')
-  assert.ok(cta, 'CTA button should be present')
+  const cta = await page.$eval('.cmp-cta-section', el => ({
+    heading: el.querySelector('h2')?.textContent?.trim(),
+    text: el.querySelector('p')?.textContent?.trim(),
+    links: el.querySelectorAll('a').length,
+  }))
+  assert.equal(cta.heading, 'Ready to take the next step?')
+  assert.equal(cta.text, 'Share your comparison with your real estate agent to discuss your options.')
+  assert.equal(cta.links, 0, 'the buyer-facing guidance must not link anywhere')
+  assert.equal(await page.$('a[href="/contact"]'), null, 'the broken /contact link must be gone')
   await page.close()
 })
 
@@ -1079,4 +1086,31 @@ test('no horizontal overflow on results at 1440px', async () => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)
   assert.equal(overflow, false, 'Results must not overflow at 1440px')
   await page.close()
+})
+
+// ─── Sales panel ("want this for your business?") ───────────────────────────
+
+test('results end with a sales panel: customization, Services & Pricing link, email link, no prices or delivery promises', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const panel = await page.$eval('.tool-sales-cta', el => ({
+      text: el.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      body: el.querySelector('.tool-sales-cta-body')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      items: Array.from(el.querySelectorAll('.tool-sales-cta-features li')).map(li => li.textContent?.trim() ?? ''),
+      noPrint: el.classList.contains('no-print'),
+      services: el.querySelector('.tool-sales-cta-body a')?.getAttribute('href') ?? null,
+      mailto: el.querySelector('a.tool-sales-cta-link')?.getAttribute('href') ?? '',
+    }))
+    const heading = await page.$eval('.tool-sales-cta-heading', el => el.textContent?.trim())
+    assert.equal(heading, 'Want this comparison planner customized for your business?')
+    assert.equal(panel.noPrint, true, 'panel must be hidden when printing')
+    assert.equal(panel.services, '/services', 'panel should link to Services & Pricing')
+    assert.equal(panel.mailto, 'mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry')
+    assert.ok(!/\$\d/.test(panel.text), 'panel must not repeat price tables')
+    assert.ok(!/inbox/i.test(panel.text), 'panel must not promise inbox delivery')
+    assert.match(panel.body, /Automatic lead delivery and website integrations can be quoted separately\./)
+  } finally {
+    await page.close()
+  }
 })

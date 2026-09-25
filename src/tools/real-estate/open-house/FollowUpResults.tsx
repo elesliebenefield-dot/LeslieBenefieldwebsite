@@ -366,6 +366,33 @@ export function FollowUpResults({ setup, outcomes, actions, onStartOver, onBack 
             Start Over
           </button>
         </div>
+
+        <div className="tool-sales-cta no-print" aria-label="For real estate agents and teams">
+          <p className="tool-sales-cta-eyebrow">For real estate agents and teams</p>
+          <h2 className="tool-sales-cta-heading">
+            Want this follow-up planner customized for your business?
+          </h2>
+          <p className="tool-sales-cta-body">
+            Websites by Leslie can customize this planner for your own open houses — your
+            branding and the follow-up steps your team uses. It's a private workspace for you,
+            not a visitor sign-in form, and it doesn't send messages to visitors. Automated
+            follow-up messages and integrations can be quoted separately.
+            See setup and hosting pricing on the <a href="/services">Services & Pricing page</a>.
+          </p>
+          <ul className="tool-sales-cta-features" aria-label="What can be customized">
+            <li>Your branding and team information</li>
+            <li>Follow-up actions and wording that match your process</li>
+            <li>Copy or print your follow-up plan, or share it from supported devices</li>
+            <li>Hosted as a standalone page you and your team can open anytime</li>
+          </ul>
+          <a
+            href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry"
+            className="tool-sales-cta-link"
+            title="Opens your email application to contact Websites by Leslie"
+          >
+            Email Leslie →
+          </a>
+        </div>
       </div>
 
       <ConfirmDialog

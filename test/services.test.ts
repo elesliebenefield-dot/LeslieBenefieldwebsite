@@ -387,15 +387,31 @@ test('website pricing — Starter Website is "Starting at $500" and describes th
   }
 })
 
-test('website pricing — Starter price note: starter scope only; extras and domain/hosting/care quoted separately, no amounts', async () => {
+test('website pricing — Starter price note covers the starter scope only, with no other amounts', async () => {
   const page = await openServices(1280)
   try {
     const notes = await page.$$eval('.services-support', els => els.map(el => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
     const note = notes.find(n => n.startsWith('About the Starter Website price')) ?? ''
     assert.match(note, /\$500 is the starting price for the defined starter scope/)
     assert.match(note, /Extra pages, extensive copywriting, custom tools, and additional functionality are quoted separately/)
-    assert.match(note, /Domain, hosting, and ongoing care costs are not included in the starting price and will be specified separately in your quote/)
     assert.equal((note.match(/\$\d/g) ?? []).length, 1, 'the note should state no amount other than the $500 starting price')
+  } finally {
+    await page.close()
+  }
+})
+
+test('website pricing — "How website costs work" note: one-time build fee, no required plan, domain and hosting handled in the quote', async () => {
+  const page = await openServices(1280)
+  try {
+    const notes = await page.$$eval('.services-support', els => els.map(el => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
+    const note = notes.find(n => n.startsWith('How website costs work')) ?? ''
+    assert.equal(note,
+      'How website costs work — Website projects have a one-time build fee. No ongoing maintenance plan is required. ' +
+      'Domain registration is paid separately, and any website hosting costs will be specified in your quote before work begins. ' +
+      'If you need updates or help later, those are quoted separately.')
+    const page_text = await page.$eval('main', el => el.textContent ?? '')
+    assert.ok(!/free hosting|lifetime hosting|hosting (is )?included|\/month[^.]*website/i.test(page_text.replace(/\s+/g, ' ')),
+      'no free/lifetime hosting promise and no monthly website fee')
   } finally {
     await page.close()
   }

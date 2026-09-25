@@ -240,12 +240,13 @@ export function BakeryResults({ answers, onEditAnswers, onStartOver, onNameChang
         </h2>
         <p className="tool-sales-cta-body">
           I can customize this experience around your products, ordering process, and brand —
-          giving customers a clearer way to prepare before they contact you.
+          giving customers a clearer way to prepare before they contact you. Automatic inquiry
+          delivery and integrations can be quoted separately.
         </p>
         <ul className="tool-sales-cta-features" aria-label="What can be customized">
           <li>Your products, occasions, and ordering details</li>
           <li>Your colors, fonts, and brand voice</li>
-          <li>Order inquiries delivered to your inbox</li>
+          <li>Customers prepare an order request and send it to you from their own email app</li>
           <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
         </ul>
         <a

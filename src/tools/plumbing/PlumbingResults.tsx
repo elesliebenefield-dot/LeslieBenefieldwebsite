@@ -218,12 +218,13 @@ export function PlumbingResults({ answers, onEditAnswers, onStartOver, onNameCha
         </h2>
         <p className="tool-sales-cta-body">
           I can customize this experience around your services, customer questions, and
-          brand—helping customers prepare useful information before they contact you.
+          brand—helping customers prepare useful information before they contact you. Automatic
+          inquiry delivery and integrations can be quoted separately.
         </p>
         <ul className="tool-sales-cta-features" aria-label="What can be customized">
           <li>Your service types, customer questions, and intake fields</li>
           <li>Your colors, fonts, and brand voice</li>
-          <li>Service inquiries delivered to your inbox</li>
+          <li>Customers prepare a service request and send it to you from their own email app</li>
           <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
         </ul>
         <a

@@ -440,19 +440,35 @@ export function ComparisonResults({ priorities, properties, observations, onEdit
       {/* CTA — after action bar */}
       <section className="cmp-results-section cmp-cta-section">
         <h2 className="cmp-results-heading">Ready to take the next step?</h2>
-        <p>
-          A real estate professional can help you evaluate what you've observed, clarify listing details,
-          and guide you through what comes next.
-        </p>
-        <a
-          href="/contact"
-          className="cmp-cta-btn"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Connect with a professional
-        </a>
+        <p>Share your comparison with your real estate agent to discuss your options.</p>
       </section>
+
+      {/* Websites by Leslie CTA */}
+      <div className="tool-sales-cta no-print" aria-label="For real estate professionals">
+        <p className="tool-sales-cta-eyebrow">For real estate professionals</p>
+        <h2 className="tool-sales-cta-heading">
+          Want this comparison planner customized for your business?
+        </h2>
+        <p className="tool-sales-cta-body">
+          Websites by Leslie can customize this planner with your branding and the priorities your
+          buyers care about most. Automatic lead delivery and website integrations can be quoted
+          separately.
+          See setup and hosting pricing on the <a href="/services">Services & Pricing page</a>.
+        </p>
+        <ul className="tool-sales-cta-features" aria-label="What can be customized">
+          <li>Your branding and agent information</li>
+          <li>Comparison priorities and wording for your market</li>
+          <li>Buyers can copy or print their comparison, or share it from supported devices</li>
+          <li>A hosted link your website provider can add to your existing website</li>
+        </ul>
+        <a
+          href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry"
+          className="tool-sales-cta-link"
+          title="Opens your email application to contact Websites by Leslie"
+        >
+          Email Leslie →
+        </a>
+      </div>
     </div>
   )
 }

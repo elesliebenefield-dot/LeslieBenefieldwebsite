@@ -252,12 +252,12 @@ export function FoodTruckResults({ answers, onEditAnswers, onStartOver, onNameCh
         <p className="tool-sales-cta-body">
           A guided inquiry tool can help customers share the details you need before the first
           conversation. Websites by Leslie can customize the branding, questions, and workflow
-          for your business.
+          for your business. Automatic inquiry delivery and integrations can be quoted separately.
         </p>
         <ul className="tool-sales-cta-features" aria-label="What can be customized">
           <li>Your event types, logistics questions, and service details</li>
           <li>Your colors, fonts, and brand voice</li>
-          <li>Event inquiries delivered to your inbox</li>
+          <li>Organizers prepare an event inquiry and send it to you from their own email app</li>
           <li>Hosted as a standalone page your website provider can link to, or built into a new Websites by Leslie project</li>
         </ul>
         <a

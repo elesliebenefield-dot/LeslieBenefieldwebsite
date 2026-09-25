@@ -894,6 +894,15 @@ body {
 }
 
 /* ─── Sales CTA ──────────────────────────────────────────── */
+.tool-sales-cta-body a {
+  color: var(--color-accent-button);
+  text-decoration: underline;
+}
+
+.tool-sales-cta-body a:hover {
+  color: var(--color-accent-button-hover);
+}
+
 .tool-sales-cta {
   border: 2px solid var(--color-accent);
   border-radius: var(--radius-md);

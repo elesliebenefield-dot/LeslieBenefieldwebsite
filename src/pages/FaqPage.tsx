@@ -27,6 +27,7 @@ const faqs: { question: string; answer: ReactNode }[] = [
     question: 'How much does a website cost?',
     answer: (
       <>
+        Website projects have a one-time build fee, and no ongoing maintenance plan is required.
         The Starter Website begins at $500 for a defined one-page scope, and other projects get a
         custom quote based on their goals, content, and needs. Details are on the{' '}
         <a href="/services">Services & Pricing page</a> — there's no surprise hourly billing.
@@ -66,7 +67,7 @@ const faqs: { question: string; answer: ReactNode }[] = [
   {
     question: 'Do you help with domains and hosting?',
     answer:
-      "Yes, depending on the project. I can help with the practical setup — hosting and deployment, connecting your domain, contact forms, and similar basics.",
+      "Yes, depending on the project. I can help with the practical setup — hosting and deployment, connecting your domain, contact forms, and similar basics. Domain registration is paid separately, and any website hosting costs will be specified in your quote before work begins.",
   },
   {
     question: 'Will my website show up on Google?',
@@ -76,7 +77,7 @@ const faqs: { question: string; answer: ReactNode }[] = [
   {
     question: 'What happens after my website launches?',
     answer:
-      "You'll have your live website to use and share. If you'd like updates or ongoing support down the road, those are quoted by scope before any work begins.",
+      "You'll have your live website to use and share, and no ongoing maintenance plan is required. If you need updates or help later, those are quoted separately, by scope, before any work begins.",
   },
   {
     question: 'Can you work with a small budget or barter?',

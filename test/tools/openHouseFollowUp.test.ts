@@ -1113,3 +1113,32 @@ test('results print: action bar and CTA hidden; results and disclaimer visible',
   assert.notEqual(checks.disclaimer, 'none', 'disclaimer must be visible in print')
   await page.close()
 })
+
+// ─── Sales panel ("want this for your business?") ───────────────────────────
+
+test('results end with a sales panel: customization, Services & Pricing link, email link, no prices or delivery promises', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const panel = await page.$eval('.tool-sales-cta', el => ({
+      text: el.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      body: el.querySelector('.tool-sales-cta-body')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      items: Array.from(el.querySelectorAll('.tool-sales-cta-features li')).map(li => li.textContent?.trim() ?? ''),
+      noPrint: el.classList.contains('no-print'),
+      services: el.querySelector('.tool-sales-cta-body a')?.getAttribute('href') ?? null,
+      mailto: el.querySelector('a.tool-sales-cta-link')?.getAttribute('href') ?? '',
+    }))
+    const heading = await page.$eval('.tool-sales-cta-heading', el => el.textContent?.trim())
+    assert.equal(heading, 'Want this follow-up planner customized for your business?')
+    assert.equal(panel.noPrint, true, 'panel must be hidden when printing')
+    assert.equal(panel.services, '/services', 'panel should link to Services & Pricing')
+    assert.equal(panel.mailto, 'mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry')
+    assert.ok(!/\$\d/.test(panel.text), 'panel must not repeat price tables')
+    assert.ok(!/inbox/i.test(panel.text), 'panel must not promise inbox delivery')
+    assert.match(panel.text, /For real estate agents and teams/)
+    assert.match(panel.body, /private workspace for you, not a visitor sign-in form, and it doesn't send messages to visitors/)
+    assert.match(panel.body, /Automated follow-up messages and integrations can be quoted separately\./)
+  } finally {
+    await page.close()
+  }
+})

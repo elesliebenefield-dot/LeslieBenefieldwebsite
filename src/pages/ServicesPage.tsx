@@ -108,9 +108,14 @@ export default function ServicesPage() {
             <p className="services-support" data-reveal>
               <strong>About the Starter Website price</strong> — $500 is the starting price
               for the defined starter scope above. Extra pages, extensive copywriting, custom
-              tools, and additional functionality are quoted separately. Domain, hosting, and
-              ongoing care costs are not included in the starting price and will be specified
-              separately in your quote.
+              tools, and additional functionality are quoted separately.
+            </p>
+
+            <p className="services-support" data-reveal>
+              <strong>How website costs work</strong> — Website projects have a one-time build
+              fee. No ongoing maintenance plan is required. Domain registration is paid
+              separately, and any website hosting costs will be specified in your quote before
+              work begins. If you need updates or help later, those are quoted separately.
             </p>
 
             <p className="services-support" data-reveal>
@@ -284,7 +289,8 @@ export default function ServicesPage() {
                   <p className="pricing-demo-card-desc">
                     A guided, step-by-step tool that helps a bakery customer organize their order
                     request — including inscription, colors, size, timing, and questions — before
-                    contacting the business. Produces a ready-to-send order brief with one click.
+                    contacting the business. Produces an order brief the customer can send from
+                    their own email app.
                   </p>
                   <a
                     href="/tools-custom-bakery-order"
@@ -335,7 +341,7 @@ export default function ServicesPage() {
                   <p className="pricing-demo-card-desc">
                     A connected suite of six interactive planning tools for buyers, sellers, and
                     clients — from the first conversation through closing and moving. Each tool
-                    produces a plain-text brief the client can copy, print, or email directly.
+                    produces a plain-text brief the client can copy, print, or share.
                   </p>
                   <a
                     href="/real-estate-tools"

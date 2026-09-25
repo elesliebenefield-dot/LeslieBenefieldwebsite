@@ -363,6 +363,32 @@ export function ClosingResults({ setup, tasks, onBack, onStartOver }: Props) {
             Start Over
           </button>
         </div>
+
+        <div className="tool-sales-cta no-print" aria-label="For real estate professionals">
+          <p className="tool-sales-cta-eyebrow">For real estate professionals</p>
+          <h2 className="tool-sales-cta-heading">
+            Want this organizer customized for your business?
+          </h2>
+          <p className="tool-sales-cta-body">
+            Websites by Leslie can customize this organizer with your branding and a task list that
+            fits how you guide clients through closing and moving. Automatic lead delivery and
+            website integrations can be quoted separately.
+            See setup and hosting pricing on the <a href="/services">Services & Pricing page</a>.
+          </p>
+          <ul className="tool-sales-cta-features" aria-label="What can be customized">
+            <li>Your branding and agent information</li>
+            <li>A customized task library for your clients</li>
+            <li>Clients can copy or print their plan, or share it from supported devices</li>
+            <li>A hosted link your website provider can add to your existing website</li>
+          </ul>
+          <a
+            href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry"
+            className="tool-sales-cta-link"
+            title="Opens your email application to contact Websites by Leslie"
+          >
+            Email Leslie →
+          </a>
+        </div>
       </div>
 
       <ConfirmDialog

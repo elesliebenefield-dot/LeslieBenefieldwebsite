@@ -162,12 +162,13 @@ export function BuyerResults({ sections, answers, onStartOver, onEditAnswers }: 
         </h2>
         <p className="tool-sales-cta-body">
           Websites by Leslie can build a version of this tool tailored to your brand and clients.
+          Automatic lead delivery and website integrations can be quoted separately.
         </p>
         <ul className="tool-sales-cta-features" aria-label="What can be customized">
           <li>Your branding and agent information</li>
           <li>Questions and guidance for your market</li>
-          <li>Lead delivery to your inbox</li>
-          <li>Integration with your existing website</li>
+          <li>Clients can copy or print their summary, or share it from supported devices</li>
+          <li>A hosted link your website provider can add to your existing website</li>
         </ul>
         <a
           href="mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry"

@@ -1621,3 +1621,25 @@ test('Regression: Closing & Moving Organizer still loads', async () => {
 test('Regression: Custom Bakery Order Planner still loads', async () => {
   assert.ok(await checkToolLoads('tools-custom-bakery-order.html', /bakery|custom/i))
 })
+
+// ─── Sales panel: accurate delivery wording ──────────────────────────────────
+
+test('sales panel says visitors send inquiries from their own email app and makes no automatic-delivery promise', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const panel = await page.$eval('.tool-sales-cta', el => ({
+      text: el.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      body: el.querySelector('.tool-sales-cta-body')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      items: Array.from(el.querySelectorAll('.tool-sales-cta-features li')).map(li => li.textContent?.trim() ?? ''),
+      noPrint: el.classList.contains('no-print'),
+      services: el.querySelector('.tool-sales-cta-body a')?.getAttribute('href') ?? null,
+      mailto: el.querySelector('a.tool-sales-cta-link')?.getAttribute('href') ?? '',
+    }))
+    assert.ok(panel.items.includes('Customers prepare a service request and send it to you from their own email app'), `expected own-email-app bullet, got: ${JSON.stringify(panel.items)}`)
+    assert.ok(!/inbox|delivered to you/i.test(panel.text), 'panel must not promise inbox delivery')
+    assert.match(panel.body, /Automatic inquiry delivery and integrations can be quoted separately\./)
+  } finally {
+    await page.close()
+  }
+})

@@ -391,3 +391,19 @@ test('"Back to Websites by Leslie" link is keyboard-focusable and points home', 
     await page.close()
   }
 })
+
+test('cost-related answers match the Services page: one-time build fee, domain separate, hosting in the quote, later help quoted separately', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/faq.html`, { waitUntil: 'load' })
+    const answers = await page.$$eval('.faq-item', (els) => Object.fromEntries(els.map((el) => [
+      el.querySelector('.faq-question')?.textContent?.trim() ?? '',
+      el.querySelector('.faq-answer')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    ])))
+    assert.match(answers['How much does a website cost?'], /one-time build fee, and no ongoing maintenance plan is required/)
+    assert.match(answers['Do you help with domains and hosting?'], /Domain registration is paid separately, and any website hosting costs will be specified in your quote before work begins\./)
+    assert.match(answers['What happens after my website launches?'], /no ongoing maintenance plan is required\. If you need updates or help later, those are quoted separately/)
+  } finally {
+    await page.close()
+  }
+})

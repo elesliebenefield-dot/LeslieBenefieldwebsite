@@ -898,3 +898,26 @@ test('no horizontal overflow at 1440px on results page', async () => {
   assert.ok(scroll <= 1440, `scrollWidth=${scroll}`)
   await page.close()
 })
+
+// ─── Sales panel: accurate sharing wording ───────────────────────────────────
+
+test('sales panel describes only copy/print/share and makes no lead-delivery promise', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page)
+    const panel = await page.$eval('.tool-sales-cta', el => ({
+      text: el.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      body: el.querySelector('.tool-sales-cta-body')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      items: Array.from(el.querySelectorAll('.tool-sales-cta-features li')).map(li => li.textContent?.trim() ?? ''),
+      noPrint: el.classList.contains('no-print'),
+      services: el.querySelector('.tool-sales-cta-body a')?.getAttribute('href') ?? null,
+      mailto: el.querySelector('a.tool-sales-cta-link')?.getAttribute('href') ?? '',
+    }))
+    assert.ok(panel.items.includes('Clients can copy or print their action plan, or share it from supported devices'),
+      `expected sharing bullet, got: ${JSON.stringify(panel.items)}`)
+    assert.ok(!/inbox|lead delivery to/i.test(panel.text), 'panel must not promise lead delivery to an inbox')
+    assert.match(panel.body, /Automatic lead delivery and website integrations can be quoted separately\./)
+  } finally {
+    await page.close()
+  }
+})

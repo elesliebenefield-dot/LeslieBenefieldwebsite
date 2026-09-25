@@ -1259,3 +1259,30 @@ test('Regression: Open House Follow-Up still loads', async () => {
   const ok = await checkToolTitle(baseUrl, browser, 'tools-open-house-follow-up.html', /open house|follow.up/i)
   assert.ok(ok)
 })
+
+// ─── Sales panel ("want this for your business?") ───────────────────────────
+
+test('results end with a sales panel: customization, Services & Pricing link, email link, no prices or delivery promises', async () => {
+  const page = await openTool()
+  try {
+    await advanceToResults(page, 'buying')
+    const panel = await page.$eval('.tool-sales-cta', el => ({
+      text: el.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      body: el.querySelector('.tool-sales-cta-body')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      items: Array.from(el.querySelectorAll('.tool-sales-cta-features li')).map(li => li.textContent?.trim() ?? ''),
+      noPrint: el.classList.contains('no-print'),
+      services: el.querySelector('.tool-sales-cta-body a')?.getAttribute('href') ?? null,
+      mailto: el.querySelector('a.tool-sales-cta-link')?.getAttribute('href') ?? '',
+    }))
+    const heading = await page.$eval('.tool-sales-cta-heading', el => el.textContent?.trim())
+    assert.equal(heading, 'Want this organizer customized for your business?')
+    assert.equal(panel.noPrint, true, 'panel must be hidden when printing')
+    assert.equal(panel.services, '/services', 'panel should link to Services & Pricing')
+    assert.equal(panel.mailto, 'mailto:websitesbyleslie01@gmail.com?subject=Custom%20planner%20inquiry')
+    assert.ok(!/\$\d/.test(panel.text), 'panel must not repeat price tables')
+    assert.ok(!/inbox/i.test(panel.text), 'panel must not promise inbox delivery')
+    assert.match(panel.body, /Automatic lead delivery and website integrations can be quoted separately\./)
+  } finally {
+    await page.close()
+  }
+})
