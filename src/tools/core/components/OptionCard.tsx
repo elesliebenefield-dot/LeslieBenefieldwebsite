@@ -23,6 +23,7 @@ export function OptionCard({ id, name, value, label, checked, type, onChange, ha
         checked={checked}
         onChange={e => onChange(value, e.target.checked)}
         className="option-card-input"
+        aria-invalid={hasError || undefined}
       />
       <span className={`option-card-indicator${type === 'checkbox' ? ' checkbox' : ''}`} aria-hidden="true">
         {type === 'radio' ? (

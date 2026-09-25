@@ -39,7 +39,7 @@ export function AboutYourHomeStage({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.propertyType ? 'propertyType-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.propertyType ? ' has-error' : ''}`}>
             What type of property is it?
           </legend>
@@ -59,7 +59,7 @@ export function AboutYourHomeStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.propertyType && (
-            <span className="tool-question-error" role="alert">Please select a property type.</span>
+            <span id="propertyType-error" className="tool-question-error" role="alert">Please select a property type.</span>
           )}
         </fieldset>
       </div>
@@ -105,7 +105,7 @@ export function AboutYourHomeStage({ answers, onChange, showErrors }: Props) {
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.recentWork ? 'recentWork-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.recentWork ? ' has-error' : ''}`}>
             Any plumbing work done in the past year?
           </legend>
@@ -125,7 +125,7 @@ export function AboutYourHomeStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.recentWork && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="recentWork-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
 

@@ -52,7 +52,7 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.homeArea ? 'homeArea-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.homeArea ? ' has-error' : ''}`}>
             Where in your home is the issue?
           </legend>
@@ -72,7 +72,7 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.homeArea && (
-            <span className="tool-question-error" role="alert">Please select a location.</span>
+            <span id="homeArea-error" className="tool-question-error" role="alert">Please select a location.</span>
           )}
         </fieldset>
       </div>
@@ -92,7 +92,7 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.firstNoticed ? 'firstNoticed-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.firstNoticed ? ' has-error' : ''}`}>
             When did you first notice this?
           </legend>
@@ -112,13 +112,13 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.firstNoticed && (
-            <span className="tool-question-error" role="alert">Please select when you first noticed this.</span>
+            <span id="firstNoticed-error" className="tool-question-error" role="alert">Please select when you first noticed this.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.changeAnswer ? 'changeAnswer-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.changeAnswer ? ' has-error' : ''}`}>
             Has the situation changed since you first noticed it?
           </legend>
@@ -138,13 +138,13 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.changeAnswer && (
-            <span className="tool-question-error" role="alert">Please select how it has changed.</span>
+            <span id="changeAnswer-error" className="tool-question-error" role="alert">Please select how it has changed.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.history ? 'history-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.history ? ' has-error' : ''}`}>
             Has something like this happened before?
           </legend>
@@ -164,13 +164,13 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.history && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="history-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.waterElsewhere ? 'waterElsewhere-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.waterElsewhere ? ' has-error' : ''}`}>
             Can you use water normally in other areas of your home?
           </legend>
@@ -190,7 +190,7 @@ export function WhereAndWhenStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.waterElsewhere && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="waterElsewhere-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

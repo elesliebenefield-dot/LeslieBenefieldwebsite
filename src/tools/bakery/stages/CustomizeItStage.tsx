@@ -20,6 +20,8 @@ export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
         </label>
         <input
           id="sizeQuantity"
+          aria-invalid={(showErrors && !answers.sizeQuantity.trim()) || undefined}
+          aria-describedby={showErrors && !answers.sizeQuantity.trim() ? 'sizeQuantity-error' : undefined}
           type="text"
           className={`tool-input${showErrors && !answers.sizeQuantity.trim() ? ' tool-input--error' : ''}`}
           placeholder={getSizeQuantityPlaceholder(answers.productType)}
@@ -28,7 +30,7 @@ export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
           aria-required="true"
         />
         {showErrors && !answers.sizeQuantity.trim() && (
-          <span className="tool-question-error" role="alert">Please describe the size and quantity.</span>
+          <span id="sizeQuantity-error" className="tool-question-error" role="alert">Please describe the size and quantity.</span>
         )}
       </div>
 
@@ -54,6 +56,8 @@ export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
         {!answers.noInscription && (
           <textarea
             id="inscriptionText"
+            aria-invalid={(showErrors && !answers.noInscription && !answers.inscriptionText.trim()) || undefined}
+            aria-describedby={showErrors && !answers.noInscription && !answers.inscriptionText.trim() ? 'inscriptionText-error' : undefined}
             className="tool-textarea"
             rows={3}
             placeholder='e.g., Happy 40th, Mom! ❤️'
@@ -63,7 +67,7 @@ export function CustomizeItStage({ answers, onChange, showErrors }: Props) {
           />
         )}
         {showErrors && !answers.noInscription && !answers.inscriptionText.trim() && (
-          <span className="tool-question-error" role="alert">
+          <span id="inscriptionText-error" className="tool-question-error" role="alert">
             Enter the inscription text, or check "No inscription needed."
           </span>
         )}

@@ -74,7 +74,7 @@ export function TransitionSetupStage({ setup, onChange, showErrors, onNext }: Pr
       </div>
 
       {/* Transition type */}
-      <fieldset className="cm-fieldset">
+      <fieldset className="cm-fieldset" aria-describedby={missingType ? 'cm-type-error' : undefined}>
         <legend className={`cm-legend${missingType ? ' cm-legend--error' : ''}`}>
           Transition type <span className="cm-required-mark" aria-hidden="true">*</span>
         </legend>
@@ -87,6 +87,7 @@ export function TransitionSetupStage({ setup, onChange, showErrors, onNext }: Pr
               checked={setup.transitionType === type}
               onChange={() => field('transitionType', type)}
               className="cm-radio-input"
+              aria-invalid={missingType || undefined}
             />
             <span className="cm-radio-label-text">{TRANSITION_TYPE_LABELS[type]}</span>
           </label>

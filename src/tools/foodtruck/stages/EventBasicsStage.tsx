@@ -36,13 +36,13 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
     <div>
       {/* Q1 — Event type */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={eventTypeError ? 'eventType-error' : undefined}>
           <legend className={`tool-question-legend${eventTypeError ? ' has-error' : ''}`}>
             What type of event is this?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {eventTypeError && (
-            <span className="tool-question-error" role="alert">Please select an event type.</span>
+            <span id="eventType-error" className="tool-question-error" role="alert">Please select an event type.</span>
           )}
           <div className="option-cards">
             {(Object.keys(EVENT_TYPE_LABELS) as EventTypeKey[]).map(key => (
@@ -64,13 +64,13 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
 
       {/* Q2 — Date status */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={dateStatusError ? 'eventDateStatus-error' : undefined}>
           <legend className={`tool-question-legend${dateStatusError ? ' has-error' : ''}`}>
             Do you have a confirmed event date?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {dateStatusError && (
-            <span className="tool-question-error" role="alert">Please select a date option.</span>
+            <span id="eventDateStatus-error" className="tool-question-error" role="alert">Please select a date option.</span>
           )}
           <div className="option-cards option-cards--compact">
             {(Object.keys(EVENT_DATE_STATUS_LABELS) as EventDateStatusKey[]).map(key => (
@@ -101,10 +101,12 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </label>
           {eventDateError && (
-            <span className="tool-question-error" role="alert">Please enter the event date.</span>
+            <span id="eventDate-error" className="tool-question-error" role="alert">Please enter the event date.</span>
           )}
           <input
             id="eventDate"
+            aria-invalid={(eventDateError) || undefined}
+            aria-describedby={eventDateError ? 'eventDate-error' : undefined}
             type="date"
             className={`tool-input tool-input--date${eventDateError ? ' tool-input--error' : ''}`}
             value={answers.eventDate}
@@ -127,12 +129,14 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
           }
         </label>
         {dateNotesError && (
-          <span className="tool-question-error" role="alert">
+          <span id="dateNotes-error" className="tool-question-error" role="alert">
             Please describe your target date or timeframe since the date isn't confirmed yet.
           </span>
         )}
         <input
           id="dateNotes"
+          aria-invalid={(dateNotesError) || undefined}
+          aria-describedby={dateNotesError ? 'dateNotes-error' : undefined}
           type="text"
           className={`tool-input${dateNotesError ? ' tool-input--error' : ''}`}
           placeholder={
@@ -152,10 +156,12 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
           <span className="tool-question-required" aria-hidden="true"> *</span>
         </label>
         {venueError && (
-          <span className="tool-question-error" role="alert">Please enter a location or venue name.</span>
+          <span id="venueName-error" className="tool-question-error" role="alert">Please enter a location or venue name.</span>
         )}
         <input
           id="venueName"
+          aria-invalid={(venueError) || undefined}
+          aria-describedby={venueError ? 'venueName-error' : undefined}
           type="text"
           className={`tool-input${venueError ? ' tool-input--error' : ''}`}
           placeholder="e.g., Riverside Park Pavilion, Austin TX — or — Our office parking lot, downtown Houston"
@@ -167,13 +173,13 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
 
       {/* Q4 — Public or private */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={publicError ? 'isPublic-error' : undefined}>
           <legend className={`tool-question-legend${publicError ? ' has-error' : ''}`}>
             Is this a public or private event?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {publicError && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="isPublic-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
           <div className="option-cards option-cards--compact">
             {(Object.keys(PUBLIC_PRIVATE_LABELS) as PublicPrivateKey[]).map(key => (
@@ -195,13 +201,13 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
 
       {/* Q5 — Attendance */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={attendanceError ? 'attendance-error' : undefined}>
           <legend className={`tool-question-legend${attendanceError ? ' has-error' : ''}`}>
             Approximately how many people are you expecting?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {attendanceError && (
-            <span className="tool-question-error" role="alert">Please select an attendance range.</span>
+            <span id="attendance-error" className="tool-question-error" role="alert">Please select an attendance range.</span>
           )}
           <div className="option-cards">
             {(Object.keys(ATTENDANCE_LABELS) as AttendanceKey[]).map(key => (
@@ -223,13 +229,13 @@ export function EventBasicsStage({ answers, onChange, showErrors }: Props) {
 
       {/* Q6 — Service window */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={windowError ? 'serviceWindow-error' : undefined}>
           <legend className={`tool-question-legend${windowError ? ' has-error' : ''}`}>
             When would you like food service?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {windowError && (
-            <span className="tool-question-error" role="alert">Please select a service window.</span>
+            <span id="serviceWindow-error" className="tool-question-error" role="alert">Please select a service window.</span>
           )}
           <div className="option-cards">
             {(Object.keys(SERVICE_WINDOW_LABELS) as ServiceWindowKey[]).map(key => (

@@ -48,7 +48,7 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.hoaInvolvement ? 'hoaInvolvement-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.hoaInvolvement ? ' has-error' : ''}`}>
             Does your property have a homeowners association (HOA)?
           </legend>
@@ -68,7 +68,7 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.hoaInvolvement && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="hoaInvolvement-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
@@ -97,7 +97,7 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.multipleOwners ? 'multipleOwners-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.multipleOwners ? ' has-error' : ''}`}>
             How many owners are on the deed?
           </legend>
@@ -117,13 +117,13 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.multipleOwners && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="multipleOwners-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.timingComplications ? 'timingComplications-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.timingComplications ? ' has-error' : ''}`}>
             Are there timing complications we should plan around?
           </legend>
@@ -143,7 +143,7 @@ export function InformationStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.timingComplications && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="timingComplications-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

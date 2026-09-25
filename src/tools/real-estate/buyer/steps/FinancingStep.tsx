@@ -19,7 +19,7 @@ export function FinancingStep({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.financingStatus ? 'financingStatus-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.financingStatus ? ' has-error' : ''}`}>
             Where are you in the financing process?
           </legend>
@@ -39,7 +39,7 @@ export function FinancingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.financingStatus && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="financingStatus-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

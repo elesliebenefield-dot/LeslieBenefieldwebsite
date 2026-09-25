@@ -207,7 +207,7 @@ function CustomTaskForm({ onAdd, onCancel }: CustomTaskFormProps) {
           Task title <span className="listing-required-mark" aria-hidden="true">*</span>
         </label>
         {titleError && (
-          <span className="tool-question-error" role="alert">A task title is required.</span>
+          <span id={`custom-title-error-${formId}`} className="tool-question-error" role="alert">A task title is required.</span>
         )}
         <input
           id={`custom-title-${formId}`}
@@ -219,6 +219,7 @@ function CustomTaskForm({ onAdd, onCancel }: CustomTaskFormProps) {
           maxLength={200}
           aria-required="true"
           aria-invalid={titleError}
+          aria-describedby={titleError ? `custom-title-error-${formId}` : undefined}
         />
       </div>
       <div className="listing-task-field">

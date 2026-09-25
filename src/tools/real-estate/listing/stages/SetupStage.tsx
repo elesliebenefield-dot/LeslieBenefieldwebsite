@@ -51,12 +51,12 @@ export function SetupStage({ setup, onChange, showErrors }: Props) {
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={occupancyError ? 'occupancy-error' : undefined}>
           <legend className={`tool-question-legend${occupancyError ? ' has-error' : ''}`}>
             Current occupancy
           </legend>
           {occupancyError && (
-            <span className="tool-question-error">Please select one option to continue.</span>
+            <span id="occupancy-error" className="tool-question-error">Please select one option to continue.</span>
           )}
           <div className="option-cards">
             {OCCUPANCY_OPTIONS.map(opt => (

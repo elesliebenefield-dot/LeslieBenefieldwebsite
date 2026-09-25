@@ -42,7 +42,7 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.housingTiming ? 'housingTiming-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.housingTiming ? ' has-error' : ''}`}>
             What best describes your current housing situation?
           </legend>
@@ -62,13 +62,13 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.housingTiming && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="housingTiming-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.mustSellFirst ? 'mustSellFirst-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.mustSellFirst ? ' has-error' : ''}`}>
             Does your home purchase depend on selling a home first?
           </legend>
@@ -88,13 +88,13 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.mustSellFirst && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="mustSellFirst-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.showingAvailability ? 'showingAvailability-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.showingAvailability ? ' has-error' : ''}`}>
             How available are you for scheduling home showings?
           </legend>
@@ -114,13 +114,13 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.showingAvailability && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="showingAvailability-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.otherDecisionMakers ? 'otherDecisionMakers-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.otherDecisionMakers ? ' has-error' : ''}`}>
             Will other people be involved in the purchase decision?
           </legend>
@@ -140,13 +140,13 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.otherDecisionMakers && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="otherDecisionMakers-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.movingFlexibility ? 'movingFlexibility-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.movingFlexibility ? ' has-error' : ''}`}>
             How flexible is your move-in date?
           </legend>
@@ -166,7 +166,7 @@ export function TimingStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.movingFlexibility && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="movingFlexibility-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

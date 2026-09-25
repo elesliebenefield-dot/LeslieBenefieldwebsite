@@ -183,7 +183,7 @@ export function PrioritiesStage({ priorities, onChange, showErrors }: Props) {
 
         <div className="cmp-add-custom" role="group" aria-label="Add custom priority">
           <h3 className="cmp-add-custom-heading">Add a custom priority</h3>
-          {customError && <span className="tool-question-error" role="alert">Enter a label for your custom priority.</span>}
+          {customError && <span id="cmp-custom-priority-error" className="tool-question-error" role="alert">Enter a label for your custom priority.</span>}
           <div className="cmp-add-custom-row">
             <input
               type="text"
@@ -195,7 +195,8 @@ export function PrioritiesStage({ priorities, onChange, showErrors }: Props) {
               disabled={atMax}
               maxLength={120}
               aria-label="Custom priority label"
-              aria-describedby={atMax ? 'cmp-limit-msg' : undefined}
+              aria-invalid={customError || undefined}
+              aria-describedby={[customError && 'cmp-custom-priority-error', atMax && 'cmp-limit-msg'].filter(Boolean).join(' ') || undefined}
             />
             <button
               type="button"

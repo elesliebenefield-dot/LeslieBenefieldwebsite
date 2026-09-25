@@ -32,7 +32,7 @@ export function BuyingPlansStep({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.timeframe ? 'timeframe-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.timeframe ? ' has-error' : ''}`}>
             When are you hoping to purchase?
           </legend>
@@ -52,13 +52,13 @@ export function BuyingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.timeframe && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="timeframe-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.stage ? 'stage-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.stage ? ' has-error' : ''}`}>
             Where are you in the buying process?
           </legend>
@@ -78,13 +78,13 @@ export function BuyingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.stage && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="stage-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.purchaseType ? 'purchaseType-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.purchaseType ? ' has-error' : ''}`}>
             What best describes what you're planning to purchase?
           </legend>
@@ -104,7 +104,7 @@ export function BuyingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.purchaseType && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="purchaseType-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

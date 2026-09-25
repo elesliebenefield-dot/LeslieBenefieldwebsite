@@ -229,7 +229,7 @@ function FollowUpSection({ obs, onUpdate }: SectionProps) {
         )}
 
         <div className="cmp-add-custom-row">
-          {customError && <span className="tool-question-error" role="alert">Enter a follow-up item.</span>}
+          {customError && <span id={`cmp-followup-error-${obs.propertyId}`} className="tool-question-error" role="alert">Enter a follow-up item.</span>}
           <input
             type="text"
             className={`tool-input cmp-custom-input${customError ? ' tool-input--error' : ''}`}
@@ -239,6 +239,8 @@ function FollowUpSection({ obs, onUpdate }: SectionProps) {
             onKeyDown={e => { if (e.key === 'Enter') addCustom() }}
             maxLength={200}
             aria-label="Custom follow-up action"
+            aria-invalid={customError || undefined}
+            aria-describedby={customError ? `cmp-followup-error-${obs.propertyId}` : undefined}
           />
           <button type="button" className="cmp-add-custom-btn" onClick={addCustom}>Add</button>
         </div>

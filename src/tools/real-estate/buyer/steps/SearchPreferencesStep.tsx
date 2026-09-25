@@ -139,7 +139,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.hasTargetArea ? 'hasTargetArea-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.hasTargetArea ? ' has-error' : ''}`}>
             Do you have a target area or neighborhood in mind?
           </legend>
@@ -159,7 +159,7 @@ export function SearchPreferencesStep({ answers, onChange, showErrors }: Props) 
             ))}
           </div>
           {showErrors && !answers.hasTargetArea && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="hasTargetArea-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

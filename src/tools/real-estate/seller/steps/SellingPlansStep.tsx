@@ -33,7 +33,7 @@ export function SellingPlansStep({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.timeframe ? 'timeframe-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.timeframe ? ' has-error' : ''}`}>
             When are you hoping to list?
           </legend>
@@ -53,13 +53,13 @@ export function SellingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.timeframe && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="timeframe-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.stage ? 'stage-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.stage ? ' has-error' : ''}`}>
             Where are you in the selling process?
           </legend>
@@ -79,13 +79,13 @@ export function SellingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.stage && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="stage-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.coordination ? 'coordination-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.coordination ? ' has-error' : ''}`}>
             Does your home sale need to coordinate with a purchase?
           </legend>
@@ -105,7 +105,7 @@ export function SellingPlansStep({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.coordination && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="coordination-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

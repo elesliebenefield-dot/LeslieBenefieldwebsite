@@ -33,14 +33,14 @@ export function FoodAndServiceStage({ answers, onChange, showErrors }: Props) {
     <div>
       {/* Q8 — Service type (multi-select) */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={serviceTypeError ? 'serviceType-error' : undefined}>
           <legend className={`tool-question-legend${serviceTypeError ? ' has-error' : ''}`}>
             What type of service are you looking for?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           <p className="tool-question-hint" style={{ marginBottom: '0.75rem' }}>Select all that apply.</p>
           {serviceTypeError && (
-            <span className="tool-question-error" role="alert">Please select at least one service type.</span>
+            <span id="serviceType-error" className="tool-question-error" role="alert">Please select at least one service type.</span>
           )}
           <div className="option-cards">
             {ALL_SERVICE_TYPES.map(key => (
@@ -77,13 +77,13 @@ export function FoodAndServiceStage({ answers, onChange, showErrors }: Props) {
 
       {/* Q9 — Payment arrangement */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={paymentError ? 'paymentArrangement-error' : undefined}>
           <legend className={`tool-question-legend${paymentError ? ' has-error' : ''}`}>
             How will guests pay for food and drink?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {paymentError && (
-            <span className="tool-question-error" role="alert">Please select a payment arrangement.</span>
+            <span id="paymentArrangement-error" className="tool-question-error" role="alert">Please select a payment arrangement.</span>
           )}
           <div className="option-cards">
             {(Object.keys(PAYMENT_LABELS) as PaymentKey[]).map(key => (

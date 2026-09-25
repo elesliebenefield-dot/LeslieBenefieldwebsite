@@ -27,13 +27,13 @@ export function VenueAndLogisticsStage({ answers, onChange, showErrors }: Props)
     <div>
       {/* Q14 — Setup space */}
       <div className="tool-question">
-        <fieldset>
+        <fieldset aria-describedby={setupSpaceError ? 'setupSpace-error' : undefined}>
           <legend className={`tool-question-legend${setupSpaceError ? ' has-error' : ''}`}>
             Is there space for a food truck or trailer to set up?
             <span className="tool-question-required" aria-hidden="true"> *</span>
           </legend>
           {setupSpaceError && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="setupSpace-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
           <div className="option-cards">
             {(Object.keys(SETUP_SPACE_LABELS) as SetupSpaceKey[]).map(key => (

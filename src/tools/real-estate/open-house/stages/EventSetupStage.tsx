@@ -42,6 +42,7 @@ export function EventSetupStage({ setup, onChange, showErrors, onNext }: Props) 
           onChange={e => field('propertyLabel', e.target.value)}
           placeholder="e.g. 123 Maple Street, or Unit 4B"
           aria-required="true"
+          aria-invalid={missingLabel || undefined}
           aria-describedby={missingLabel ? 'oh-property-label-error' : undefined}
         />
         {missingLabel && (
@@ -63,6 +64,7 @@ export function EventSetupStage({ setup, onChange, showErrors, onNext }: Props) 
           value={setup.date}
           onChange={e => field('date', e.target.value)}
           aria-required="true"
+          aria-invalid={missingDate || undefined}
           aria-describedby={missingDate ? 'oh-date-error' : undefined}
         />
         {missingDate && (

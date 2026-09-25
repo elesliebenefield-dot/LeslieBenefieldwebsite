@@ -186,7 +186,7 @@ function CustomTaskForm({ onAdd, onCancel }: { onAdd: (task: PlanTask) => void; 
         <label htmlFor={`rv-custom-title-${formId}`} className="listing-field-label">
           Task title <span className="listing-required-mark" aria-hidden="true">*</span>
         </label>
-        {titleError && <span className="tool-question-error" role="alert">A task title is required.</span>}
+        {titleError && <span id={`rv-custom-title-error-${formId}`} className="tool-question-error" role="alert">A task title is required.</span>}
         <input
           id={`rv-custom-title-${formId}`}
           type="text"
@@ -197,6 +197,7 @@ function CustomTaskForm({ onAdd, onCancel }: { onAdd: (task: PlanTask) => void; 
           maxLength={200}
           aria-required="true"
           aria-invalid={titleError}
+          aria-describedby={titleError ? `rv-custom-title-error-${formId}` : undefined}
         />
       </div>
       <div className="listing-task-field">

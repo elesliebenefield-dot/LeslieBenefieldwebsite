@@ -38,7 +38,7 @@ export function TimingDetailsStage({ answers, onChange, showErrors }: Props) {
 
       {/* Budget */}
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.budget ? 'budget-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.budget ? ' has-error' : ''}`}>
             Approximate budget
           </legend>
@@ -58,7 +58,7 @@ export function TimingDetailsStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.budget && (
-            <span className="tool-question-error" role="alert">Please select a budget range.</span>
+            <span id="budget-error" className="tool-question-error" role="alert">Please select a budget range.</span>
           )}
         </fieldset>
       </div>

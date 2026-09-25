@@ -30,7 +30,7 @@ export function WhatIsHappeningStage({ answers, onChange, showErrors }: Props) {
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.concernType ? 'concernType-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.concernType ? ' has-error' : ''}`}>
             What type of concern are you dealing with?
           </legend>
@@ -50,13 +50,13 @@ export function WhatIsHappeningStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.concernType && (
-            <span className="tool-question-error" role="alert">Please select a concern type.</span>
+            <span id="concernType-error" className="tool-question-error" role="alert">Please select a concern type.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.activeWater ? 'activeWater-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.activeWater ? ' has-error' : ''}`}>
             Is water currently running, dripping, or collecting somewhere it shouldn't be?
           </legend>
@@ -76,7 +76,7 @@ export function WhatIsHappeningStage({ answers, onChange, showErrors }: Props) {
             ))}
           </div>
           {showErrors && !answers.activeWater && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="activeWater-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
           {answers.activeWater === 'flowing_spreading' && (
             <div className="plumbing-urgency-notice" role="note">

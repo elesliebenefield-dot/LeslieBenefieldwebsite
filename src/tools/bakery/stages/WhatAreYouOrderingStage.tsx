@@ -37,7 +37,7 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.productType ? 'productType-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.productType ? ' has-error' : ''}`}>
             What are you ordering?
           </legend>
@@ -57,7 +57,7 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.productType && (
-            <span className="tool-question-error" role="alert">Please select a product type.</span>
+            <span id="productType-error" className="tool-question-error" role="alert">Please select a product type.</span>
           )}
         </fieldset>
       </div>
@@ -71,6 +71,8 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
         </label>
         <input
           id="neededByDate"
+          aria-invalid={(showErrors && !answers.neededByDate) || undefined}
+          aria-describedby={showErrors && !answers.neededByDate ? 'neededByDate-error' : undefined}
           type="date"
           className={`tool-input tool-input--date${showErrors && !answers.neededByDate ? ' tool-input--error' : ''}`}
           value={answers.neededByDate}
@@ -78,12 +80,12 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
           aria-required="true"
         />
         {showErrors && !answers.neededByDate && (
-          <span className="tool-question-error" role="alert">Please enter a date.</span>
+          <span id="neededByDate-error" className="tool-question-error" role="alert">Please enter a date.</span>
         )}
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.occasion ? 'occasion-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.occasion ? ' has-error' : ''}`}>
             What is this for?
           </legend>
@@ -103,13 +105,13 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.occasion && (
-            <span className="tool-question-error" role="alert">Please select an occasion.</span>
+            <span id="occasion-error" className="tool-question-error" role="alert">Please select an occasion.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.recipient ? 'recipient-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.recipient ? ' has-error' : ''}`}>
             Who is this order for?
           </legend>
@@ -129,7 +131,7 @@ export function WhatAreYouOrderingStage({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.recipient && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="recipient-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

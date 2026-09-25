@@ -43,7 +43,7 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
   return (
     <div>
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.knownRepairs ? 'knownRepairs-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.knownRepairs ? ' has-error' : ''}`}>
             Are there known repairs or deferred maintenance?
           </legend>
@@ -63,13 +63,13 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.knownRepairs && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="knownRepairs-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.declutterStatus ? 'declutterStatus-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.declutterStatus ? ' has-error' : ''}`}>
             How is your decluttering and packing plan?
           </legend>
@@ -89,13 +89,13 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.declutterStatus && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="declutterStatus-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.recentImprovements ? 'recentImprovements-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.recentImprovements ? ' has-error' : ''}`}>
             Have you made significant improvements to the property recently?
           </legend>
@@ -115,13 +115,13 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.recentImprovements && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="recentImprovements-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.accessArrangement ? 'accessArrangement-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.accessArrangement ? ' has-error' : ''}`}>
             How is access for showings?
           </legend>
@@ -141,13 +141,13 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.accessArrangement && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="accessArrangement-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>
 
       <div className="tool-question">
-        <fieldset className="tool-question-fieldset">
+        <fieldset className="tool-question-fieldset" aria-describedby={showErrors && !answers.prepQuestions ? 'prepQuestions-error' : undefined}>
           <legend className={`tool-question-legend${showErrors && !answers.prepQuestions ? ' has-error' : ''}`}>
             Do you have questions about preparing your property for listing?
           </legend>
@@ -167,7 +167,7 @@ export function PropertyPreparationStep({ answers, onChange, showErrors }: Props
             ))}
           </div>
           {showErrors && !answers.prepQuestions && (
-            <span className="tool-question-error" role="alert">Please select an option.</span>
+            <span id="prepQuestions-error" className="tool-question-error" role="alert">Please select an option.</span>
           )}
         </fieldset>
       </div>

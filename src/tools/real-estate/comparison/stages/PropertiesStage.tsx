@@ -238,7 +238,7 @@ export function PropertiesStage({ properties, onChange, showErrors }: Props) {
                       Property nickname <span className="cmp-required-mark" aria-hidden="true">*</span>
                     </label>
                     {missingNickname && (
-                      <span className="tool-question-error" role="alert">A nickname is required to identify this property.</span>
+                      <span id={`nickname-error-${prop.id}`} className="tool-question-error" role="alert">A nickname is required to identify this property.</span>
                     )}
                     <input
                       id={`nickname-${prop.id}`}
@@ -250,6 +250,7 @@ export function PropertiesStage({ properties, onChange, showErrors }: Props) {
                       maxLength={80}
                       aria-required="true"
                       aria-invalid={missingNickname}
+                      aria-describedby={missingNickname ? `nickname-error-${prop.id}` : undefined}
                     />
                   </div>
                   <PropertyForm
