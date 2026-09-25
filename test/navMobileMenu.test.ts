@@ -71,7 +71,7 @@ const EXPECTED_GROUPS = [
     label: 'Services',
     items: [
       { text: 'Services & Pricing', href: '/services' },
-      { text: 'Process', href: '#process' },
+      { text: 'Process', href: '/services#process' },
     ],
   },
   {
@@ -167,7 +167,7 @@ test('every group\'s real destinations are present with the correct text and hre
   }
 })
 
-test('on an interior page (variant="page"), every group\'s destinations are still correct — homepage-section links (Portfolio, About, Process, Contact) get the "/" prefix, real page routes stay identical', async () => {
+test('on an interior page (variant="page"), every group\'s destinations are still correct — homepage-section links (Portfolio, About, Contact) get the "/" prefix, real page routes stay identical', async () => {
   const page: Page = await browser.newPage()
   try {
     await openMenu(page, '/check.html')
@@ -290,16 +290,17 @@ test('selecting a destination inside an expanded group closes the entire mobile 
   const page: Page = await browser.newPage()
   try {
     await openMenu(page)
-    await page.click('.nav-mobile-group-toggle')
+    const toggles = await page.$$('.nav-mobile-group-toggle')
+    await toggles[1].click()
     // Let the 0.35s expand transition finish before clicking — otherwise
     // Puppeteer can click a stale position mid-animation.
     await new Promise((r) => setTimeout(r, 500))
-    // "Process" (#process, an in-page anchor) is used deliberately instead
+    // "Portfolio" (#work, an in-page anchor) is used deliberately instead
     // of a real-navigation link like "Services & Pricing" — isolates the
     // close-on-click behavior itself from page-navigation timing.
     const links = await page.$$('.nav-mobile-sublink')
-    const processLink = await page.evaluate(() => Array.from(document.querySelectorAll('.nav-mobile-sublink')).findIndex(el => el.textContent?.trim() === 'Process'))
-    await links[processLink].click()
+    const portfolioLink = await page.evaluate(() => Array.from(document.querySelectorAll('.nav-mobile-sublink')).findIndex(el => el.textContent?.trim() === 'Portfolio'))
+    await links[portfolioLink].click()
     const navMobileHidden = await page.$eval('.nav-mobile', (el) => (el as HTMLElement).style.display === 'none')
     assert.ok(navMobileHidden, 'the mobile menu should close after selecting a destination')
   } finally {

@@ -1,9 +1,8 @@
-// Homepage portfolio demos card — integration tests.
-// Verifies the new "Interactive Tools for Small Businesses" featured card in
-// the Work section: correct status label, title, description, button text,
-// and link destination; the anchor target on the Services page; no horizontal
-// overflow at desktop and 320px; and that existing client project cards are
-// unchanged.
+// Homepage structure, Tools band, and portfolio — integration tests.
+// Verifies the section order, the approved hero copy, the three "What I
+// Build" cards, the Tools band's demo thumbnail (moved from the old Work-grid
+// demos card), the /services#interactive-tool-demos anchor, no horizontal
+// overflow at desktop and 320px, and that client project cards are unchanged.
 //
 // Runs against the real production build (dist/, always rebuilt fresh — see
 // the before() hook) in a real browser via Puppeteer. No live network access.
@@ -72,104 +71,75 @@ async function openHome(viewport = 1280): Promise<Page> {
   return page
 }
 
-// ─── 1. Card presence and content ────────────────────────────────────────────
+// ─── 1. Homepage structure: hero, What I Build, Tools band, Work ──────────────
 
-test('work grid has four cards after adding the demos card', async () => {
+test('homepage sections appear in order: hero, services, tools, work, about, contact — and Process is no longer on the homepage', async () => {
   const page = await openHome()
   try {
-    const cards = await page.$$('.work-card')
-    assert.equal(cards.length, 4, `Expected 4 .work-card elements, got ${cards.length}`)
+    const ids = await page.$$eval('main > section', els => els.map(el => el.id))
+    assert.deepEqual(ids, ['hero', 'services', 'tools', 'work', 'about', 'contact'])
+    assert.equal(await page.$('#process'), null, 'Process should live on /services, not the homepage')
   } finally {
     await page.close()
   }
 })
 
-test('demos card status badge reads "LIVE DEMOS" (uppercased by CSS)', async () => {
+test('hero copy and buttons match the approved Option A wording', async () => {
   const page = await openHome()
   try {
-    const statuses = await page.$$eval('.work-card-status', els => els.map(el => el.textContent?.trim() ?? ''))
-    assert.ok(statuses.some(s => /live demos/i.test(s)), `Expected a "Live Demos" status badge, got: ${JSON.stringify(statuses)}`)
+    const hero = await page.$eval('#hero', el => ({
+      eyebrow: el.querySelector('.hero-eyebrow')?.textContent?.trim(),
+      headline: el.querySelector('h1')?.textContent?.replace(/\s+/g, ' ').trim(),
+      copy: el.querySelector('.hero-copy')?.textContent?.replace(/\s+/g, ' ').trim(),
+      buttons: Array.from(el.querySelectorAll('.hero-ctas a')).map(a => ({ text: a.textContent?.trim(), href: a.getAttribute('href') })),
+    }))
+    assert.equal(hero.eyebrow, "Hi, I'm Leslie.")
+    assert.equal(hero.headline, 'Websites, custom tools, and automation for small businesses.')
+    assert.equal(hero.copy, 'I build clear, mobile-friendly websites and practical tools that help customers reach you and take busywork off your plate.')
+    assert.deepEqual(hero.buttons, [
+      { text: 'See My Work', href: '#work' },
+      { text: 'Explore Business Tools', href: '/business-tools' },
+    ])
   } finally {
     await page.close()
   }
 })
 
-test('demos card title is "Interactive Tools for Small Businesses"', async () => {
+test('What I Build has exactly three cards — Websites, Custom Business Tools, Automation — each with a link', async () => {
   const page = await openHome()
   try {
-    const titles = await page.$$eval('.work-card-title', els => els.map(el => el.textContent?.trim() ?? ''))
-    assert.ok(
-      titles.some(t => /interactive tools for small businesses/i.test(t)),
-      `Expected demos card title, got: ${JSON.stringify(titles)}`
-    )
+    const cards = await page.$$eval('#services .service-card', els => els.map(el => ({
+      title: el.querySelector('.service-title')?.textContent?.trim(),
+      desc: el.querySelector('.service-desc')?.textContent?.trim(),
+      href: el.querySelector('a.service-link')?.getAttribute('href'),
+    })))
+    assert.deepEqual(cards.map(c => c.title), ['Websites', 'Custom Business Tools', 'Automation'])
+    assert.equal(cards[0].href, '/services')
+    assert.equal(cards[1].href, '#tools')
+    assert.match(cards[2].href ?? '', /^https:\/\/docs\.google\.com\/forms\//, 'Automation card links to the existing quote form')
+    assert.equal(cards[2].desc, 'Custom workflows and simple automations that reduce repetitive business tasks.')
   } finally {
     await page.close()
   }
 })
 
-test('demos card description mentions bakeries, plumbing, food trucks, and real estate', async () => {
+test('Tools band shows the four-panel demo thumbnail (bakery, plumbing, food truck, real estate)', async () => {
   const page = await openHome()
   try {
-    const descs = await page.$$eval('.work-card-desc', els => els.map(el => el.textContent?.trim() ?? ''))
-    const demosDesc = descs.find(d => /bakeries/i.test(d)) ?? ''
-    assert.ok(demosDesc.length > 0, 'Could not find demos card description')
-    assert.match(demosDesc, /plumbing/i)
-    assert.match(demosDesc, /food truck/i)
-    assert.match(demosDesc, /real estate/i)
+    const labels = await page.$$eval('#tools .demo-thumb-label', els => els.map(el => el.textContent?.trim()))
+    assert.deepEqual(labels, ['Bakery', 'Plumbing', 'Food Truck', 'Real Estate'])
+    const thumbHidden = await page.$eval('#tools .tools-band-thumb', el => el.getAttribute('aria-hidden'))
+    assert.equal(thumbHidden, 'true', 'the thumbnail is decorative')
   } finally {
     await page.close()
   }
 })
 
-test('demos card button text is "Explore the Demos"', async () => {
+test('work grid holds only the three real projects (the demos card moved to the Tools band)', async () => {
   const page = await openHome()
   try {
-    const links = await page.$$eval('.work-card-link', els => els.map(el => el.textContent?.trim() ?? ''))
-    assert.ok(links.some(l => /explore the demos/i.test(l)), `Expected "Explore the Demos" button, got: ${JSON.stringify(links)}`)
-  } finally {
-    await page.close()
-  }
-})
-
-test('demos card link destination is /services#interactive-tool-demos', async () => {
-  const page = await openHome()
-  try {
-    const hrefs = await page.$$eval('.work-card-link', els => els.map(el => el.getAttribute('href') ?? ''))
-    assert.ok(
-      hrefs.some(h => h === '/services#interactive-tool-demos'),
-      `Expected href "/services#interactive-tool-demos", got: ${JSON.stringify(hrefs)}`
-    )
-  } finally {
-    await page.close()
-  }
-})
-
-test('demos card link does not open in a new tab (it is an internal anchor)', async () => {
-  const page = await openHome()
-  try {
-    // Find the demos card link specifically (by href)
-    const target = await page.$eval(
-      'a.work-card-link[href="/services#interactive-tool-demos"]',
-      el => el.getAttribute('target') ?? ''
-    )
-    assert.notEqual(target, '_blank', 'Internal anchor link must not open in a new tab')
-  } finally {
-    await page.close()
-  }
-})
-
-// ─── 2. Clearly identified as a demonstration, not client work ─────────────────
-
-test('demos card does not use "Client Project", "Live Website", or "Live on Google Play" as its status', async () => {
-  const page = await openHome()
-  try {
-    const demoLinkEl = await page.$('a.work-card-link[href="/services#interactive-tool-demos"]')
-    assert.ok(demoLinkEl, 'Demos card link not found')
-    const card = await page.evaluateHandle(el => el.closest('.work-card'), demoLinkEl)
-    const status = await page.evaluate(el => el?.querySelector('.work-card-status')?.textContent?.trim() ?? '', card)
-    assert.ok(!/client project/i.test(status), `Demos card must not say "Client Project", got: "${status}"`)
-    assert.ok(!/^live website$/i.test(status), `Demos card must not say "Live Website", got: "${status}"`)
-    assert.ok(!/google play/i.test(status), `Demos card must not say "Live on Google Play", got: "${status}"`)
+    const titles = await page.$$eval('.work-card-title', els => els.map(el => el.textContent?.trim()))
+    assert.deepEqual(titles, ["Ashley's Pet Care", "Sissy's Sweets by EM", 'MosaicTessera'])
   } finally {
     await page.close()
   }
@@ -197,6 +167,40 @@ test('id="interactive-tool-demos" is on the section containing the four demo car
       return !!section?.querySelector('.pricing-demo-card')
     })
     assert.ok(hasDemoCards, '#interactive-tool-demos section must contain .pricing-demo-card elements')
+  } finally {
+    await page.close()
+  }
+})
+
+test('content moved off the homepage now lives on /services: setup support, Process, and Who I Work With', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
+    const support = await page.$eval('.services-support', el => el.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+    assert.match(support, /^Helpful setup support — Depending on the project, I can also help with domain setup/)
+    const steps = await page.$$eval('#process .process-title', els => els.map(el => el.textContent?.trim()))
+    assert.deepEqual(steps, ["Let's Talk", 'Planning & Discovery', 'Design & Content', 'Build & Refine', 'Launch'])
+    const fit = await page.$eval('#who-i-work-with', el => ({
+      title: el.querySelector('h2')?.textContent?.trim(),
+      groups: Array.from(el.querySelectorAll('.fit-group-title')).map(g => g.textContent?.trim()),
+      text: el.textContent ?? '',
+    }))
+    assert.equal(fit.title, 'A great fit for')
+    assert.deepEqual(fit.groups, ['Local & professional services', 'Food, retail & local business', 'Personal, creative & community work'])
+    assert.match(fit.text, /bartering services when it makes sense for both of us/)
+  } finally {
+    await page.close()
+  }
+})
+
+test('loading /services#process scrolls the Process section into view', async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setViewport({ width: 390, height: 844 })
+    await page.goto(`${baseUrl}/services.html#process`, { waitUntil: 'load' })
+    await new Promise(r => setTimeout(r, 500))
+    const top = await page.$eval('#process', el => el.getBoundingClientRect().top)
+    assert.ok(Math.abs(top - 64) < 40, `#process should sit just under the sticky nav, got top=${top}`)
   } finally {
     await page.close()
   }

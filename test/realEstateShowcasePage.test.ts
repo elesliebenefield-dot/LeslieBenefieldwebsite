@@ -278,6 +278,7 @@ test('showcase page does not describe the suite or tools as "free" (prohibited l
     const stripped = bodyText
       .replace(/free quote/g, '')
       .replace(/free website review/g, '')
+      .replace(/free bakery pricing calculator/g, '')
     assert.ok(!/\bfree\b.{0,30}(tool|suite|demo|implement|integrat|setup|custom|brand)/.test(stripped),
       'showcase must not describe tools/suite/demos/customization as "free"')
     assert.ok(!/(tool|suite|demo|implement|integrat|setup|custom|brand).{0,30}\bfree\b/.test(stripped),

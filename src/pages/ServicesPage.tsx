@@ -1,11 +1,27 @@
 import { useEffect } from 'react'
 import Nav from '../components/Nav'
 import Footer from '../components/Footer'
+import Process from '../components/Process'
 import beachBg from '../assets/backgrounds/beach-background.jpeg'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 
 const GOOGLE_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSeUMYjVivELKZfTlj-8fQlVmpnxPR6feRorBNSfarpT6oMSRg/viewform?usp=header'
+
+const fitGroups = [
+  {
+    title: 'Local & professional services',
+    desc: 'Clinics, wellness practices, home-service businesses, real estate professionals, notaries, security companies, and consultants.',
+  },
+  {
+    title: 'Food, retail & local business',
+    desc: 'Bakeries, food trucks, boutiques, salons, small retail businesses, makers, artists, and locally owned shops.',
+  },
+  {
+    title: 'Personal, creative & community work',
+    desc: 'Tattoo artists, massage therapists, photographers, creators, pet sitters, nonprofits, veterans, and community organizations.',
+  },
+]
 
 const pricingItems = [
   {
@@ -88,6 +104,13 @@ export default function ServicesPage() {
                 </div>
               ))}
             </div>
+
+            <p className="services-support" data-reveal>
+              <strong>Helpful setup support</strong> — Depending on the project,
+              I can also help with domain setup, hosting/deployment, contact forms,
+              Google Forms, basic SEO, social preview images, mobile-friendly layout,
+              email/phone/social links, website cleanup, polish, and small updates.
+            </p>
           </div>
         </section>
 
@@ -211,6 +234,43 @@ export default function ServicesPage() {
               rush fee may apply to reserve dedicated time. Rush availability depends on my
               current schedule, and any additional fee will be clearly included in your written
               quote before work begins.
+            </p>
+          </div>
+        </section>
+
+        <Process />
+
+        <section id="who-i-work-with" className="pricing-payment">
+          <div className="pricing-payment-inner" data-reveal>
+            <p className="section-label">Who I Love to Work With</p>
+            <h2 className="section-title">A great fit for</h2>
+            <p className="section-subtitle">
+              Small businesses, service businesses, and community-focused people who need a
+              first website, a refresh, or a clearer online presence.
+            </p>
+            <div className="fit-groups">
+              {fitGroups.map((group) => (
+                <div className="fit-group" key={group.title}>
+                  <h3 className="fit-group-title">{group.title}</h3>
+                  <p className="fit-group-desc">{group.desc}</p>
+                </div>
+              ))}
+            </div>
+            <p className="section-subtitle">
+              Today, I work directly with small businesses, service
+              providers, nonprofits, creators, and women-owned businesses
+              that need a website for the first time or a better version of
+              the one they have. My goal is to help your business look
+              credible, easy to understand, and ready for the customers you
+              want to reach.
+            </p>
+            <p className="section-subtitle">
+              I'm especially glad to work with veterans, nonprofits,
+              women-owned businesses, and people building something
+              meaningful in their communities. And because small businesses
+              do not always have agency-sized budgets, I'm open to discussing
+              practical options — including bartering services when it makes
+              sense for both of us.
             </p>
           </div>
         </section>

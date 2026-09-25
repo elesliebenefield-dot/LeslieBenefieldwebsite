@@ -3,27 +3,11 @@ import { useHeroDots } from '../hooks/useHeroDots'
 
 const DOT_COUNT = 12
 
-const fitGroups = [
-  {
-    title: 'Local & professional services',
-    desc: 'Clinics, wellness practices, home-service businesses, real estate professionals, notaries, security companies, and consultants.',
-  },
-  {
-    title: 'Food, retail & local business',
-    desc: 'Bakeries, food trucks, boutiques, salons, small retail businesses, makers, artists, and locally owned shops.',
-  },
-  {
-    title: 'Personal, creative & community work',
-    desc: 'Tattoo artists, massage therapists, photographers, creators, pet sitters, nonprofits, veterans, and community organizations.',
-  },
-]
-
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null)
-  // Points at .hero-cards (the wrapper around BOTH the main card and the
-  // companion card below), not just the main card — so the clip-path hole
-  // useHeroDots.ts cuts covers the whole two-card composition (including
-  // the gap between them), guaranteeing ripples/dots stay behind both.
+  // Points at .hero-cards (the wrapper around the hero card), not the card
+  // itself — so the clip-path hole useHeroDots.ts cuts always matches the
+  // whole card composition, guaranteeing ripples/dots stay behind it.
   const cardsRef = useRef<HTMLDivElement>(null)
   const dotsRef = useRef<HTMLDivElement>(null)
   const rippleRef = useRef<HTMLDivElement>(null)
@@ -34,7 +18,7 @@ export default function Hero() {
     <section id="hero" className="hero" ref={sectionRef}>
       {/* Zero-size — exists only to define the clip-path referenced by
           .hero-fx below. That clip-path is what guarantees dots/ripples
-          can never be seen over the cards: it cuts a hole exactly matching
+          can never be seen over the card: it cuts a hole exactly matching
           .hero-cards' live measured rect, kept in sync by useHeroDots.ts. */}
       <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
         <defs>
@@ -56,38 +40,20 @@ export default function Hero() {
           <div className="hero-text">
             <p className="hero-eyebrow">Hi, I'm Leslie.</p>
             <h1 className="hero-headline">
-              I help small businesses create a website that feels clear,
-              trustworthy, and like them.
+              Websites, custom tools, and automation for small businesses.
             </h1>
             <p className="hero-copy">
-              As someone who has led teams and worked directly with customers
-              for years, I know how quickly people decide whether a business
-              feels trustworthy. Every website is built with clear
-              communication, thoughtful design, and one-on-one support—so
-              your business is easy to understand and ready to share.
+              I build clear, mobile-friendly websites and practical tools that
+              help customers reach you and take busywork off your plate.
             </p>
             <div className="hero-ctas">
               <a href="#work" className="btn btn-primary">
                 See My Work
               </a>
-              <a href="/check" className="btn btn-outline">
-                Request a Free Website Review
+              <a href="/business-tools" className="btn btn-outline">
+                Explore Business Tools
               </a>
             </div>
-          </div>
-          <div className="hero-fit-card">
-            <p className="hero-eyebrow">Who I Love to Work With</p>
-            <h2 className="hero-fit-title">A great fit for</h2>
-            <p className="hero-fit-intro">
-              Small businesses, service businesses, and community-focused people who need a
-              first website, a refresh, or a clearer online presence.
-            </p>
-            {fitGroups.map((group) => (
-              <div className="hero-fit-group" key={group.title}>
-                <h3 className="hero-fit-group-title">{group.title}</h3>
-                <p className="hero-fit-group-desc">{group.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
       </div>

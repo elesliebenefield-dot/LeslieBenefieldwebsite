@@ -530,14 +530,9 @@ section[id] {
   justify-content: center;
 }
 
-/* Wrapper around BOTH the main Hero card and the companion "great fit"
-   card. Stacked/centered on mobile; becomes a side-by-side row once
-   there's comfortable room for both cards at their intended widths (see
-   the min-width: 1080px block below — matches the site's own
-   --max-width so the row layout only kicks in once there's genuinely
-   enough space for it). This is also the element measured by
-   useHeroDots.ts for the clip-path hole, so the ripple/dot layer stays
-   behind the whole two-card composition, gap included, not just one card. */
+/* Wrapper around the Hero card. This is the element measured by
+   useHeroDots.ts for the clip-path hole, so the ripple/dot layer always
+   stays behind the card. */
 .hero-cards {
   display: flex;
   flex-direction: column;
@@ -547,21 +542,7 @@ section[id] {
   gap: 1.5rem;
 }
 
-@media (min-width: 1080px) {
-  .hero-cards {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: center;
-    width: auto;
-    max-width: none;
-  }
-}
-
-/* Shared card treatment — same background/blur, corner radius, and
-   shadow for both the main Hero card and its companion, so they read as
-   one coordinated visual system. Sizing/padding differ per card below. */
-.hero-inner--centered .hero-text,
-.hero-inner--centered .hero-fit-card {
+.hero-inner--centered .hero-text {
   text-align: left;
   background: rgba(253, 252, 250, 0.78);
   backdrop-filter: blur(16px);
@@ -575,11 +556,6 @@ section[id] {
   padding: 1.75rem 2rem;
 }
 
-.hero-inner--centered .hero-fit-card {
-  max-width: 620px;
-  padding: 1.35rem 1.6rem;
-}
-
 @media (min-width: 768px) {
   .hero {
     padding: 4.5rem 1.5rem 4.5rem;
@@ -589,22 +565,6 @@ section[id] {
 @media (min-width: 768px) {
   .hero-inner--centered .hero-text {
     padding: 2.25rem 2.5rem;
-  }
-  .hero-inner--centered .hero-fit-card {
-    padding: 1.6rem 1.85rem;
-  }
-}
-
-@media (min-width: 1080px) {
-  .hero-inner--centered .hero-fit-card {
-    /* Wide enough for the "Who I Love to Work With" eyebrow to sit on
-       one line, matching the main card's single-line eyebrow instead
-       of an uneven two-line wrap. */
-    max-width: 360px;
-    flex-shrink: 0;
-  }
-  .hero-inner--centered .hero-text {
-    flex-shrink: 0;
   }
 }
 
@@ -648,50 +608,32 @@ section[id] {
   margin-bottom: 1.5rem;
 }
 
-/* ─── Hero companion card ("A great fit for") ─────────────
-   Smaller/denser than the main card by design, but tuned to sit close
-   to the main card's own height: compact spacing throughout, and each
-   category rendered as one short paragraph (not a bullet list) so
-   three categories of examples fit without the card running tall. No
-   badges/checkmarks/pill styling — reads as a calm reference card. */
-.hero-fit-title {
+/* ─── "A great fit for" groups (Services page, #who-i-work-with) ───
+   Each category is one short paragraph, not a bullet list — reads as a
+   calm reference list. No badges/checkmarks/pill styling. */
+.fit-groups {
+  margin: 1.5rem 0 1.75rem;
+}
+
+.fit-group + .fit-group {
+  margin-top: 1rem;
+}
+
+.fit-group-title {
   font-family: var(--font-display);
-  font-size: clamp(1.15rem, 1rem + 0.5vw, 1.35rem);
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--color-text);
-  margin-bottom: 0.5rem;
-}
-
-.hero-fit-intro {
-  font-family: var(--font-body);
-  font-size: 0.92rem;
-  color: var(--color-text);
-  line-height: 1.5;
-  margin-bottom: 0.9rem;
-}
-
-.hero-fit-group + .hero-fit-group {
-  margin-top: 0.65rem;
-}
-
-.hero-fit-group-title {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--color-text);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
 }
 
-/* Sized/colored up from the previous bullet list (0.85rem, fully
-   muted) for better readability beside the main card's own body copy. */
-.hero-fit-group-desc {
+.fit-group-desc {
   font-family: var(--font-body);
   margin: 0;
   color: var(--color-text);
-  font-size: 0.92rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .hero-ctas {
@@ -863,19 +805,15 @@ section[id] {
   gap: 1.5rem;
 }
 
-@media (min-width: 500px) {
-  .services-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 880px) {
+@media (min-width: 1000px) {
   .services-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 .service-card {
+  display: flex;
+  flex-direction: column;
   background-color: var(--color-bg);
   border-radius: var(--radius-md);
   padding: 1.5rem;
@@ -951,9 +889,33 @@ section[id] {
   line-height: 1.75;
 }
 
-/* Services support note */
+/* Card link — pinned to the bottom so all three line up */
+.service-link {
+  margin-top: auto;
+  padding-top: 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent-button);
+  text-decoration: none;
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+}
+
+.service-link:hover,
+.service-link:focus {
+  text-decoration: underline;
+}
+
+.service-link:focus-visible {
+  outline: 2px solid var(--color-accent-button);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Services support note (Services page, under the pricing cards) */
 .services-support {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   font-family: var(--font-body);
   font-size: 0.85rem;
   color: var(--color-text-muted);
@@ -1013,6 +975,54 @@ section[id] {
     opacity: 1;
     transform: none;
     transition-property: none;
+  }
+}
+
+/* ─── Business Tools band (homepage #tools) ──────────────── */
+.tools-band {
+  background: transparent;
+  padding: 0 1.5rem;
+}
+
+.tools-band-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  background: rgba(253, 252, 250, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(31, 51, 71, 0.13), 0 4px 16px rgba(31, 51, 71, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  padding: 2rem 2.25rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.75rem;
+  align-items: center;
+}
+
+.tools-band-thumb {
+  height: 240px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border-top: 5px solid var(--color-pop);
+  box-shadow: var(--shadow-sm);
+}
+
+.tools-band-body .section-title {
+  font-size: clamp(1.75rem, 3.5vw, 2.6rem);
+}
+
+.tools-band-body .tools-callout {
+  margin-top: 0;
+}
+
+@media (min-width: 768px) {
+  .tools-band-inner {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 3rem;
+    padding: 3.5rem 4.5rem;
+  }
+  .tools-band-thumb {
+    height: 280px;
   }
 }
 
@@ -1154,9 +1164,13 @@ section[id] {
   }
 }
 
-@media (min-width: 880px) {
-  .work-grid {
-    grid-template-columns: repeat(2, 1fr);
+@media (min-width: 580px) {
+  /* Odd card out (e.g. the third of three) sits centered at the same
+     width as the others instead of leaving an empty cell beside it. */
+  .work-grid > .work-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc(50% - 1rem);
   }
 }
 
@@ -3301,11 +3315,6 @@ section[id] {
 .hero-headline { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both; }
 .hero-copy     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.26s both; }
 .hero-ctas     { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.34s both; }
-/* Whole companion card fades up as one unit (its own eyebrow reuses
-   .hero-eyebrow above and animates in sync with the main card's) rather
-   than staggering each internal line — keeps a denser card calm instead
-   of turning every bullet into its own animation beat. */
-.hero-fit-card { animation: heroFadeUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) 0.30s both; }
 
 @media (hover: hover) and (pointer: fine) {
   .btn:active,
@@ -3322,7 +3331,7 @@ section[id] {
     transition: none;
     will-change: auto;
   }
-  .hero-eyebrow, .hero-headline, .hero-copy, .hero-fit-card, .hero-ctas {
+  .hero-eyebrow, .hero-headline, .hero-copy, .hero-ctas {
     animation: none;
   }
   .work-card, .service-card, .work-card-thumb-img, .pricing-card, .checklist-group, .faq-item {

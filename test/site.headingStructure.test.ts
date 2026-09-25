@@ -117,11 +117,11 @@ function collectHeadingStructure() {
   return { h1Count, hasSkippedLevel, emptyHeadingCount }
 }
 
-async function measureHeadings(viewport: { width: number; height: number }, settleMs: number) {
+async function measureHeadings(viewport: { width: number; height: number }, settleMs: number, path = '/index.html') {
   const page: Page = await browser.newPage()
   try {
     await page.setViewport(viewport)
-    await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}${path}`, { waitUntil: 'load' })
     try {
       await scrollThroughPageAndSettle(page)
     } catch {
@@ -151,10 +151,19 @@ test('mobile heading structure is deterministic across repeated measurements, no
   }
 })
 
+// The Process section now lives on /services (moved off the homepage), so
+// the same no-skip guarantee is checked there too.
+test('Services page heading structure at desktop and mobile: no skipped level, single h1', async () => {
+  for (const [viewport, settle] of [[DESKTOP_VIEWPORT, SETTLE_MS], [MOBILE_VIEWPORT, MOBILE_SETTLE_MS]] as const) {
+    const m = await measureHeadings(viewport, settle, '/services.html')
+    assert.deepEqual(m, { h1Count: 1, hasSkippedLevel: false, emptyHeadingCount: 0 }, `viewport ${viewport.width}px`)
+  }
+})
+
 test('process step titles are still <h2 class="process-title"> and unchanged text — retagging did not alter wording', async () => {
   const page: Page = await browser.newPage()
   try {
-    await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
+    await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
     const steps = await page.evaluate(() =>
       Array.from(document.querySelectorAll('.process-title')).map((el) => ({ tag: el.tagName, text: (el.textContent || '').trim() }))
     )
@@ -181,7 +190,7 @@ test('the .process-title class renders identically regardless of tag — proves 
     const page: Page = await browser.newPage()
     try {
       await page.setViewport(viewport)
-      await page.goto(`${baseUrl}/index.html`, { waitUntil: 'load' })
+      await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
       const result = await page.evaluate(() => {
         const real = document.querySelector('.process-title')
         if (!real) return null

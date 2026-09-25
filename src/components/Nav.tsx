@@ -66,7 +66,7 @@ export default function Nav({ variant = 'home' }: NavProps) {
       label: 'Services',
       items: [
         { label: 'Services & Pricing', href: '/services' },
-        { label: 'Process', href: sectionHref('#process') },
+        { label: 'Process', href: '/services#process' },
       ],
     },
     {

@@ -36,8 +36,8 @@ export default function Contact() {
         <p className="section-label">Get In Touch</p>
         <h2 className="section-title">Let's work together.</h2>
         <p className="section-subtitle">
-          Have an idea for a website, refresh, or creative project?
-          I'd love to hear about it.
+          Have an idea for a website, custom tool, or simpler workflow?
+          Let's talk.
         </p>
         <div className="contact-buttons">
           <a
@@ -47,6 +47,12 @@ export default function Contact() {
             rel="noopener noreferrer"
           >
             Get a Free Quote
+          </a>
+          <a
+            href="/check"
+            className="btn btn-outline"
+          >
+            Request a Free Website Review
           </a>
           <a
             href="mailto:websitesbyleslie01@gmail.com"

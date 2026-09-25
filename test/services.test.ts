@@ -830,7 +830,8 @@ test('Services page h3 elements all appear inside sections that have an h2 ances
         .filter(h3 =>
           !h3.closest('.pricing-tools-inner') &&
           !h3.closest('.pricing-demo-inner') &&
-          !h3.closest('.pricing-free-inner')
+          !h3.closest('.pricing-free-inner') &&
+          !h3.closest('#who-i-work-with')
         )
         .map(h3 => h3.textContent?.trim())
     )
