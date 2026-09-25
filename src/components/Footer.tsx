@@ -54,6 +54,9 @@ export default function Footer() {
         {' · '}
         <a href="mailto:websitesbyleslie01@gmail.com" className="footer-phone">websitesbyleslie01@gmail.com</a>
       </p>
+      <p className="footer-contact footer-location">
+        Based in Pensacola, Florida. Working with small businesses wherever you’re located.
+      </p>
 
       <div className="footer-payments">
         <p className="footer-payments-label">Secure online payments accepted</p>

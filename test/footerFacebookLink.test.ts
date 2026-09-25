@@ -211,3 +211,39 @@ test('the Facebook logo does not disturb the existing footer content (Privacy Po
     await page.close()
   }
 })
+
+// ─── Location sentence in the shared footer ──────────────────────────────────
+
+for (const [label, url] of [
+  ['homepage', '/index.html'],
+  ['/services', '/services.html'],
+  ['/faq', '/faq.html'],
+  ['/business-tools', '/business-tools.html'],
+] as const) {
+  test(`${label}: footer shows the location sentence once, right after the contact line, in the contact line's own style`, async () => {
+    const page: Page = await browser.newPage()
+    try {
+      await page.setViewport({ width: 320, height: 800 })
+      await page.goto(`${baseUrl}${url}`, { waitUntil: 'load' })
+      const info = await page.evaluate(() => {
+        const loc = Array.from(document.querySelectorAll('.footer .footer-location'))
+        const contact = document.querySelector('.footer .footer-contact')!
+        const style = (el: Element) => { const s = getComputedStyle(el); return [s.fontFamily, s.fontSize, s.color].join('|') }
+        return {
+          count: loc.length,
+          text: loc[0]?.textContent?.trim(),
+          follows: loc[0]?.previousElementSibling === contact,
+          sameStyle: loc[0] ? style(loc[0]) === style(contact) : false,
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+        }
+      })
+      assert.equal(info.count, 1)
+      assert.equal(info.text, 'Based in Pensacola, Florida. Working with small businesses wherever you’re located.')
+      assert.ok(info.follows, 'location sentence should sit directly after the phone/email line')
+      assert.ok(info.sameStyle, 'location sentence should use the contact line\'s font, size, and color')
+      assert.ok(info.overflow <= 0, `no horizontal overflow at 320px, got ${info.overflow}px`)
+    } finally {
+      await page.close()
+    }
+  })
+}
