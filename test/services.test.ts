@@ -361,31 +361,55 @@ test('website pricing — Free Website Review card does not overflow at 320px', 
   }
 })
 
-test('website pricing — One-Page Website price is "Starting at $750"', async () => {
+async function pricingCard(page: Page, title: string) {
+  return page.$$eval('.pricing-card', (cards, t) => {
+    const card = cards.find(c => c.querySelector('.pricing-card-title')?.textContent?.trim() === t)
+    return card ? {
+      price: card.querySelector('.pricing-card-price')?.textContent?.trim(),
+      desc: card.querySelector('.pricing-card-desc')?.textContent?.trim() ?? '',
+    } : null
+  }, title)
+}
+
+test('website pricing — Starter Website is "Starting at $500" and describes the defined starter scope', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-grid', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $750'), 'pricing-grid should contain "Starting at $750"')
+    const card = await pricingCard(page, 'Starter Website')
+    assert.ok(card, 'Starter Website card should be present')
+    assert.equal(card!.price, 'Starting at $500')
+    for (const phrase of ['One page covering your business, services, and contact details', 'established design approach',
+      'You supply photos and basic information', 'mobile-friendly layout', 'basic search setup', 'contact links',
+      'one revision round', 'launch assistance']) {
+      assert.ok(card!.desc.includes(phrase), `Starter description should mention "${phrase}"`)
+    }
   } finally {
     await page.close()
   }
 })
 
-test('website pricing — Small-Business Website price is "Starting at $1,500"', async () => {
+test('website pricing — Starter price note: starter scope only; extras and domain/hosting/care quoted separately, no amounts', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-grid', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $1,500'), 'pricing-grid should contain "Starting at $1,500"')
+    const notes = await page.$$eval('.services-support', els => els.map(el => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
+    const note = notes.find(n => n.startsWith('About the Starter Website price')) ?? ''
+    assert.match(note, /\$500 is the starting price for the defined starter scope/)
+    assert.match(note, /Extra pages, extensive copywriting, custom tools, and additional functionality are quoted separately/)
+    assert.match(note, /Domain, hosting, and ongoing care costs are not included in the starting price and will be specified separately in your quote/)
+    assert.equal((note.match(/\$\d/g) ?? []).length, 1, 'the note should state no amount other than the $500 starting price')
   } finally {
     await page.close()
   }
 })
 
-test('website pricing — Website Refresh price is "Starting at $800"', async () => {
+test('website pricing — Small-Business Website and Website Refresh are "Custom quote"; retired prices are gone', async () => {
   const page = await openServices(1280)
   try {
+    assert.equal((await pricingCard(page, 'Small-Business Website'))?.price, 'Custom quote')
+    assert.equal((await pricingCard(page, 'Website Refresh'))?.price, 'Custom quote')
     const text = await page.$eval('.pricing-grid', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $800'), 'pricing-grid should contain "Starting at $800"')
+    for (const old of ['$750', '$1,500', '$800', 'One-Page Website or Landing Page']) {
+      assert.ok(!text.includes(old), `retired website pricing still present: "${old}"`)
+    }
   } finally {
     await page.close()
   }
@@ -423,149 +447,98 @@ test('tool pricing — three group cards are present', async () => {
   }
 })
 
-// ─── 8. New-website tool prices ───────────────────────────────────────────────
+// ─── 8. Standalone tool pricing & new-website bundle message ─────────────────
 
-test('tool pricing — new-website group heading is "Added to a New Website"', async () => {
+test('tool pricing — group headings: Tool Setup, Tool Hosting, new-website message', async () => {
   const page = await openServices(1280)
   try {
     const headings = await page.$$eval('.pricing-tools-group-heading', els => els.map(el => el.textContent?.trim()))
-    assert.ok(headings.some(h => /added to a new website/i.test(h || '')), 'Should have "Added to a New Website" group heading')
+    assert.deepEqual(headings, ['Tool Setup', 'Tool Hosting', 'Adding a tool to your new website?'])
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — new-website one tool is "Starting at $250"', async () => {
+async function groupRows(page: Page, index: number) {
+  return page.$$eval('.pricing-tools-group', (groups, i) =>
+    Array.from(groups[i as number].querySelectorAll('.pricing-tools-list li')).map(li => ({
+      item: li.querySelector('.pricing-tools-item')?.textContent?.trim(),
+      price: li.querySelector('.pricing-tools-price')?.textContent?.trim(),
+    })), index)
+}
+
+async function groupNote(page: Page, index: number) {
+  return page.$$eval('.pricing-tools-group', (groups, i) =>
+    groups[i as number].querySelector('.pricing-tools-note')?.textContent?.replace(/\s+/g, ' ').trim() ?? '', index)
+}
+
+test('tool pricing — setup: $150 per individual tool, suites and new tools/automation by custom quote', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $250'), 'New-website single tool price should be "Starting at $250"')
+    assert.deepEqual(await groupRows(page, 0), [
+      { item: 'Individual existing tool, customized (per tool)', price: 'Starting at $150' },
+      { item: 'Suite of tools', price: 'Custom quote' },
+      { item: 'New custom tools or automation', price: 'Custom quote' },
+    ])
+    const note = await groupNote(page, 0)
+    assert.match(note, /Final setup depends on the customization you request\./)
+    assert.match(note, /Suites of tools are quoted as a bundle, with savings compared with setting up the included tools individually\./)
+    assert.ok(!/Real Estate|six tools/.test(note), 'setup note should not name a specific suite')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — new-website suite of 2–3 tools is "Starting at $600"', async () => {
+test('tool pricing — Tool Hosting is one $10/month fee per business, hosting only', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $600'), 'New-website 2-3 tool suite price should be "Starting at $600"')
+    assert.deepEqual(await groupRows(page, 1), [{ item: 'Per business', price: '$10/month' }])
+    const note = await groupNote(page, 1)
+    assert.match(note, /One monthly fee per business covers hosting for the tools you've purchased from me, whether that's one tool or several\./)
+    assert.match(note, /isn't charged per tool and doesn't provide access to every tool I offer/)
+    assert.match(note, /covers hosting only; later changes are quoted separately/)
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — new-website complete suite of 4–6 tools is "Starting at $1,000"', async () => {
+test('tool pricing — new-website card shows the approved message and no price table', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $1,000'), 'New-website 4-6 tool suite price should be "Starting at $1,000"')
+    const card = await page.$$eval('.pricing-tools-group', groups => ({
+      text: groups[2].querySelector('.pricing-tools-note')?.textContent?.replace(/\s+/g, ' ').trim(),
+      rows: groups[2].querySelectorAll('.pricing-tools-list li').length,
+      all: groups[2].textContent ?? '',
+    }))
+    assert.equal(card.text,
+      'Discounted tool setup is available when included in a new Websites by Leslie website project and agreed on before the build is completed. ' +
+      'Your quote will show the combined price and any Tool Hosting fee. ' +
+      'Tools requested after the website is completed are quoted separately.')
+    assert.equal(card.rows, 0, 'the new-website card should not list prices')
+    assert.ok(!/\$|%/.test(card.all), 'no fixed bundle price or discount percentage')
   } finally {
     await page.close()
   }
 })
 
-// ─── 9. Existing-website tool prices ─────────────────────────────────────────
-
-test('tool pricing — existing-website group heading is "For an Existing Website"', async () => {
+test('tool pricing — no retired tiers, care packages, discount percentages, free hosting, or unlimited-update promises', async () => {
   const page = await openServices(1280)
   try {
-    const headings = await page.$$eval('.pricing-tools-group-heading', els => els.map(el => el.textContent?.trim()))
-    assert.ok(headings.some(h => /for an existing website/i.test(h || '')), 'Should have "For an Existing Website" group heading')
+    const text = await page.$eval('.pricing-tools-inner', el => el.textContent?.replace(/\s+/g, ' ') ?? '')
+    for (const old of ['$250', '$600', '$1,000', '$400', '$300', '$500', '$19/month', '$29/month', '$49/month',
+      '$15/month', '$25/month', '$35/month', 'Two–three', 'Four–six', 'Hosting & Care', 'hosting and care',
+      'per business package', 'Added to a New Website', 'For an Existing Website']) {
+      assert.ok(!text.includes(old), `retired tool-pricing text still present: "${old}"`)
+    }
+    assert.ok(!/\d+\s*%/.test(text), 'no discount percentage')
+    assert.ok(!/free hosting|hosting (is )?free|unlimited|bug fixes|compatibility maintenance/i.test(text),
+      'no free hosting, unlimited updates, or care-package promises')
   } finally {
     await page.close()
   }
 })
 
-test('tool pricing — existing-website one hosted tool is "Starting at $400"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $400'), 'Existing-website single hosted tool price should be "Starting at $400"')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — existing-website suite of 2–3 hosted tools is "Starting at $800"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $800'), 'Existing-website 2-3 hosted tool suite price should be "Starting at $800"')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — existing-website complete suite of 4–6 hosted tools is "Starting at $1,500"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $1,500'), 'Existing-website 4-6 hosted tool suite price should be "Starting at $1,500"')
-  } finally {
-    await page.close()
-  }
-})
-
-// ─── 10. Monthly hosting & care prices ────────────────────────────────────────
-
-test('tool pricing — monthly care group heading is "Monthly Hosting & Care"', async () => {
-  const page = await openServices(1280)
-  try {
-    const headings = await page.$$eval('.pricing-tools-group-heading', els => els.map(el => el.textContent?.trim()))
-    assert.ok(headings.some(h => /monthly hosting/i.test(h || '')), 'Should have "Monthly Hosting & Care" group heading')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — monthly one tool is "Starting at $19/month"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $19/month'), 'Monthly single tool rate should be "Starting at $19/month"')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — monthly 2–3 tools suite is "Starting at $29/month"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $29/month'), 'Monthly 2-3 tool suite rate should be "Starting at $29/month"')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — monthly 4–6 tools suite is "Starting at $49/month"', async () => {
-  const page = await openServices(1280)
-  try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    assert.ok(text.includes('Starting at $49/month'), 'Monthly 4-6 tool suite rate should be "Starting at $49/month"')
-  } finally {
-    await page.close()
-  }
-})
-
-// ─── 11. Content distinctions and wording ─────────────────────────────────────
-
-test('tool pricing — new-website and existing-website groups are visually distinct headings', async () => {
-  const page = await openServices(1280)
-  try {
-    const headings = await page.$$eval('.pricing-tools-group-heading', els => els.map(el => el.textContent?.trim()))
-    const hasNew      = headings.some(h => /added to a new website/i.test(h || ''))
-    const hasExisting = headings.some(h => /for an existing website/i.test(h || ''))
-    assert.ok(hasNew,      'Should have "Added to a New Website" heading')
-    assert.ok(hasExisting, 'Should have "For an Existing Website" heading')
-    assert.notEqual(headings.indexOf(headings.find(h => /added/i.test(h || '')) ?? ''),
-                    headings.indexOf(headings.find(h => /existing/i.test(h || '')) ?? ''),
-                    'New-website and existing-website groups should be distinct elements')
-  } finally {
-    await page.close()
-  }
-})
+// ─── 9. Content distinctions and wording ─────────────────────────────────────
 
 test('tool pricing — existing-website note mentions client receives a hosted link', async () => {
   const page = await openServices(1280)
@@ -586,31 +559,6 @@ test('tool pricing — existing-website note states changes to existing site are
     const existingNote = notes.find(n => /professional link/i.test(n)) ?? ''
     assert.ok(/not included/i.test(existingNote),
       'Existing-website note should explicitly state that changes to the existing site are not included')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — monthly care note states what is included', async () => {
-  const page = await openServices(1280)
-  try {
-    const notes = await page.$$eval('.pricing-tools-note', els => els.map(el => el.textContent ?? ''))
-    const monthlyNote = notes.find(n => /hosting and care includes/i.test(n)) ?? ''
-    assert.ok(monthlyNote.length > 0, 'Monthly care note should state what is included')
-    assert.ok(/bug fixes/i.test(monthlyNote), 'Monthly care note should mention bug fixes')
-    assert.ok(/compatibility/i.test(monthlyNote), 'Monthly care note should mention compatibility maintenance')
-  } finally {
-    await page.close()
-  }
-})
-
-test('tool pricing — monthly care note states what is quoted separately', async () => {
-  const page = await openServices(1280)
-  try {
-    const notes = await page.$$eval('.pricing-tools-note', els => els.map(el => el.textContent ?? ''))
-    const monthlyNote = notes.find(n => /hosting and care includes/i.test(n)) ?? ''
-    assert.ok(/quoted separately/i.test(monthlyNote),
-      'Monthly care note should state that new tools and major changes are quoted separately')
   } finally {
     await page.close()
   }
@@ -750,15 +698,12 @@ test('pricing clarity — existing-website statement mentions hosted tool link a
   }
 })
 
-test('pricing clarity — monthly care statement is present with correct wording', async () => {
+test('pricing clarity — Tool Hosting statement is hosting only; additional charges must be agreed first', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-clarity', el => el.textContent ?? '')
-    assert.ok(/monthly hosting.*care includes/i.test(text),
-      'Monthly Hosting & Care statement should be present')
-    assert.ok(text.includes('compatibility maintenance'), 'Should mention compatibility maintenance')
-    assert.ok(text.includes('bug fixes'), 'Should mention bug fixes')
-    assert.ok(text.includes('contact-information updates'), 'Should mention contact-information updates')
+    const text = await page.$eval('.pricing-clarity', el => el.textContent?.replace(/\s+/g, ' ') ?? '')
+    assert.match(text, /Tool Hosting keeps the tools you've purchased online\. It is hosting only and does not include content updates, new features, or ongoing support — any later changes are quoted separately\./)
+    assert.match(text, /Paid integrations, automated messaging, or substantial usage that would require additional charges will be discussed and agreed on before those charges apply\./)
   } finally {
     await page.close()
   }
@@ -793,18 +738,13 @@ test('pricing clarity — panel does not overflow at 320px', async () => {
   }
 })
 
-test('pricing clarity — all 9 "Starting at" prices remain unchanged in the pricing section', async () => {
+test('pricing clarity — setup statement lists contact details and modest wording changes', async () => {
   const page = await openServices(1280)
   try {
-    const text = await page.$eval('.pricing-tools-inner', el => el.textContent ?? '')
-    const prices = [
-      'Starting at $250', 'Starting at $600',     'Starting at $1,000',
-      'Starting at $400', 'Starting at $800',     'Starting at $1,500',
-      'Starting at $19/month', 'Starting at $29/month', 'Starting at $49/month',
-    ]
-    for (const price of prices) {
-      assert.ok(text.includes(price), `"${price}" not found in pricing section`)
-    }
+    const text = await page.$eval('.pricing-clarity', el => el.textContent?.replace(/\s+/g, ' ') ?? '')
+    assert.ok(text.includes('contact details'), 'Setup statement should mention contact details')
+    assert.ok(text.includes('modest wording and question changes'), 'Setup statement should mention modest wording/question changes')
+    assert.ok(text.includes('New functionality'), 'Out-of-scope statement should include new functionality')
   } finally {
     await page.close()
   }

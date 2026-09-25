@@ -120,9 +120,9 @@ test('all five pricing cards are present with correct titles and price labels', 
     )
     assert.deepEqual(cards, [
       { title: 'Free Website Review', price: 'Complimentary' },
-      { title: 'One-Page Website or Landing Page', price: 'Starting at $750' },
-      { title: 'Small-Business Website', price: 'Starting at $1,500' },
-      { title: 'Website Refresh', price: 'Starting at $800' },
+      { title: 'Starter Website', price: 'Starting at $500' },
+      { title: 'Small-Business Website', price: 'Custom quote' },
+      { title: 'Website Refresh', price: 'Custom quote' },
       { title: 'Website Updates & Support', price: 'Custom quote' },
     ])
   } finally {
@@ -181,7 +181,7 @@ test('payment section states a rush-project policy that never promises availabil
     const bodyText = await page.evaluate(() => document.body.textContent || '')
     assert.ok(!/\$\s*\d+(\.\d+)?\s*\/\s*(hour|hr)\b/i.test(bodyText), 'page must not display an hourly rate')
     const prices = await page.$$eval('.pricing-card-price', (els) => els.map((e) => e.textContent?.trim() || ''))
-    assert.deepEqual(prices, ['Complimentary', 'Starting at $750', 'Starting at $1,500', 'Starting at $800', 'Custom quote'])
+    assert.deepEqual(prices, ['Complimentary', 'Starting at $500', 'Custom quote', 'Custom quote', 'Custom quote'])
   } finally {
     await page.close()
   }

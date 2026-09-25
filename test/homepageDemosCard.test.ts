@@ -176,7 +176,8 @@ test('content moved off the homepage now lives on /services: setup support, Proc
   const page = await browser.newPage()
   try {
     await page.goto(`${baseUrl}/services.html`, { waitUntil: 'load' })
-    const support = await page.$eval('.services-support', el => el.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+    const notes = await page.$$eval('.services-support', els => els.map(el => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
+    const support = notes.find(n => n.startsWith('Helpful setup support')) ?? ''
     assert.match(support, /^Helpful setup support — Depending on the project, I can also help with domain setup/)
     const steps = await page.$$eval('#process .process-title', els => els.map(el => el.textContent?.trim()))
     assert.deepEqual(steps, ["Let's Talk", 'Planning & Discovery', 'Design & Content', 'Build & Refine', 'Launch'])

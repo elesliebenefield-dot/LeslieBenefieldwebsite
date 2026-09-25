@@ -30,18 +30,18 @@ const pricingItems = [
     desc: 'A practical review of your current website to see what\'s working, what could be improved, and whether it\'s good to go as is. If I find something I can help fix, I\'ll explain your options.',
   },
   {
-    title: 'One-Page Website or Landing Page',
-    price: 'Starting at $750',
-    desc: 'A focused page for a service, event, offer, portfolio, or new business.',
+    title: 'Starter Website',
+    price: 'Starting at $500',
+    desc: 'One page covering your business, services, and contact details, customized using my established design approach. You supply photos and basic information. Includes a mobile-friendly layout, basic search setup, contact links, one revision round, and launch assistance.',
   },
   {
     title: 'Small-Business Website',
-    price: 'Starting at $1,500',
+    price: 'Custom quote',
     desc: 'A custom multi-page website built around your business, services, and contact needs.',
   },
   {
     title: 'Website Refresh',
-    price: 'Starting at $800',
+    price: 'Custom quote',
     desc: 'For an existing website that needs a clearer look, updated content, better mobile usability, or general cleanup.',
   },
   {
@@ -83,9 +83,9 @@ export default function ServicesPage() {
               <p className="section-label">Services & Pricing</p>
               <h1 className="section-title">Clear options. Custom quotes.</h1>
               <p className="section-subtitle">
-                Every business is different, so every project is quoted based on its goals,
-                content, and website needs. These starting prices are here to help you
-                understand the typical investment before we talk — no surprise hourly billing.
+                Every business is different, so most projects are quoted based on their goals,
+                content, and website needs. The Starter Website has a clear starting price for a
+                defined scope — and there's no surprise hourly billing.
               </p>
             </div>
 
@@ -106,6 +106,14 @@ export default function ServicesPage() {
             </div>
 
             <p className="services-support" data-reveal>
+              <strong>About the Starter Website price</strong> — $500 is the starting price
+              for the defined starter scope above. Extra pages, extensive copywriting, custom
+              tools, and additional functionality are quoted separately. Domain, hosting, and
+              ongoing care costs are not included in the starting price and will be specified
+              separately in your quote.
+            </p>
+
+            <p className="services-support" data-reveal>
               <strong>Helpful setup support</strong> — Depending on the project,
               I can also help with domain setup, hosting/deployment, contact forms,
               Google Forms, basic SEO, social preview images, mobile-friendly layout,
@@ -119,76 +127,58 @@ export default function ServicesPage() {
             <p className="section-label">Add-On Services</p>
             <h2 className="section-title">Interactive Tool Pricing</h2>
             <p className="section-subtitle">
-              Interactive tools can be added to a new Websites by Leslie project or customized
-              and hosted for a business that already has a website. Pricing depends on the number
-              of tools and whether they are being created as part of a new website project.
+              These are standalone prices for customizing my existing tools for your business,
+              hosted for you and ready to share or link from your website. New custom tools and
+              automation are quoted individually.
             </p>
             <div className="pricing-tools-groups">
               <div className="pricing-tools-group">
-                <h3 className="pricing-tools-group-heading">Added to a New Website</h3>
+                <h3 className="pricing-tools-group-heading">Tool Setup</h3>
                 <ul className="pricing-tools-list">
                   <li>
-                    <span className="pricing-tools-item">One tool</span>
-                    <span className="pricing-tools-price">Starting at $250</span>
+                    <span className="pricing-tools-item">Individual existing tool, customized (per tool)</span>
+                    <span className="pricing-tools-price">Starting at $150</span>
                   </li>
                   <li>
-                    <span className="pricing-tools-item">Suite of 2–3 tools</span>
-                    <span className="pricing-tools-price">Starting at $600</span>
+                    <span className="pricing-tools-item">Suite of tools</span>
+                    <span className="pricing-tools-price">Custom quote</span>
                   </li>
                   <li>
-                    <span className="pricing-tools-item">Complete suite of 4–6 tools</span>
-                    <span className="pricing-tools-price">Starting at $1,000</span>
+                    <span className="pricing-tools-item">New custom tools or automation</span>
+                    <span className="pricing-tools-price">Custom quote</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">
-                  These reduced prices are available when the tools are planned, branded, and
-                  launched as part of a new Websites by Leslie website project.
+                  Final setup depends on the customization you request. Suites of tools are
+                  quoted as a bundle, with savings compared with setting up the included tools
+                  individually. I customize and host the tool, then provide a professional link
+                  that your current website provider can add as a button or menu item. Changes
+                  to your existing website are not included. Direct integration may be quoted
+                  separately when available.
                 </p>
               </div>
               <div className="pricing-tools-group">
-                <h3 className="pricing-tools-group-heading">For an Existing Website</h3>
+                <h3 className="pricing-tools-group-heading">Tool Hosting</h3>
                 <ul className="pricing-tools-list">
                   <li>
-                    <span className="pricing-tools-item">One hosted tool</span>
-                    <span className="pricing-tools-price">Starting at $400</span>
-                  </li>
-                  <li>
-                    <span className="pricing-tools-item">Suite of 2–3 hosted tools</span>
-                    <span className="pricing-tools-price">Starting at $800</span>
-                  </li>
-                  <li>
-                    <span className="pricing-tools-item">Complete suite of 4–6 hosted tools</span>
-                    <span className="pricing-tools-price">Starting at $1,500</span>
+                    <span className="pricing-tools-item">Per business</span>
+                    <span className="pricing-tools-price">$10/month</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">
-                  I customize and host the tool, then provide a professional link that your
-                  current website provider can add as a button or menu item. Changes to your
-                  existing website are not included. Direct integration may be quoted separately
-                  when available.
+                  One monthly fee per business covers hosting for the tools you've purchased
+                  from me, whether that's one tool or several. It isn't charged per tool
+                  and doesn't provide access to every tool I offer. This fee covers hosting
+                  only; later changes are quoted separately.
                 </p>
               </div>
               <div className="pricing-tools-group">
-                <h3 className="pricing-tools-group-heading">Monthly Hosting &amp; Care</h3>
-                <ul className="pricing-tools-list">
-                  <li>
-                    <span className="pricing-tools-item">One tool</span>
-                    <span className="pricing-tools-price">Starting at $19/month</span>
-                  </li>
-                  <li>
-                    <span className="pricing-tools-item">Suite of 2–3 tools</span>
-                    <span className="pricing-tools-price">Starting at $29/month</span>
-                  </li>
-                  <li>
-                    <span className="pricing-tools-item">Suite of 4–6 tools</span>
-                    <span className="pricing-tools-price">Starting at $49/month</span>
-                  </li>
-                </ul>
+                <h3 className="pricing-tools-group-heading">Adding a tool to your new website?</h3>
                 <p className="pricing-tools-note">
-                  Hosting and care includes continued tool availability, compatibility
-                  maintenance, bug fixes, and small updates to basic business contact
-                  information. New tools, redesigned workflows, major content changes, and
-                  third-party integrations are quoted separately.
+                  Discounted tool setup is available when included in a new Websites by Leslie
+                  website project and agreed on before the build is completed. Your quote will
+                  show the combined price and any Tool Hosting fee. Tools requested after the
+                  website is completed are quoted separately.
                 </p>
               </div>
             </div>
@@ -197,8 +187,8 @@ export default function ServicesPage() {
               <h3 className="pricing-clarity-heading">What your tool pricing includes</h3>
               <div className="pricing-clarity-grid">
                 <p className="pricing-clarity-item">
-                  Every tool setup includes your branding, standard question and wording
-                  customization, testing, setup and launch, and one revision round.
+                  Tool setup covers your branding, contact details, modest wording and question
+                  changes, testing, and one revision round.
                 </p>
                 <p className="pricing-clarity-item">
                   For customers with an existing website, I provide a hosted tool link for
@@ -206,13 +196,16 @@ export default function ServicesPage() {
                   existing website is not included unless quoted separately.
                 </p>
                 <p className="pricing-clarity-item">
-                  Monthly Hosting &amp; Care includes continued hosting, compatibility
-                  maintenance, bug fixes, and small contact-information updates.
+                  Tool Hosting keeps the tools you've purchased online. It is hosting only and
+                  does not include content updates, new features, or ongoing support — any later
+                  changes are quoted separately.
                 </p>
                 <p className="pricing-clarity-item">
-                  Major workflow changes, additional revision rounds, payment processing,
-                  customer accounts or databases, live scheduling, ordering or inventory
-                  systems, and third-party integrations are quoted separately.
+                  New functionality, major workflow changes, additional revision rounds,
+                  payment processing, customer accounts or databases, live scheduling, ordering
+                  or inventory systems, and third-party integrations are quoted separately. Paid
+                  integrations, automated messaging, or substantial usage that would require
+                  additional charges will be discussed and agreed on before those charges apply.
                 </p>
               </div>
             </div>
