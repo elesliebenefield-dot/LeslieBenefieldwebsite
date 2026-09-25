@@ -24,7 +24,8 @@ export function EventSetupStage({ setup, onChange, showErrors, onNext }: Props) 
 
       <div className="oh-privacy-notice" role="note">
         <strong>Session-only workspace.</strong> Nothing you enter here is saved, sent, or shared
-        outside of this browser tab. Close or refresh the page to clear all information.
+        outside of this browser tab. Close or refresh the page to clear all information. Copy or print
+        your follow-up plan (or share it, where available) before you leave.
       </div>
 
       {/* Property label */}

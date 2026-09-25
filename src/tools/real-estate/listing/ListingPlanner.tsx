@@ -149,7 +149,7 @@ export function ListingPlanner() {
             {stage === 'setup' && (
               <div className="tool-privacy-note" role="note">
                 <span className="tool-privacy-icon" aria-hidden="true">🔒</span>
-                Your plan stays in your browser during this session — nothing is stored or transmitted.
+                Your plan stays in your browser during this session — nothing is stored or transmitted. Because nothing is saved, refreshing or leaving this page can erase your plan — copy or print it (or share it, where available) before you go.
               </div>
             )}
 

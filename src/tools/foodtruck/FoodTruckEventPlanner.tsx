@@ -132,7 +132,7 @@ export function FoodTruckEventPlanner() {
             {stage === 'event' && (
               <div className="tool-privacy-note" role="note">
                 <span className="tool-privacy-icon" aria-hidden="true">🔒</span>
-                Your answers stay in your browser during this session — nothing is stored or transmitted.
+                Your answers stay in your browser during this session — nothing is stored or transmitted. Because nothing is saved, refreshing or leaving this page can erase your answers — copy or print your results (or share them, where available) before you go.
               </div>
             )}
 

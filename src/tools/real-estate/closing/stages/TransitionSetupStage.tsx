@@ -67,7 +67,8 @@ export function TransitionSetupStage({ setup, onChange, showErrors, onNext }: Pr
 
       <div className="cm-privacy-notice" role="note">
         <strong>Session-only workspace.</strong> Nothing you enter here is saved, sent, or shared
-        outside of this browser tab. Close or refresh the page to clear all information. Dates
+        outside of this browser tab. Close or refresh the page to clear all information. Copy or print
+        your plan (or share it, where available) before you leave. Dates
         entered are for your personal planning only — they are not calculated, verified, or
         contractual.
       </div>

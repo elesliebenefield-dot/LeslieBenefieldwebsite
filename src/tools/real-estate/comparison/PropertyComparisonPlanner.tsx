@@ -141,6 +141,12 @@ export function PropertyComparisonPlanner() {
       <main className="listing-planner-main">
         {stage === 'priorities' && (
           <>
+            <div className="tool-privacy-note" role="note">
+              <span className="tool-privacy-icon" aria-hidden="true">🔒</span>
+              Your answers stay in your browser during this session — nothing is stored or transmitted.
+              Because nothing is saved, refreshing or leaving this page can erase your comparison — copy or
+              print it (or share it, where available) before you go.
+            </div>
             <PrioritiesStage
               priorities={priorities}
               onChange={handlePrioritiesChange}

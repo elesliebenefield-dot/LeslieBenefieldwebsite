@@ -66,6 +66,10 @@ export function SavedRecipesScreen({ db, onOpen, onNew }: Props) {
       <h2 className="bp-h2">
         <SectionIcon symbol="📖" tone="gold" /> Saved Recipes
       </h2>
+      <p className="bp-helper bp-saved-recipes-storage-note">
+        Your recipes are saved only in this browser on this device. Clearing your browser data or using a
+        private window can erase them, so use Download Backup below to keep a copy.
+      </p>
 
       <button type="button" className="bp-btn bp-btn-primary bp-saved-recipes-new" onClick={onNew}>
         + Price a New Recipe
