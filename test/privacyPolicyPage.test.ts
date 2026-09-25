@@ -111,7 +111,7 @@ test('the required "Last updated" line is present with the correct date', async 
   try {
     await page.goto(`${baseUrl}/privacy-policy.html`, { waitUntil: 'load' })
     const updated = await page.$eval('.privacy-updated', (el) => el.textContent?.trim())
-    assert.equal(updated, 'Last updated: August 13, 2026.')
+    assert.equal(updated, 'Last updated: September 25, 2026.')
   } finally {
     await page.close()
   }
@@ -127,6 +127,7 @@ test('every required policy topic is present as its own section', async () => {
     assert.deepEqual(titles, [
       'Information You May Provide',
       'Cookies & Automatic Information',
+      'Interactive Tools & the Bakery Pricing Calculator',
       'How This Information Is Used',
       'Service Providers',
       'Sharing Your Information',
@@ -288,3 +289,39 @@ test('prefers-reduced-motion: header and body reveal content is visible immediat
     await page.close()
   }
 })
+
+test('tools section explains the tools\' actual data handling without claiming the whole site sends nothing', async () => {
+  const page: Page = await browser.newPage()
+  try {
+    await page.goto(`${baseUrl}/privacy-policy.html`, { waitUntil: 'load' })
+    const section = await page.$$eval('.privacy-section', (els) => {
+      const el = els.find((e) => e.querySelector('.privacy-section-title')?.textContent?.includes('Interactive Tools'))
+      return (el?.textContent || '').replace(/\s+/g, ' ')
+    })
+    // Planners: page memory only, not sent automatically, lost on refresh/leave.
+    assert.match(section, /kept only in that open page's memory/)
+    assert.match(section, /isn't automatically sent to me/)
+    assert.match(section, /refreshing or leaving the page can erase your answers/)
+    // Visitor-initiated actions, including email via the visitor's own app.
+    assert.match(section, /Copy places your summary on your device's clipboard/)
+    assert.match(section, /Share \(on devices that support it\)/)
+    assert.match(section, /Print opens your browser's print dialog/)
+    assert.match(section, /opens your own email app/)
+    // Calculator: browser-only saving of recipes, ingredients, and the hourly-rate setting.
+    assert.match(section, /recipes and ingredients you choose to save, along with the last hourly labor rate/)
+    assert.match(section, /in the browser you're using on that device/)
+    // Backup/Restore, including replacement on restore and the exact backup file name.
+    assert.match(section, /Download Backup/)
+    assert.match(section, /bakery-pricing-backup\.json/)
+    assert.match(section, /replaces all the recipes and ingredients currently saved/)
+    assert.match(section, /clear your browser's data|private or incognito window/)
+    // Distinguishes tool data from hosting logs and third-party services.
+    assert.match(section, /Vercel, which may log basic technical information/)
+    assert.match(section, /Google Fonts/)
+    // Must not overclaim that the site makes no network requests or collects nothing.
+    assert.ok(!/(this (web)?site|the site) (makes no|never makes any) (network )?requests|collects no (data|information)/i.test(section))
+  } finally {
+    await page.close()
+  }
+})
+

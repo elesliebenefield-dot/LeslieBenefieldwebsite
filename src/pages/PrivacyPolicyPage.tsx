@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
             <div className="privacy-header" data-reveal>
               <p className="section-label">Legal</p>
               <h1 className="section-title">Privacy Policy</h1>
-              <p className="privacy-updated">Last updated: August 13, 2026.</p>
+              <p className="privacy-updated">Last updated: September 25, 2026.</p>
               <p className="section-subtitle">
                 This page explains what information I collect through this website, how it's
                 used, and the choices you have. It's written in plain language for a small,
@@ -66,6 +66,65 @@ export default function PrivacyPolicyPage() {
                   may collect information under its own privacy policy, separate from this one.
                   This site also loads its typefaces from Google Fonts, which may involve your
                   browser connecting directly to Google's servers to display them.
+                </p>
+              </div>
+
+              <div className="privacy-section">
+                <h2 className="privacy-section-title">Interactive Tools & the Bakery Pricing Calculator</h2>
+                <p className="privacy-section-body">
+                  This website also offers interactive planning tools (such as the bakery order,
+                  plumbing, food truck, and real estate planners) and a Free Bakery Pricing
+                  Calculator. What you enter in these tools is handled differently from the
+                  contact options above:
+                </p>
+                <ul className="privacy-list">
+                  <li>
+                    <strong>Planner answers stay on the page.</strong> What you type into a
+                    planner is kept only in that open page's memory while you use it. It isn't
+                    automatically sent to me, and I can't see it. Because it isn't saved,
+                    refreshing or leaving the page can erase your answers.
+                  </li>
+                  <li>
+                    <strong>Sharing happens only when you choose it.</strong> Your answers leave
+                    the page only if you use one of the tool's buttons: Copy places your summary
+                    on your device's clipboard, Share (on devices that support it) opens your
+                    device's own sharing options, and Print opens your browser's print dialog.
+                    Where a planner offers an email button, it opens your own email app with
+                    your summary filled in — nothing is sent until you send that email yourself,
+                    to whoever you choose. Links to email me about a custom tool open your email
+                    app addressed to me and don't include your planner answers.
+                  </li>
+                  <li>
+                    <strong>The calculator saves in your browser.</strong> The Free Bakery Pricing
+                    Calculator saves the recipes and ingredients you choose to save, along with
+                    the last hourly labor rate you entered, in the browser you're using on that
+                    device. This information isn't sent to me, and it isn't available in your
+                    other browsers or on your other devices. A recipe you haven't saved yet is
+                    kept only in the open page and can be lost if you refresh or leave.
+                  </li>
+                  <li>
+                    <strong>Backup and Restore.</strong> The calculator's Download Backup button
+                    saves a copy of your saved recipes and ingredients to your device as a file
+                    (bakery-pricing-backup.json). Restore From Backup loads a backup file you
+                    choose and, after you confirm, replaces all the recipes and ingredients
+                    currently saved in that browser with the file's contents. The hourly labor
+                    rate isn't included in backups.
+                  </li>
+                  <li>
+                    <strong>Saved calculator data can be lost.</strong> Because it's stored only
+                    in your browser, it can be erased if you clear your browser's data for this
+                    site, if you use a private or incognito window (which typically discards
+                    saved data when it's closed), or if your browser removes stored site data on
+                    its own. Some browsers may not allow saving at all. Keeping a recent backup
+                    file is the best way to protect your recipes.
+                  </li>
+                </ul>
+                <p className="privacy-section-body">
+                  Everything else in this policy still applies on tool pages: they're hosted by
+                  Vercel, which may log basic technical information when any page loads, and
+                  they load typefaces from Google Fonts like the rest of the site. If you choose
+                  to email me, call me, or submit the Google Form, that information is handled
+                  as described in the other sections.
                 </p>
               </div>
 
