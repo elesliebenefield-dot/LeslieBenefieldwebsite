@@ -47,7 +47,7 @@ await check('plumbing: Stage 1 has 9 concern options', async () => {
 })
 
 // Fill Stage 1
-await page.click('label[for="concernType-dripping_leak"]')
+await page.click('label[for="concernType-leak"]')
 await page.click('label[for="activeWater-slow_drip"]')
 await page.click('button.tool-nav-next')
 
@@ -58,11 +58,11 @@ await check('plumbing: Stage 2 progress shows 2 of 3', async () => {
 })
 
 // Fill Stage 2
-await page.click('label[for="homeArea-bathroom"]')
-await page.click('label[for="firstNoticed-within_week"]')
+await page.click('label[for="homeArea-main_bathroom"]')
+await page.click('label[for="firstNoticed-last_few_days"]')
 await page.click('label[for="changeAnswer-same"]')
-await page.click('label[for="history-first_time"]')
-await page.click('label[for="waterElsewhere-no"]')
+await page.click('label[for="history-no_first_time"]')
+await page.click('label[for="waterElsewhere-yes_normal"]')
 await page.click('button.tool-nav-next')
 
 await check('plumbing: Stage 3 progress shows 3 of 3', async () => {
@@ -77,12 +77,12 @@ await page.click('label[for="recentWork-no"]')
 await page.click('button.tool-nav-next')
 
 await check('plumbing: results screen loads', async () => {
-  await page.waitForSelector('.tool-results', { timeout: 8000 })
+  await page.waitForSelector('.tool-results-header', { timeout: 8000 })
 })
 
 await check('plumbing: results brief contains concern type', async () => {
-  const text = await page.$eval('.tool-results', el => el.textContent ?? '')
-  assert.ok(/dripping/i.test(text), `Brief text: ${text.slice(0, 200)}`)
+  const text = await page.$eval('.tool-results-header', el => el.parentElement?.textContent ?? '')
+  assert.ok(text.includes('Leak, drip, or unexplained damp spot'), `Brief text: ${text.slice(0, 200)}`)
 })
 
 await check('plumbing: disclaimer present on results', async () => {
@@ -149,9 +149,9 @@ await check('/services: payment terms wording unchanged', async () => {
   assert.ok(/50% project deposit/i.test(text))
 })
 
-await check('/services: three demo cards present', async () => {
+await check('/services: four demo cards present', async () => {
   const n = await sp.$$eval('.pricing-demo-card', els => els.length)
-  assert.equal(n, 3)
+  assert.equal(n, 4)
 })
 
 await check('/services: bakery demo card links to /tools-custom-bakery-order', async () => {
