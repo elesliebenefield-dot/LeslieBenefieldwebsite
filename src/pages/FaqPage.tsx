@@ -28,7 +28,7 @@ const faqs: { question: string; answer: ReactNode }[] = [
     answer: (
       <>
         Website projects have a one-time build fee, and no ongoing maintenance plan is required.
-        The Starter Website begins at $500 for a defined one-page scope, and other projects get a
+        The Starter Website begins at $499 for a defined one-page scope, and other projects get a
         custom quote based on their goals, content, and needs. Details are on the{' '}
         <a href="/services">Services & Pricing page</a> — there's no surprise hourly billing.
       </>

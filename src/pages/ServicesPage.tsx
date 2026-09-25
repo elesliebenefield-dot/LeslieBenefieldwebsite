@@ -31,7 +31,7 @@ const pricingItems = [
   },
   {
     title: 'Starter Website',
-    price: 'Starting at $500',
+    price: 'Starting at $499',
     desc: 'One page covering your business, services, and contact details, customized using my established design approach. You supply photos and basic information. Includes a mobile-friendly layout, basic search setup, contact links, one revision round, and launch assistance.',
   },
   {
@@ -106,7 +106,7 @@ export default function ServicesPage() {
             </div>
 
             <p className="services-support" data-reveal>
-              <strong>About the Starter Website price</strong> — $500 is the starting price
+              <strong>About the Starter Website price</strong> — $499 is the starting price
               for the defined starter scope above. Extra pages, extensive copywriting, custom
               tools, and additional functionality are quoted separately.
             </p>
@@ -142,7 +142,7 @@ export default function ServicesPage() {
                 <ul className="pricing-tools-list">
                   <li>
                     <span className="pricing-tools-item">Individual existing tool, customized (per tool)</span>
-                    <span className="pricing-tools-price">Starting at $150</span>
+                    <span className="pricing-tools-price">Starting at $149</span>
                   </li>
                   <li>
                     <span className="pricing-tools-item">Suite of tools</span>
@@ -167,7 +167,7 @@ export default function ServicesPage() {
                 <ul className="pricing-tools-list">
                   <li>
                     <span className="pricing-tools-item">Per business</span>
-                    <span className="pricing-tools-price">$10/month</span>
+                    <span className="pricing-tools-price">$9.99/month</span>
                   </li>
                 </ul>
                 <p className="pricing-tools-note">

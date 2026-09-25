@@ -371,12 +371,12 @@ async function pricingCard(page: Page, title: string) {
   }, title)
 }
 
-test('website pricing — Starter Website is "Starting at $500" and describes the defined starter scope', async () => {
+test('website pricing — Starter Website is "Starting at $499" and describes the defined starter scope', async () => {
   const page = await openServices(1280)
   try {
     const card = await pricingCard(page, 'Starter Website')
     assert.ok(card, 'Starter Website card should be present')
-    assert.equal(card!.price, 'Starting at $500')
+    assert.equal(card!.price, 'Starting at $499')
     for (const phrase of ['One page covering your business, services, and contact details', 'established design approach',
       'You supply photos and basic information', 'mobile-friendly layout', 'basic search setup', 'contact links',
       'one revision round', 'launch assistance']) {
@@ -392,9 +392,9 @@ test('website pricing — Starter price note covers the starter scope only, with
   try {
     const notes = await page.$$eval('.services-support', els => els.map(el => el.textContent?.replace(/\s+/g, ' ').trim() ?? ''))
     const note = notes.find(n => n.startsWith('About the Starter Website price')) ?? ''
-    assert.match(note, /\$500 is the starting price for the defined starter scope/)
+    assert.match(note, /\$499 is the starting price for the defined starter scope/)
     assert.match(note, /Extra pages, extensive copywriting, custom tools, and additional functionality are quoted separately/)
-    assert.equal((note.match(/\$\d/g) ?? []).length, 1, 'the note should state no amount other than the $500 starting price')
+    assert.equal((note.match(/\$\d/g) ?? []).length, 1, 'the note should state no amount other than the $499 starting price')
   } finally {
     await page.close()
   }
@@ -488,11 +488,11 @@ async function groupNote(page: Page, index: number) {
     groups[i as number].querySelector('.pricing-tools-note')?.textContent?.replace(/\s+/g, ' ').trim() ?? '', index)
 }
 
-test('tool pricing — setup: $150 per individual tool, suites and new tools/automation by custom quote', async () => {
+test('tool pricing — setup: $149 per individual tool, suites and new tools/automation by custom quote', async () => {
   const page = await openServices(1280)
   try {
     assert.deepEqual(await groupRows(page, 0), [
-      { item: 'Individual existing tool, customized (per tool)', price: 'Starting at $150' },
+      { item: 'Individual existing tool, customized (per tool)', price: 'Starting at $149' },
       { item: 'Suite of tools', price: 'Custom quote' },
       { item: 'New custom tools or automation', price: 'Custom quote' },
     ])
@@ -505,10 +505,10 @@ test('tool pricing — setup: $150 per individual tool, suites and new tools/aut
   }
 })
 
-test('tool pricing — Tool Hosting is one $10/month fee per business, hosting only', async () => {
+test('tool pricing — Tool Hosting is one $9.99/month fee per business, hosting only', async () => {
   const page = await openServices(1280)
   try {
-    assert.deepEqual(await groupRows(page, 1), [{ item: 'Per business', price: '$10/month' }])
+    assert.deepEqual(await groupRows(page, 1), [{ item: 'Per business', price: '$9.99/month' }])
     const note = await groupNote(page, 1)
     assert.match(note, /One monthly fee per business covers hosting for the tools you've purchased from me, whether that's one tool or several\./)
     assert.match(note, /isn't charged per tool and doesn't provide access to every tool I offer/)
@@ -541,7 +541,7 @@ test('tool pricing — no retired tiers, care packages, discount percentages, fr
   const page = await openServices(1280)
   try {
     const text = await page.$eval('.pricing-tools-inner', el => el.textContent?.replace(/\s+/g, ' ') ?? '')
-    for (const old of ['$250', '$600', '$1,000', '$400', '$300', '$500', '$19/month', '$29/month', '$49/month',
+    for (const old of ['$250', '$600', '$1,000', '$400', '$300', '$500', '$150', '$10/month', '$19/month', '$29/month', '$49/month',
       '$15/month', '$25/month', '$35/month', 'Two–three', 'Four–six', 'Hosting & Care', 'hosting and care',
       'per business package', 'Added to a New Website', 'For an Existing Website']) {
       assert.ok(!text.includes(old), `retired tool-pricing text still present: "${old}"`)

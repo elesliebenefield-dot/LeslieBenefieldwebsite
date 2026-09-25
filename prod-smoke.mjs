@@ -101,7 +101,7 @@ await check('/services: website prices all present', async () => {
   const text = await sp.$eval('.pricing-grid', el => el.textContent ?? '')
   assert.ok(text.includes('Complimentary'))
   assert.ok(text.includes('Starter Website'))
-  assert.ok(text.includes('Starting at $500'))
+  assert.ok(text.includes('Starting at $499'))
   assert.ok(text.includes('Custom quote'))
 })
 
@@ -111,12 +111,12 @@ await check('/services: Interactive Tool Pricing section present', async () => {
   assert.ok(text.includes('Interactive Tool Pricing'))
   assert.ok(text.includes('Tool Setup'))
   assert.ok(text.includes('customized (per tool)'))
-  assert.ok(text.includes('Starting at $150'))
+  assert.ok(text.includes('Starting at $149'))
   assert.ok(text.includes('Suite of tools'))
   assert.ok(text.includes('Tool Hosting'))
-  assert.ok(text.includes('$10/month'))
+  assert.ok(text.includes('$9.99/month'))
   assert.ok(text.includes('Adding a tool to your new website?'))
-  for (const retired of ['$300', '$500', '$15/month', '$25/month', '$35/month', 'Hosting & Care']) {
+  for (const retired of ['$300', '$500', '$150', '$10/month', '$15/month', '$25/month', '$35/month', 'Hosting & Care']) {
     assert.ok(!text.includes(retired), `retired tool pricing still shown: ${retired}`)
   }
 })
