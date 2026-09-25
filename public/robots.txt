@@ -1,0 +1,8 @@
+# All pages and assets are crawlable. The interactive demo planners are
+# kept out of search results by their own noindex meta tags, which
+# crawlers can only see if those pages stay crawlable — so nothing is
+# disallowed here.
+User-agent: *
+Allow: /
+
+Sitemap: https://www.websitesbyleslie.com/sitemap.xml

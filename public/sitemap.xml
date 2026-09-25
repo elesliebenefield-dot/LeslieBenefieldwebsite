@@ -1,37 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Prepared locally as part of Milestone M7's local launch-preparation
-  phase. Scoped to the Free Bakery Pricing Calculator and its
-  supporting content (the calculator itself and its landing page) plus
-  the Business Tools hub that discovers it (added during the M7
-  information-architecture correction) — not a full-site sitemap, and
-  not a statement about how the rest of the site's indexing is or
-  should be managed.
-
-  The four educational articles previously listed here were removed
-  (2026-09-15 post-launch correction) — Websites by Leslie is not
-  presenting itself as a source of bakery-pricing advice. Their old
-  URLs now permanently redirect to the landing page (see vercel.json's
-  "redirects") rather than appearing here or serving content.
-
-  As of the 2026-09-15 final-publication approval, every URL listed here
-  is indexable (noindex, nofollow removed). URLs use the www subdomain —
-  discovered post-deploy that the production domain 308-redirects the
-  apex to www, so a non-www canonical/sitemap URL would point to a
-  redirecting address instead of the actual served page. This file has
-  not been referenced from a robots.txt (none exists site-wide) and has
-  not been submitted to Google Search Console — that submission is
-  Leslie's own account-level step, not done here. See
-  build/v1.0.0-launch/design.md.
+  Every indexable, canonical page on the site. Each URL matches the
+  page's own rel="canonical" URL (https://www — the apex domain
+  308-redirects to www). Deliberately excluded: the interactive demo
+  planners (served with noindex, nofollow), the four removed bakery
+  articles (permanent redirects in vercel.json), and the .html aliases
+  of these same pages (duplicate URLs). No last-modified dates are listed, since
+  accurate per-page modification dates aren't tracked. Referenced from
+  /robots.txt; submitting it in Google Search Console is a separate,
+  account-level step.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.websitesbyleslie.com/</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/services</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/faq</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/check</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/website-checklist</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/privacy-policy</loc>
+  </url>
   <url>
     <loc>https://www.websitesbyleslie.com/business-tools</loc>
   </url>
   <url>
-    <loc>https://www.websitesbyleslie.com/tools-bakery-pricing</loc>
+    <loc>https://www.websitesbyleslie.com/real-estate-tools</loc>
   </url>
   <url>
     <loc>https://www.websitesbyleslie.com/bakery-pricing-guide</loc>
+  </url>
+  <url>
+    <loc>https://www.websitesbyleslie.com/tools-bakery-pricing</loc>
   </url>
 </urlset>
